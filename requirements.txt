@@ -1,3 +1,6 @@
- Flask
- waitress
- python-dotenv
+Flask
+waitress
+python-dotenv
+playwright
+google-generativeai
+google-cloud-storage
