@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ current_feature.name if current_feature else "My App" }} - AI Agents</title> {# CHANGED HERE #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyR0HV_FqtCDdEchwrS_tGgfR1" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-rocket"></i> 
+                AI Agents {# CHANGED HERE #}
+            </div>
+            <ul>
+                {% for key, feature_item in features.items() %}
+                <li>
+                    <a href="{{ url_for('index', feature_key=key) }}"
+                       hx-get="{{ url_for('get_feature_content', feature_key=key) }}"
+                       hx-target="#main-content"
+                       hx-push-url="{{ url_for('index', feature_key=key) }}"
+                       hx-indicator=".global-loader"
+                       class="sidebar-link {{ 'active' if key == active_feature_key else '' }}">
+                        <i class="{{ feature_item.icon }}"></i>
+                        <span>{{ feature_item.name }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+        <main class="content-area" id="main-content-wrapper">
+            <div class="global-loader htmx-indicator" style="text-align: center; padding: 30px 0; display:none;">
+                <div class="spinner" style="width: 36px; height: 36px; border-width: 4px; margin: 0 auto;"></div>
+                <p style="margin-top: 12px; color: #555; font-size: 1.1em;">Loading Content...</p>
+            </div>
+            <div id="main-content">
+                {% include initial_content_template %}
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // This script is for the main layout (sidebar active state, title).
+        document.body.addEventListener('htmx:afterSwap', function(event) {
+            document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
+                link.classList.remove('active');
+            });
+            const pushedUrlPath = event.detail.pathInfo.requestPath;
+            let activeFound = false;
+            document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
+                const linkUrl = new URL(link.href, window.location.origin);
+                if (linkUrl.pathname === pushedUrlPath) {
+                    link.classList.add('active');
+                    const featureName = link.querySelector('span').textContent;
+                    document.title = featureName + " - AI Agents"; 
+                    activeFound = true;
+                }
+            });
+        });
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            let activeFoundOnLoad = false;
+            document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
+                const linkUrl = new URL(link.href, window.location.origin);
+                if (linkUrl.pathname === currentPath) {
+                    link.classList.add('active');
+                    const featureName = link.querySelector('span').textContent;
+                    document.title = featureName + " - AI Agents"; 
+                    activeFoundOnLoad = true;
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+            if (!activeFoundOnLoad && currentPath === '/') {
+                 const defaultLinkQuery = 'a.sidebar-link[href$="/feature/{{ DEFAULT_FEATURE_KEY }}"]';
+                 let defaultLink = document.querySelector(defaultLinkQuery);
+                 if (!defaultLink) {
+                     defaultLink = document.querySelector('a.sidebar-link[href="/"]');
+                 }
+                 if (defaultLink) {
+                     defaultLink.classList.add('active');
+                     const featureName = defaultLink.querySelector('span').textContent;
+                     document.title = featureName + " - AI Agents"; 
+                 }
+            }
+        });
+    </script>
+</body>
+</html>

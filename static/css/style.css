@@ -1,0 +1,391 @@
+/* static/css/style.css */
+
+/* --- Core Layout Styles (Ensure these are not changed) --- */
+body, html {
+    margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    height: 100%; background-color: #f9fafb; color: #374151;
+}
+.app-container { display: flex; height: 100vh; }
+
+/* --- Sidebar Specific Styling - REVERTING TO ORIGINAL "PERFECT" LOOK --- */
+.sidebar {
+    width: 230px; /* Original width */
+    background-color: #111827; /* Dark sidebar (Tailwind gray-900) */
+    color: #d1d5db; /* Light gray text for sidebar (Tailwind gray-300) */
+    padding: 20px 0;
+    box-shadow: 3px 0 15px rgba(0,0,0,0.15);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+.sidebar-header {
+    padding: 0 25px 20px 25px;
+    font-size: 1.6em;
+    font-weight: 600;
+    color: #fff; /* White "AI Suite" text */
+    border-bottom: 1px solid #374151; /* (Tailwind gray-700) */
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+}
+.sidebar-header i { /* Rocket icon */
+    margin-right: 12px;
+    color: #60a5fa; /* Light blue for rocket icon (Tailwind blue-400) */
+}
+
+.sidebar ul { list-style-type: none; padding: 0; margin: 0; width: 100%; }
+
+.sidebar ul li a.sidebar-link {
+    display: flex; /* This is key for icon and text alignment */
+    align-items: center; /* Vertically align icon and text */
+    /* flex-direction: row; is the default, so icon will be on the left */
+    padding: 14px 25px;
+    text-decoration: none;
+    color: #9ca3af; /* Softer gray for inactive link text (Tailwind gray-400) */
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-left-color 0.2s ease-in-out;
+    border-left: 4px solid transparent; /* For active state indication on the very left */
+    font-size: 0.95em;
+}
+
+.sidebar ul li a.sidebar-link i { /* The icon (Font Awesome) */
+    margin-right: 15px; /* Space between icon and text */
+    width: 20px;        /* Ensure icons have a consistent width for alignment */
+    text-align: center; /* Center the icon within its allocated width */
+    color: #60a5fa;     /* Default BLUE for icons (Tailwind blue-400) */
+    flex-shrink: 0;     /* Prevent icon from shrinking if text is long */
+}
+
+.sidebar ul li a.sidebar-link span { /* The text part of the link */
+    flex-grow: 1; /* Allows text to take up space if needed */
+}
+
+.sidebar ul li a.sidebar-link:hover {
+    background-color: #1f2937; /* Darker shade on hover (Tailwind gray-800) */
+    color: #e5e7eb;       /* Lighter text on hover (Tailwind gray-200) */
+    border-left-color: #3b82f6; /* Blue indicator on hover (Tailwind blue-500) */
+}
+.sidebar ul li a.sidebar-link:hover i {
+    color: #93c5fd; /* Lighter blue for icon on hover (Tailwind blue-300) */
+}
+
+.sidebar ul li a.sidebar-link.active {
+    background-color: #3b82f6; /* PRIMARY BLUE for active background (Tailwind blue-500) */
+    color: #fff;               /* WHITE text for active link */
+    border-left: 4px solid #fff; /* WHITE border for active state */
+    font-weight: 500;
+}
+.sidebar ul li a.sidebar-link.active i {
+    color: #fff; /* WHITE icon for active link */
+}
+/* --- End of Sidebar Specific Styling --- */
+
+
+/* --- Content Area & Other Styles (Should be from the version that worked with the "perfect" sidebar) --- */
+.content-area { flex-grow: 1; padding: 30px 40px; overflow-y: auto; background-color: #fff; }
+.content-area > h1 {
+    color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;
+    margin-top: 0; margin-bottom: 25px; font-size: 1.8em;
+}
+/* Global HTMX Indicator & Spinner */
+.htmx-indicator { display: none; opacity:0; transition: opacity 200ms ease-in; }
+.htmx-request .htmx-indicator { display: block; opacity:1; }
+.htmx-request.htmx-indicator{ display: inline-block; opacity:1; vertical-align: middle; }
+.spinner {
+    border: 3px solid rgba(0, 0, 0, 0.1); width: 18px; height: 18px;
+    border-radius: 50%; border-left-color: #09f; /* Default blue for spinner */
+    animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* General Form Element Styling */
+.content-area input[type="text"], .content-area input[type="file"],
+.content-area textarea, .content-area select {
+    width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #d1d5db;
+    border-radius: 4px; box-sizing: border-box; font-size: 0.95em;
+}
+.content-area input[type="file"] { padding: 7px; }
+.content-area label { display: block; margin-bottom: 5px; font-weight: 500; color: #374151; }
+.content-area button[type="submit"], .content-area .submit-button {
+    background-color: #3b82f6; color: white; padding: 10px 20px; border: none;
+    border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: 500;
+    transition: background-color 0.2s; display: inline-flex; align-items: center; justify-content: center;
+}
+.content-area button[type="submit"] i, .content-area .submit-button i { margin-right: 8px; }
+.content-area button[type="submit"] .spinner, .content-area .submit-button .spinner {
+    margin-left: 10px; border-left-color: white; width: 16px; height: 16px; border-width: 2px;
+}
+.content-area button[type="submit"]:hover, .content-area .submit-button:hover { background-color: #2563eb; }
+.error-message {
+    color: #ef4444; font-weight: 500; padding: 8px; background-color: #fee2e2;
+    border: 1px solid #fca5a5; border-radius: 4px; margin-top: 10px;
+}
+
+/* Feature Container Base */
+.feature-container {}
+.feature-container > h1 {
+    font-size: 1.6em; color: #1f2937; margin-bottom: 20px;
+    padding-bottom: 10px; border-bottom: 1px dotted #e0e0e0;
+}
+.feature-container .feature-description {
+    font-size: 1.05em; color: #4b5563; margin-bottom: 30px;
+    max-width: 750px; line-height: 1.6;
+}
+
+/* --- Blurring Feature Specific Styles (Scoped - Keep these as they were in the previous 'JS scope fix' version) --- */
+.blurring-feature-container .blur-tabs { border-bottom: 2px solid #e5e7eb; margin-bottom: 25px; display: flex; }
+.blurring-feature-container .blur-tab-link { background: transparent; border: none; padding: 14px 22px; cursor: pointer; font-size: 1em; color: #6b7280; transition: color 0.2s, border-bottom-color 0.2s; border-bottom: 3px solid transparent; margin-right: 10px; margin-bottom: -2px; outline: none; font-weight: 500; }
+.blurring-feature-container .blur-tab-link i { margin-right: 8px; color: #9ca3af; transition: color 0.2s; }
+.blurring-feature-container .blur-tab-link:hover { color: #3b82f6; }
+.blurring-feature-container .blur-tab-link:hover i { color: #3b82f6; }
+.blurring-feature-container .blur-tab-link.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+.blurring-feature-container .blur-tab-link.active i { color: #3b82f6; }
+.blurring-feature-container .blur-tab-content { display: none; padding: 20px 5px; animation: fadeIn 0.4s ease-out; }
+.blurring-feature-container .blur-tab-content.active-content { display: block; }
+.blurring-feature-container .drop-zone { border: 2px dashed #9ca3af; border-radius: 8px; padding: 50px 25px; text-align: center; cursor: pointer; transition: border-color 0.2s, background-color 0.2s; background-color: #f9fafb; margin-bottom: 20px; position: relative; }
+.blurring-feature-container .drop-zone-input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
+.blurring-feature-container .drop-zone-prompt { color: #6b7280; font-size: 1.1em; pointer-events: none; }
+.blurring-feature-container .drop-zone-prompt i { font-size: 2.5em; display: block; margin-bottom: 15px; color: #3b82f6; }
+.blurring-feature-container .drop-zone.drag-over { border-color: #3b82f6; background-color: #eff6ff; }
+.blurring-feature-container .drop-zone.file-selected { border-style: solid; border-color: #3b82f6; padding: 20px; }
+.blurring-feature-container .drop-zone.file-selected .drop-zone-prompt { display: none; }
+.blurring-feature-container .file-info { margin-bottom: 25px; padding: 12px 15px; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.9em; display: flex; justify-content: space-between; align-items: center; }
+.blurring-feature-container .file-info p { margin: 0; color: #1e40af; font-weight: 500; }
+.blurring-feature-container .file-info p i { color: #3b82f6; margin-right: 8px; }
+.blurring-feature-container .remove-file-btn { background: none; border: 1px solid #fca5a5; color: #ef4444; cursor: pointer; font-size: 0.85em; padding: 6px 10px; border-radius: 4px; font-weight: 500; transition: background-color 0.2s, color 0.2s; }
+.blurring-feature-container .remove-file-btn i { margin-right: 4px; }
+.blurring-feature-container .remove-file-btn:hover { background-color: #ef4444; color: white; border-color: #ef4444; }
+.blurring-feature-container .processing-result { margin-top: 30px; padding: 20px; border: 1px solid #e5e7eb; border-radius: 6px; background-color: #f9fafb; }
+.blurring-feature-container .blur-form h2 { margin-top: 0; margin-bottom: 10px; color: #1f2937; font-size: 1.4em; }
+.blurring-feature-container .blur-form p { color: #4b5563; margin-bottom: 20px; font-size: 0.95em; }
+
+/* --- Info Feature Specific Styles (Scoped - Keep these as they were) --- */
+.info-feature-container .info-tabs { border-bottom: 2px solid #e5e7eb; margin-bottom: 25px; display: flex; }
+.info-feature-container .info-tab-link { background: transparent; border: none; padding: 14px 22px; cursor: pointer; font-size: 1em; color: #6b7280; transition: color 0.2s, border-bottom-color 0.2s; border-bottom: 3px solid transparent; margin-right: 10px; margin-bottom: -2px; outline: none; font-weight: 500; }
+.info-feature-container .info-tab-link i { margin-right: 8px; color: #9ca3af; transition: color 0.2s; }
+.info-feature-container .info-tab-link:hover { color: #3b82f6; }
+.info-feature-container .info-tab-link:hover i { color: #3b82f6; }
+.info-feature-container .info-tab-link.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+.info-feature-container .info-tab-link.active i { color: #3b82f6; }
+.info-feature-container .info-tab-content { display: none; padding: 20px 5px; animation: fadeIn 0.4s ease-out; }
+.info-feature-container .info-tab-content.active-content { display: block; }
+.info-feature-container .info-tab-content h2 { margin-top: 0; margin-bottom: 20px; color: #1f2937; font-size: 1.5em; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb; }
+.info-feature-container .legal-text-container { line-height: 1.7; font-size: 0.95em; color: #374151; }
+.info-feature-container .legal-text-container h3 { font-size: 1.2em; color: #111827; margin-top: 25px; margin-bottom: 10px; }
+.info-feature-container .legal-text-container p { margin-bottom: 15px; }
+.info-feature-container .legal-text-container strong { font-weight: 600; color: #1f2937; }
+.info-feature-container .about-me-content { display: flex; flex-direction: column; gap: 30px; }
+@media (min-width: 768px) { .info-feature-container .about-me-content { flex-direction: row; } .info-feature-container .profile-section { flex: 0 0 200px; } .info-feature-container .bio-section { flex: 1; } }
+.info-feature-container .profile-section { text-align: center; }
+.info-feature-container .profile-picture { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 4px solid #e5e7eb; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.info-feature-container .profile-section h3 { font-size: 1.3em; color: #111827; margin-bottom: 5px; }
+.info-feature-container .profile-title { font-size: 1em; color: #4b5563; font-style: italic; }
+.info-feature-container .bio-section h4 { font-size: 1.15em; color: #1f2937; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #f3f4f6; padding-bottom: 5px; }
+.info-feature-container .bio-section h4:first-of-type { margin-top: 0; }
+.info-feature-container .bio-section p, .info-feature-container .bio-section ul { font-size: 0.95em; line-height: 1.7; color: #374151; margin-bottom: 15px; }
+.info-feature-container .bio-section ul { list-style-type: disc; padding-left: 25px; }
+.info-feature-container .bio-section ul li { margin-bottom: 8px; }
+.info-feature-container .bio-section strong { font-weight: 600; color: #1f2937; }
+
+/* Common animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Welcome Page Specific Styles (with Centering) --- */
+.welcome-container {
+    padding: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center; /* Center text for the whole welcome container by default */
+}
+
+.welcome-container .feature-description {
+    /* For welcome, the subtitle serves this purpose */
+}
+
+.welcome-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.welcome-header h1 {
+    font-size: 2.8em;
+    color: #1f2937;
+    margin-bottom: 10px;
+    border-bottom: none;
+    font-weight: 600;
+    line-height: 1.2; /* For multi-line h1 */
+}
+
+.welcome-subtitle {
+    font-size: 1.3em;
+    color: #4b5563;
+    margin-bottom: 30px;
+    font-style: italic;
+}
+
+.welcome-intro {
+    text-align: center;
+    max-width: 750px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.welcome-intro p {
+    font-size: 1.1em;
+    line-height: 1.7;
+    color: #374151;
+    margin-bottom: 15px;
+}
+.welcome-intro p:last-child {
+    margin-bottom: 30px;
+}
+
+.welcome-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 40px auto;
+    width: 80%;
+}
+
+.key-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+@media (min-width: 768px) {
+    .key-messages {
+        flex-direction: row;
+        justify-content: space-around;
+    }
+    .key-message-item {
+        flex-basis: 45%;
+    }
+}
+
+.key-message-item {
+    display: flex;
+    /* align-items: flex-start; Let's try centering the icon vertically relative to the text block */
+    align-items: center; /* Vertically center icon and text block */
+    background-color: #f9fafb;
+    padding: 25px; /* Increased padding for a bit more space */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    text-align: center; /* MODIFIED: Center text within these items */
+}
+
+.key-message-icon {
+    font-size: 2em; /* Slightly larger icon */
+    color: #3b82f6;
+    margin-right: 20px; /* Keep margin if icon is on left */
+    /* padding-top: 5px; Removed, as align-items: center handles vertical alignment */
+    flex-shrink: 0;
+    /* To place icon above text if desired when text is centered: */
+    /* display: block; */
+    /* margin: 0 auto 15px auto; */ /* Center icon and add space below if above text */
+}
+/* If icon should be above text in centered box, structure of flex changes: */
+.key-message-item.icon-top {
+    flex-direction: column; /* Stack icon and text */
+    align-items: center;    /* Center items horizontally in the column */
+}
+.key-message-item.icon-top .key-message-icon {
+    margin-right: 0;
+    margin-bottom: 15px; /* Space between icon and text block */
+}
+
+
+.key-message-text {
+    /* No specific text-align needed if .key-message-item is text-align: center */
+}
+
+.key-message-text h3 {
+    font-size: 1.25em;
+    color: #111827;
+    margin-top: 0;
+    margin-bottom: 10px; /* Increased space */
+}
+
+.key-message-text p {
+    font-size: 0.95em;
+    line-height: 1.6;
+    color: #4b5563;
+    margin-bottom: 0;
+}
+
+.privacy-commitment-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 30px 25px; /* Increased padding */
+    border-radius: 8px;
+    margin-top: 20px;
+    margin-bottom: 30px;
+    text-align: center;
+    max-width: 750px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Media query for privacy section remains the same to make it row on wider screens if desired */
+/* If you always want it stacked and centered, you can remove this media query */
+@media (min-width: 600px) {
+    .privacy-commitment-section {
+        /* flex-direction: row; */ /* Comment out if you want it to stay column and centered */
+        /* text-align: left;   */ /* Comment out if text should remain centered */
+    }
+    /* .privacy-icon {
+         margin-bottom: 0;
+         margin-right: 25px;
+    } */
+}
+
+
+.privacy-icon {
+    font-size: 2.8em; /* Larger shield icon */
+    color: #2563eb;
+    margin-bottom: 20px; /* More space below icon when stacked */
+    flex-shrink: 0;
+}
+.privacy-icon i {
+    display: block;
+}
+
+.privacy-text h3 {
+    font-size: 1.3em;
+    color: #1e3a8a;
+    margin-top: 0;
+    margin-bottom: 12px; /* Increased space */
+}
+
+.privacy-text p {
+    font-size: 1em;
+    line-height: 1.6;
+    color: #1e40af;
+    margin-bottom: 0;
+}
+.privacy-text p strong {
+    font-weight: 600;
+}
+
+.welcome-footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.welcome-footer p {
+    font-size: 1.05em;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.welcome-container .feature-container > h1 {
+    /* This would apply if you nested another .feature-container, which you haven't */
+}

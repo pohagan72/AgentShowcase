@@ -1,0 +1,19 @@
+<!-- templates/partials/_summarization_content.html -->
+<h1>Summarization Service</h1>
+<p>Paste your long text here to get a summary.</p>
+<form hx-post="/process/summarize" hx-target="#summarization-result">
+    <div>
+        <label for="text_to_summarize">Text:</label><br>
+        <textarea id="text_to_summarize" name="text_to_summarize" rows="10" cols="50" required></textarea>
+    </div>
+    <br>
+    <div>
+        <button type="submit">
+            Summarize
+            <span class="htmx-indicator spinner"></span>
+        </button>
+    </div>
+</form>
+<div id="summarization-result" style="margin-top: 20px; padding: 10px; border: 1px solid #eee;">
+    <!-- Summarization result will appear here -->
+</div>
