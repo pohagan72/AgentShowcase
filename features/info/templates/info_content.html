@@ -1,0 +1,57 @@
+<!-- features/info/templates/info_content.html -->
+<div class="info-feature-container feature-container">
+    <h1>Application Information</h1>
+    <p class="feature-description">
+        Essential details about this application, its terms of use, and the team behind it.
+    </p>
+    <div class="info-tabs">
+        <button class="info-tab-link active" data-target-tab="legal-notice-tab">
+            <i class="fas fa-gavel"></i> Legal Notice
+        </button>
+        <button class="info-tab-link" data-target-tab="about-me-tab">
+            <i class="fas fa-user-circle"></i> About Us
+        </button>
+    </div>
+    <div id="legal-notice-tab" class="info-tab-content active-content">
+        <h2>Legal Notice & Terms of Service</h2>
+        <div class="legal-text-container">
+            <p><strong>Last Updated:</strong> October 26, 2023</p>
+            <h3>1. Introduction</h3><p>Welcome to AI Agents (formerly AI Suite)...</p>
+            <!-- ... Rest of your detailed legal text ... -->
+            <h3>8. Contact Us</h3><p>If you have any questions about these Terms, please contact us at [your-email@example.com].</p>
+        </div>
+    </div>
+    <div id="about-me-tab" class="info-tab-content">
+        <h2>About Us / The Developer</h2>
+        <div class="about-me-content">
+            <div class="profile-section">
+                <img src="https://via.placeholder.com/150" alt="Profile Picture Placeholder" class="profile-picture">
+                <h3>Paul O'Hagan</h3>
+                <p class="profile-title">Developer & AI Enthusiast</p>
+            </div>
+            <div class="bio-section">
+                <h4>Our Mission</h4><p>Our mission is to showcase the "art of the possible" with custom Generative AI solutions...</p>
+                <!-- ... Rest of your detailed about me text ... -->
+                <h4>Connect With Us</h4><p>We are always eager to hear from our users...</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const container = document.querySelector('.info-feature-container');
+    if (!container) { return; }
+    function openInfoTab(targetTabId) {
+        container.querySelectorAll('.info-tab-content').forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
+        container.querySelectorAll('.info-tab-link').forEach(tl => tl.classList.remove('active'));
+        const currentTabContent = container.querySelector('#' + targetTabId);
+        const currentTabLink = container.querySelector(`.info-tab-link[data-target-tab="${targetTabId}"]`);
+        if (currentTabContent) { currentTabContent.style.display = 'block'; currentTabContent.classList.add('active-content'); }
+        if (currentTabLink) { currentTabLink.classList.add('active'); }
+    }
+    container.querySelectorAll('.info-tab-link').forEach(link => {
+        link.addEventListener('click', function(event) { event.preventDefault(); const targetTabId = this.dataset.targetTab; if (targetTabId) { openInfoTab(targetTabId); } });
+    });
+    openInfoTab('legal-notice-tab');
+})();
+</script>
