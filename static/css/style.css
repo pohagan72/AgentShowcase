@@ -389,3 +389,62 @@ body, html {
 .welcome-container .feature-container > h1 {
     /* This would apply if you nested another .feature-container, which you haven't */
 }
+
+/* --- Translation Feature Specific Styles --- */
+.translation-feature-container {
+    /* You can set a max-width if you prefer the form not to be full-width in the content area */
+    /* max-width: 750px; */ 
+}
+
+.translation-feature-container .form-group {
+    margin-bottom: 20px; /* Consistent spacing between form groups */
+}
+
+.translation-feature-container input[type="file"] {
+    padding: 8px 10px; /* Adjust padding for file input if global isn't ideal */
+}
+
+.translation-feature-container .submit-button {
+    /* Uses global .submit-button styles, but ensures it's full width here */
+    width: 100%; 
+    margin-top: 10px; /* Space above button */
+}
+
+/* Flashed Messages Styling (mainly relies on inline styles in the template for dynamic coloring) */
+.translation-messages .message-item i.fas { /* Icon styling within messages */
+    opacity: 0.8;
+}
+
+/* Download Link Area Styling */
+.translation-download-link .submit-button { 
+    /* Overrides for the download button if it uses .submit-button class */
+    width: auto; /* Don't make download link full width by default */
+}
+
+/* Specific classes for styling flashed messages dynamically */
+.message-item {
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border: 1px solid transparent; /* Important: Always have a border, even if transparent by default */
+}
+.message-item.category-error {
+    border-color: #fca5a5;
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+.message-item.category-success {
+    border-color: #a7f3d0;
+    background-color: #d1fae5;
+    color: #047857;
+}
+.message-item.category-warning {
+    border-color: #fde68a;
+    background-color: #fef3c7;
+    color: #92400e;
+}
+.message-item.category-info { /* Default/Info */
+    border-color: #bfdbfe;
+    background-color: #eff6ff;
+    color: #1e40af;
+}

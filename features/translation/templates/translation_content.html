@@ -1,29 +1,94 @@
-<!-- features/translation/templates/translation_content.html -->
-<div class="feature-container">
-    <h1>Translation Service</h1>
-    <p>Enter text to translate it.</p>
-    <form hx-post="{{ url_for('process_translate_action') }}" hx-target="#translation-result">
-        <div>
-            <label for="text_to_translate">Text:</label><br>
-            <textarea id="text_to_translate" name="text_to_translate" rows="4" cols="50" required></textarea>
+{# features/translation/templates/translation_content.html #}
+<div class="feature-container translation-feature-container">
+    <h1><i class="fas fa-language"></i> Document Translation</h1>
+    <p class="feature-description">
+        Upload a DOCX, PPTX, or XLSX document. The system will attempt to detect the source language,
+        translate the content into your chosen target language using AI, and provide a download link.
+        Ensure your Google Cloud Storage and Gemini API are correctly configured in the application.
+    </p>
+
+    {% if not gcs_available or not gemini_configured %}
+        <div class="error-message" style="margin-bottom: 20px;">
+            <strong>Configuration Issue:</strong>
+            {% if not gcs_available %}Google Cloud Storage is not available. {% endif %}
+            {% if not gemini_configured %}Google Gemini AI is not configured. {% endif %}
+            File processing for translation is disabled. Please check server logs and environment variable settings.
         </div>
-        <div>
-            <label for="target_lang">Target Language:</label>
-            <select id="target_lang" name="target_lang">
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('process_translate_document') }}" enctype="multipart/form-data"
+          hx-post="{{ url_for('process_translate_document') }}"
+          hx-target="#main-content"
+          hx-swap="innerHTML"
+          hx-encoding="multipart/form-data"
+          hx-indicator=".global-loader">
+        
+        <div class="form-group">
+            <label for="translation-file-input">Upload File (.docx, .pptx, .xlsx):</label>
+            <input type="file" id="translation-file-input" name="file" accept=".docx,.pptx,.xlsx" required 
+                   {% if not gcs_available or not gemini_configured %}disabled{% endif %}>
+        </div>
+
+        <div class="form-group">
+            <label for="translation-target-language">Target Language:</label>
+            <select id="translation-target-language" name="target_language" required 
+                    {% if not gemini_configured %}disabled{% endif %}>
+                {% if not languages and gemini_configured %}
+                    <option value="" disabled selected>No languages configured</option>
+                {% elif not gemini_configured %}
+                     <option value="" disabled selected>Gemini Service Not Configured</option>
+                {% else %}
+                    {% for lang in languages %}
+                        <option value="{{ lang }}">{{ lang }}</option>
+                    {% endfor %}
+                {% endif %}
             </select>
         </div>
-        <br>
-        <div>
-            <button type="submit" class="submit-button">
-                Translate
-                <span class="htmx-indicator spinner"></span>
-            </button>
-        </div>
+
+        <button type="submit" class="submit-button" 
+                {% if not gcs_available or not gemini_configured %}disabled aria-disabled="true" title="Translation service is not fully configured." {% endif %}>
+            <i class="fas fa-cogs"></i> Translate File
+        </button>
     </form>
-    <div id="translation-result" class="processing-result" style="margin-top: 20px; padding: 10px; border: 1px solid #eee;">
-        <!-- Translation result will appear here -->
-    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="translation-messages" style="margin-top: 25px;">
+                {% for category, message in messages %}
+                    <div class="message-item category-{{ category|default('info') }}" 
+                         role="alert">
+                        {% if category == 'error' %}
+                            <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                        {% elif category == 'success' %}
+                            <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+                        {% elif category == 'warning' %}
+                            <i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle" style="margin-right: 8px;"></i>
+                        {% endif %}
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    {% if file_id %}
+        <div class="translation-download-link" style="margin-top: 25px; padding: 20px; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; text-align: center;">
+            <a href="{{ url_for('download_translated_file', file_id=file_id) }}" 
+               class="submit-button" style="text-decoration: none; display: inline-block; background-color: #0ea5e9; width: auto; padding: 12px 25px;"
+               onmouseover="this.style.backgroundColor='#0284c7';" 
+               onmouseout="this.style.backgroundColor='#0ea5e9';">
+               <i class="fas fa-download"></i> Download Translated File
+            </a>
+            <p style="font-size: 0.9em; color: #0c5464; margin-top: 10px; margin-bottom: 0;">
+                Note: Download links are temporary. The file will be removed from storage after a period defined by system policy.
+            </p>
+        </div>
+    {% endif %}
 </div>
+
+<script>
+    // Minimal script, relying on HTMX attributes for behavior.
+    // Global loader is handled by hx-indicator on the form.
+</script>
