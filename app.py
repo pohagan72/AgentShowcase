@@ -90,7 +90,10 @@ FEATURES_DATA = {
 DEFAULT_FEATURE_KEY = "welcome"
 
 # --- For Translation Feature: Language List (from standalone app) ---
-app.config['TRANSLATION_LANGUAGES'] = ["English", "Spanish", "French", "German", "Chinese", "Japanese"]
+app.config['TRANSLATION_LANGUAGES'] = [
+    "English", "Spanish", "French", "German", "Chinese", "Japanese",
+    "Hindi", "Bengali", "Marathi", "Telugu", "Tamil"
+]
 
 
 # --- Import and Register Feature Routes ---
