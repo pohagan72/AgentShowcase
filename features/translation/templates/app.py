@@ -1,15 +1,15 @@
 from flask import Flask, render_template, request, url_for, current_app
 import os
-from jinja2 import ChoiceLoader, FileSystemLoader # ADDED: For multiple template folders
-from dotenv import load_dotenv # Uncomment if you use a .env file for local dev
+from jinja2 import ChoiceLoader, FileSystemLoader
+# from dotenv import load_dotenv # Uncomment if you use a .env file for local dev
 
-# --- For Translation Feature Global Imports ---
+# --- For Translation Feature ---
 import google.generativeai as genai
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
-# --- End Translation Feature Global Imports ---
+# --- End Translation Feature Imports ---
 
-load_dotenv() # Uncomment if you use a .env file for local dev
+# load_dotenv() # Uncomment if you use a .env file for local dev
 
 app = Flask(__name__)
 
@@ -29,7 +29,7 @@ if app.secret_key == "a_very_strong_default_secret_key_for_dev_only_32_chars_lon
     print("WARNING: Using default FLASK_SECRET_KEY. Set a strong, unique key in your environment for production!")
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash-latest") # Consistent with standalone app's GEMINI_MODEL
+GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash-latest") # From standalone, GEMINI_MODEL
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
 GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")
 
@@ -40,7 +40,7 @@ app.config['GEMINI_MODEL_NAME'] = GEMINI_MODEL_NAME
 app.config['GCS_BUCKET_NAME'] = GCS_BUCKET_NAME
 app.config['GOOGLE_CLOUD_PROJECT'] = GOOGLE_CLOUD_PROJECT
 
-# --- Initialize Google Services (Gemini & GCS) Globally ---
+# --- Initialize Google Services (Gemini & GCS) ---
 # These will be accessible via current_app.config['GEMINI_CONFIGURED'], current_app.storage_client etc.
 app.config['GEMINI_CONFIGURED'] = False
 if GOOGLE_API_KEY:
@@ -75,17 +75,14 @@ else:
     print("Global: GCS client not initialized. GCS-dependent features may be affected.")
 # --- End Google Services Initialization ---
 
-
 # --- Data for our features (UI driven for sidebar and content loading) ---
-# IMPORTANT: Template paths for features are now relative to the 'features' directory
-# due to the FileSystemLoader('features') configuration above.
 FEATURES_DATA = {
-    "welcome": {"name": "Welcome", "icon": "fas fa-home", "template": "partials/_welcome_content.html"}, # Found by default loader
-    "transcription": {"name": "Transcription", "icon": "fas fa-microphone-alt", "template": "transcription/templates/transcription_content.html"}, # Relative to 'features/'
-    "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"}, # Relative to 'features/'
-    "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"}, # Relative to 'features/'
-    "blurring": {"name": "Blurring", "icon": "fas fa-eye-slash", "template": "blurring/templates/blurring_content.html"}, # Relative to 'features/'
-    "info": {"name": "Information", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"}, # Relative to 'features/'
+    "welcome": {"name": "Welcome", "icon": "fas fa-home", "template": "partials/_welcome_content.html"},
+    "transcription": {"name": "Transcription", "icon": "fas fa-microphone-alt", "template": "transcription/templates/transcription_content.html"},
+    "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"}, # This is our new feature
+    "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"},
+    "blurring": {"name": "Blurring", "icon": "fas fa-eye-slash", "template": "blurring/templates/blurring_content.html"},
+    "info": {"name": "Information", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"},
 }
 DEFAULT_FEATURE_KEY = "welcome"
 
@@ -94,18 +91,17 @@ app.config['TRANSLATION_LANGUAGES'] = ["English", "Spanish", "French", "German",
 
 
 # --- Import and Register Feature Routes ---
-# These imports will execute the code in each routes.py, defining routes on the 'app' object
 from features.transcription.routes import define_transcription_routes
 from features.translation.routes import define_translation_routes # Our new feature routes
 from features.summarization.routes import define_summarization_routes
 from features.blurring.routes import define_blurring_routes
-from features.info.routes import define_info_routes # info might not have process routes
+from features.info.routes import define_info_routes
 
 define_transcription_routes(app)
 define_translation_routes(app) # Registering the translation routes
 define_summarization_routes(app)
 define_blurring_routes(app)
-define_info_routes(app) # Call this even if it only defines a simple route or no new routes
+define_info_routes(app)
 
 # --- Main Layout & Content Swapping Routes ---
 @app.route('/')
@@ -120,7 +116,7 @@ def index(feature_key=None):
     return render_template(
         'layout.html',
         features=FEATURES_DATA,
-        current_feature=current_feature_data, # Pass the data for the selected/default feature
+        current_feature=current_feature_data,
         active_feature_key=feature_key,
         initial_content_template=initial_content_template_path,
         DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY
@@ -143,14 +139,10 @@ def get_feature_content(feature_key):
         context["file_id"] = None # No file processed yet on initial load
         # Flashed messages are handled by Flask's get_flashed_messages in the template itself
 
-    return render_template(template_to_render, **context) # Jinja will now search both 'templates/' and 'features/'
+    return render_template(template_to_render, **context)
 
-# Note: Individual /process/<action> routes are now defined within each
-# feature's routes.py file by the define_xxx_routes(app) functions.
 
 if __name__ == '__main__':
-    # This is for running locally with `python app.py` (Flask's dev server)
-    # Your `run.py` will use Waitress for a more production-like local server or for deployment.
     print(f"Starting Flask development server on http://localhost:5001")
     print(f"FLASK_SECRET_KEY is {'SET (hopefully not the default)' if app.secret_key != 'a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this' else 'USING DEFAULT DEV KEY - NOT FOR PRODUCTION'}")
     print(f"GOOGLE_API_KEY is {'SET' if GOOGLE_API_KEY else 'NOT SET (will be needed for AI features)'}")
