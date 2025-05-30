@@ -277,6 +277,19 @@ body, html {
     margin-bottom: 20px; /* Optional: add some space below the tile */
 }
 
+/* --- PII Redaction Feature Specific Tile Styling --- */
+.pii-redaction-tile-container.feature-container { /* Specific to PII Redaction */
+    max-width: 800px;  /* Adjust this for your desired tile width */
+    margin-left: auto;
+    margin-right: auto;
+    padding: 25px;      /* Padding inside the tile */
+    background-color: #ffffff; /* White background for the tile */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Subtle shadow for depth */
+    border-radius: 8px; /* Rounded corners for the tile */
+    margin-top: 20px; /* Optional: add some space above the tile */
+    margin-bottom: 20px; /* Optional: add some space below the tile */
+}
+
 /* Styling for the explanation box within features */
 .feature-explanation {
     margin-bottom: 30px;
