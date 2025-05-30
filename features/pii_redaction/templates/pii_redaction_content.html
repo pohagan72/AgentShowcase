@@ -3,12 +3,14 @@
 {# Check if this is an HTMX request specifically for the result part #}
 {% if request.headers.get('HX-Request') and hx_target_is_result %}
     {# --- This block is ONLY for HTMX swapping the result --- #}
-    {% if redacted_text %}
-        <h2>Redaction Result (Placeholder):</h2>
-        <textarea id="redaction-output" rows="8" cols="60" readonly>{{ redacted_text }}</textarea>
-        <p style="font-size: 0.85em; color: #777; margin-top: 5px;">(Read-only redacted output - copy as needed)</p>
+    {% if redacted_file_url %}
+        <h2>Redaction Complete!</h2>
+        <p>Your document '{{ original_filename or "file" }}' has been processed for PII redaction.</p>
+        <a href="{{ redacted_file_url }}" class="submit-button" style="display: inline-block; width: auto; margin-top: 10px;">
+            <i class="fas fa-download"></i> Download Redacted File
+        </a>
     {% elif get_flashed_messages(with_categories=true) %}
-        {% with messages = get_flashed_messages(with_categories=true) %}
+         {% with messages = get_flashed_messages(with_categories=true) %}
             {% for category, message in messages %}
                 <div class="message-item category-{{ category|default('info') }}" role="alert">
                     {% if category == 'error' %}<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
@@ -21,52 +23,147 @@
             {% endfor %}
         {% endwith %}
     {% else %}
-        <p><i>No PII redaction performed yet.</i></p>
+        <p><i>No PII redaction performed yet or an issue occurred.</i></p>
     {% endif %}
     {# --- End of HTMX result block --- #}
 {% else %}
     {# --- This is the FULL initial rendering of the feature --- #}
-    <div class="feature-container pii-redaction-tile-container"> {# Added pii-redaction-tile-container CLASS #}
+    <div class="feature-container pii-redaction-tile-container">
         <h1><i class="fas fa-user-shield"></i> PII Redaction Service</h1>
         
         <div class="feature-explanation">
+            <h2 style="margin-top:0; font-size: 1.2em; color: #333;">About This PII Redaction Tool</h2>
             <p>
-                This service will identify and redact Personally Identifiable Information (PII) from your documents or pasted text.
-                It helps protect sensitive data by obscuring or removing details like names, addresses, social security numbers, etc.
+                This service identifies and redacts common types of Personally Identifiable Information (PII) from your uploaded Word (.docx) or PowerPoint (.pptx) documents.
+                It helps protect sensitive data by applying black highlighting (Word) or block characters (PowerPoint) to identified PII.
             </p>
-            <p><em>(Full functionality for PII Redaction is under development.)</em></p>
+            <!-- <div style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 15px; border-radius: 4px; margin-top:15px; margin-bottom:15px;">
+                <strong style="display: block; margin-bottom: 5px;"><i class="fas fa-exclamation-triangle"></i> Important Notes (Prototype Status):</strong>
+                <ul style="margin: 0; padding-left: 20px; font-size: 0.9em;">
+                    <li>This is a prototype tool and its accuracy may vary. Always review redacted documents carefully.</li>
+                    <li>Currently, this service primarily supports **English language documents**.</li>
+                    <li>PII detection relies on pre-defined patterns and Natural Language Processing models.</li>
+                </ul>
+            </div> -->
+            <p>
+                <strong>Common PII types targeted for redaction include (but are not limited to):</strong>
+            </p>
+            <ul style="font-size: 0.9em; columns: 2; -webkit-columns: 2; -moz-columns: 2; list-style-type: disc; padding-left: 20px;">
+                <li>Names (PERSON)</li>
+                <li>Locations (GPE, LOC)</li>
+                <li>Organizations (ORG)</li>
+                <li>Dates & Times (DATE)</li>
+                <li>Phone Numbers (PHONE_NUMBER)</li>
+                <li>Email Addresses (EMAIL_ADDRESS)</li>
+                <li>Credit Card Numbers (CREDIT_CARD)</li>
+                <li>US Social Security Numbers (US_SSN)</li>
+                <li>US Bank Account Numbers (US_BANK_NUMBER)</li>
+                <li>US Driver's License Numbers (US_DRIVER_LICENSE)</li>
+                <li>US ITIN (US_ITIN)</li>
+                <li>US Passport Numbers (US_PASSPORT)</li>
+                <li>IBAN Codes (IBAN_CODE)</li>
+                <li>IP Addresses (IP_ADDRESS)</li>
+                <li>Medical License Numbers (MEDICAL_LICENSE)</li>
+                <li>And more, based on <a href="https://microsoft.github.io/presidio/analyzer/recognizers/" target="_blank" rel="noopener noreferrer">Presidio's recognizers</a>.</li>
+            </ul>
+             {% if not presidio_available %}
+                <p class="error-message" style="text-align:center;"><strong>Warning:</strong> PII Redaction Analyzer is not currently available. Please check server configuration.</p>
+            {% endif %}
+            {% if not gcs_available and presidio_available %}
+                <p class="error-message" style="text-align:center;"><strong>Warning:</strong> Cloud Storage is not available. Redacted files cannot be saved or downloaded.</p>
+            {% endif %}
+            <!-- <p><em>(Full functionality for other file types and text pasting is under development.)</em></p> -->
         </div>
 
         <p class="upload-instructions">
-            Upload a document (e.g., Word, PDF) or paste text below to have PII redacted.
+            Drag & Drop or Click to Select a .docx or .pptx file for PII redaction.
         </p>
 
-        <form hx-post="{{ url_for('process_redact') }}" hx-target="#pii-redaction-result" hx-swap="innerHTML" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="text_to_redact_paste">Paste Text (or leave blank to upload a file):</label>
-                <textarea id="text_to_redact_paste" name="text_to_redact_paste" rows="8" cols="60"></textarea>
+        {% set services_ready = presidio_available and gcs_available %}
+
+        <form id="pii-upload-form"
+              hx-post="{{ url_for('process_redact') }}"
+              hx-target="#pii-redaction-result"
+              hx-swap="innerHTML"
+              hx-encoding="multipart/form-data"
+              hx-indicator="#pii-upload-form .spinner">
+            
+            <div id="pii-drop-zone" class="drop-zone-style {% if not services_ready %}disabled-drop-zone{% endif %}">
+                <p>Drop .docx or .pptx file here, or click to select.</p>
+                <input type="file" id="pii-file-input" name="file_to_redact" accept=".docx,.pptx" required
+                       style="display: none;" {% if not services_ready %}disabled{% endif %}>
+                <p id="pii-file-name" class="file-name-display">No file selected</p>
             </div>
 
-            <div class="form-group">
-                <label for="file_to_redact">Upload File (e.g., .txt, .docx, .pdf):</label>
-                <input type="file" id="file_to_redact" name="file_to_redact" accept=".txt,.docx,.pdf,.rtf,.html">
-            </div>
-
-            <button type="submit" class="submit-button">
-                <i class="fas fa-user-secret"></i> Redact PII (Demo)
+            <button type="submit" class="submit-button" style="width: 100%; margin-top: 15px;" {% if not services_ready %}disabled{% endif %}>
+                <i class="fas fa-user-secret"></i> Upload and Redact
                 <span class="htmx-indicator spinner"></span>
             </button>
         </form>
 
         <div id="pii-redaction-result" class="processing-result">
             {# This div will be populated by HTMX #}
-            {% if redacted_text %} {# For initial load if a value was somehow passed #}
-                <h2>Redaction Result (Placeholder):</h2>
-                <textarea id="redaction-output" rows="8" cols="60" readonly>{{ redacted_text }}</textarea>
-                <p style="font-size: 0.85em; color: #777; margin-top: 5px;">(Read-only redacted output)</p>
+            {% if redacted_file_url %}
+                <h2>Redaction Complete!</h2>
+                <p>Your document '{{ original_filename or "file" }}' has been processed.</p>
+                <a href="{{ redacted_file_url }}" class="submit-button" style="display: inline-block; width: auto;">
+                    <i class="fas fa-download"></i> Download Redacted File
+                </a>
             {% else %}
-                <p><i>No PII redaction performed yet. Submit text or a file above.</i></p>
+                <p><i>No PII redaction performed yet. Submit a file above.</i></p>
             {% endif %}
         </div>
     </div>
+
+    <script>
+    (function() {
+        const dropZonePii = document.getElementById('pii-drop-zone');
+        const fileInputPii = document.getElementById('pii-file-input');
+        const fileNameDisplayPii = document.getElementById('pii-file-name');
+
+        if (dropZonePii && fileInputPii && fileNameDisplayPii) {
+            const formIsDisabled = fileInputPii.disabled; 
+
+            if (!formIsDisabled) { 
+                dropZonePii.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZonePii.classList.add('drag-over');
+                });
+
+                dropZonePii.addEventListener('dragleave', () => {
+                    dropZonePii.classList.remove('drag-over');
+                });
+
+                dropZonePii.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZonePii.classList.remove('drag-over');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        fileInputPii.files = files;
+                        fileNameDisplayPii.textContent = files[0].name;
+                        dropZonePii.classList.add('file-selected');
+                    }
+                });
+
+                dropZonePii.addEventListener('click', () => {
+                    fileInputPii.click();
+                });
+            } else {
+                dropZonePii.style.cursor = 'not-allowed';
+                dropZonePii.title = 'Service unavailable. Please check configuration.';
+            }
+
+
+            fileInputPii.addEventListener('change', () => {
+                if (fileInputPii.files.length > 0) {
+                    fileNameDisplayPii.textContent = fileInputPii.files[0].name;
+                    dropZonePii.classList.add('file-selected');
+                } else {
+                    fileNameDisplayPii.textContent = 'No file selected';
+                    dropZonePii.classList.remove('file-selected');
+                }
+            });
+        }
+    })();
+    </script>
 {% endif %}
