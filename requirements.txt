@@ -10,3 +10,7 @@ pandas
 openpyxl
 langdetect
 PyPDF2
+presidio-analyzer
+presidio-anonymizer
+stanza
+torch

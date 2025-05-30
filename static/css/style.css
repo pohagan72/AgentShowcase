@@ -277,17 +277,67 @@ body, html {
     margin-bottom: 20px; /* Optional: add some space below the tile */
 }
 
-/* --- PII Redaction Feature Specific Tile Styling --- */
-.pii-redaction-tile-container.feature-container { /* Specific to PII Redaction */
-    max-width: 800px;  /* Adjust this for your desired tile width */
+/* --- PII Redaction Feature Specific Styles --- */
+.pii-redaction-tile-container.feature-container {
+    max-width: 700px; /* Or your preferred tile width */
     margin-left: auto;
     margin-right: auto;
-    padding: 25px;      /* Padding inside the tile */
-    background-color: #ffffff; /* White background for the tile */
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Subtle shadow for depth */
-    border-radius: 8px; /* Rounded corners for the tile */
-    margin-top: 20px; /* Optional: add some space above the tile */
-    margin-bottom: 20px; /* Optional: add some space below the tile */
+    padding: 25px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-radius: 8px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+/* Styles for the PII Drop Zone */
+#pii-drop-zone.drop-zone-style { /* Using a more specific class or ID for styling */
+    border: 2px dashed #adb5bd; /* Neutral dashed border */
+    border-radius: 8px;
+    padding: 40px 25px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+    background-color: #f8f9fa; /* Light background */
+    margin-bottom: 20px;
+    position: relative; /* For potential absolute positioning of child elements if needed */
+    color: #6c757d; /* Text color */
+}
+
+#pii-drop-zone.drop-zone-style:hover,
+#pii-drop-zone.drop-zone-style.drag-over {
+    border-color: #007bff; /* Highlight color (e.g., Bootstrap primary blue) */
+    background-color: #e9f5ff; /* Lighter shade for hover/drag-over */
+}
+#pii-drop-zone.drop-zone-style.file-selected {
+    border-style: solid;
+    border-color: #28a745; /* Green to indicate file selected */
+    background-color: #e6ffed;
+}
+
+#pii-drop-zone.drop-zone-style p {
+    margin: 10px 0;
+    pointer-events: none; /* Text inside doesn't interfere with click/drop */
+}
+
+#pii-drop-zone.drop-zone-style.disabled-drop-zone {
+    background-color: #e9ecef; /* Grey out background */
+    border-color: #ced4da;   /* Darker grey border */
+    color: #6c757d;          /* Muted text color */
+    cursor: not-allowed;     /* Indicate it's not interactive */
+}
+
+#pii-drop-zone.drop-zone-style.disabled-drop-zone:hover,
+#pii-drop-zone.drop-zone-style.disabled-drop-zone.drag-over {
+    border-color: #ced4da; /* Keep border same as disabled, no hover effect */
+    background-color: #e9ecef;
+}
+
+.file-name-display { /* Class for the "No file selected" / filename text */
+    font-style: italic;
+    color: #495057;
+    margin-top: 10px !important; /* Ensure it's visible below other p tags */
+    font-size: 0.9em;
 }
 
 /* Styling for the explanation box within features */
