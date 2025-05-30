@@ -34,7 +34,7 @@
         <div class="feature-explanation">
             <h2 style="margin-top:0; font-size: 1.2em; color: #333;">About This PII Redaction Tool</h2>
             <p>
-                This service identifies and redacts common types of Personally Identifiable Information (PII) from your uploaded Word (.docx) or PowerPoint (.pptx) documents.
+                This service identifies and redacts common types of Personally Identifiable Information (PII) from your uploaded Word or PowerPoint documents.
                 It helps protect sensitive data by applying black highlighting (Word) or block characters (PowerPoint) to identified PII.
             </p>
             <!-- <div style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 15px; border-radius: 4px; margin-top:15px; margin-bottom:15px;">
@@ -46,7 +46,7 @@
                 </ul>
             </div> -->
             <p>
-                <strong>Common PII types targeted for redaction include (but are not limited to):</strong>
+                <strong>PII targeted for redaction include:</strong>
             </p>
             <ul style="font-size: 0.9em; columns: 2; -webkit-columns: 2; -moz-columns: 2; list-style-type: disc; padding-left: 20px;">
                 <li>Names (PERSON)</li>
@@ -64,7 +64,7 @@
                 <li>IBAN Codes (IBAN_CODE)</li>
                 <li>IP Addresses (IP_ADDRESS)</li>
                 <li>Medical License Numbers (MEDICAL_LICENSE)</li>
-                <li>And more, based on <a href="https://microsoft.github.io/presidio/analyzer/recognizers/" target="_blank" rel="noopener noreferrer">Presidio's recognizers</a>.</li>
+                <li>And more! <!-- based on <a href="https://microsoft.github.io/presidio/analyzer/recognizers/" target="_blank" rel="noopener noreferrer">Presidio's recognizers</a> --></li>
             </ul>
              {% if not presidio_available %}
                 <p class="error-message" style="text-align:center;"><strong>Warning:</strong> PII Redaction Analyzer is not currently available. Please check server configuration.</p>
