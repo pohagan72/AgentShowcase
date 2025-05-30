@@ -26,29 +26,28 @@
     {# --- End of HTMX result block --- #}
 {% else %}
     {# --- This is the FULL initial rendering of the feature --- #}
-    <div class="feature-container summarization-tile-container"> {# ADDED summarization-tile-container CLASS #}
-        <h1>Intelligent Document Summarization</h1>
+    <div class="feature-container summarization-tile-container">
+        <h1><i class="fas fa-file-alt"></i> Intelligent Document Summarization</h1> {# ICON ADDED HERE #}
         
-        <div class="feature-explanation"> {# MOVED STYLES TO CSS #}
-            <h2>Our Approach to Summarization</h2>
+        <div class="feature-explanation">
             <p>
-                This service utilizes a sophisticated two-step Generative AI (GenAI) process to deliver contextually relevant summaries.
-                This approach enhances the quality and relevance of the output compared to generic summarization methods.
+                This summarization service utilizes a sophisticated two-step GenAI process to deliver contextually relevant summaries.
+                This approach enhances the quality and relevance of the output compared to a generic summarization method.
             </p>
             <ol>
                 <li>
-                    <strong>Document Classification:</strong> First, the GenAI model analyzes an excerpt of your uploaded document or pasted text to determine its type (e.g., Financial Report, Legal Contract, Technical Manual). This classification step is crucial for tailoring the subsequent summarization.
+                    <strong>Document Classification:</strong> First, the GenAI model analyzes the document to understand the context. For example, is it a Financial Report, Legal Contract, Technical Manual?
                 </li>
                 <li>
-                    <strong>Context-Aware Summarization:</strong> Based on the identified document type, a specialized prompt is constructed. This prompt guides the GenAI model to focus on the aspects most critical for that specific type of document, ensuring the summary highlights key information pertinent to its context (e.g., core invention for a patent, financial highlights for a 10-K).
+                    <strong>Context-Aware Summarization:</strong> Based on the context, a specialized prompt is constructed to guide the GenAI model to focus on the aspects most critical for that specific type of document.
                 </li>
             </ol>
             <p>
-                This intelligent, type-specific approach allows the AI Agent to generate more insightful and actionable summaries, moving beyond simple text truncation or generic keyword extraction.
+                This intelligent, type-specific approach has 20+ custom AI prompts that allows the AI Agent to generate more insightful and actionable summaries, moving beyond simple text truncation or generic keyword extraction.
             </p>
         </div>
 
-        <p class="upload-instructions"> {# Added a class for easier styling if needed #}
+        <p class="upload-instructions">
             Upload a Word, PowerPoint, Excel, or PDF file, or paste text below.
             Maximum text length for summarization is 1,000,000 characters.
         </p>
