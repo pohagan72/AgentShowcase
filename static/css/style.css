@@ -42,14 +42,31 @@ body, html {
 
 /* Global HTMX Indicator & Spinner */
 .htmx-indicator { display: none; opacity:0; transition: opacity 200ms ease-in; }
-.htmx-request .htmx-indicator { display: block; opacity:1; }
-.htmx-request.htmx-indicator{ display: inline-block; opacity:1; vertical-align: middle; }
+.htmx-request .htmx-indicator { display: block; opacity:1; } /* This is for child indicators */
+.htmx-request.htmx-indicator{ display: inline-block; opacity:1; vertical-align: middle; } /* This is for the element itself being an indicator */
 .spinner {
     border: 3px solid rgba(0, 0, 0, 0.1); width: 18px; height: 18px;
     border-radius: 50%; border-left-color: #09f; 
     animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle;
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+
+/* --- NEW: Styles for the Translation Feature's Submit Loader --- */
+/* This is the loader specific to the translation form submit button */
+#translation-submit-loader {
+    display: none; /* Hidden by default */
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    vertical-align: middle; /* Aligns well when display is inline-block */
+}
+/* When HTMX adds the 'htmx-request' class to the indicator element (#translation-submit-loader) */
+#translation-submit-loader.htmx-request {
+    display: inline-block; /* Show it next to the button */
+    opacity: 1;
+}
+/* --- END: NEW Styles for the Translation Feature's Submit Loader --- */
+
 
 /* --- General Form Element Styling (scoped to .feature-container FOR OTHER FEATURES) --- */
 /* These should NOT affect .welcome-container if its HTML is separate */
