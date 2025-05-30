@@ -38,7 +38,6 @@ body, html {
 .sidebar ul li a.sidebar-link {
     display: flex; /* This is key for icon and text alignment */
     align-items: center; /* Vertically align icon and text */
-    /* flex-direction: row; is the default, so icon will be on the left */
     padding: 14px 25px;
     text-decoration: none;
     color: #9ca3af; /* Softer gray for inactive link text (Tailwind gray-400) */
@@ -80,12 +79,13 @@ body, html {
 /* --- End of Sidebar Specific Styling --- */
 
 
-/* --- Content Area & Other Styles (Should be from the version that worked with the "perfect" sidebar) --- */
+/* --- Content Area & Other Styles --- */
 .content-area { flex-grow: 1; padding: 30px 40px; overflow-y: auto; background-color: #fff; }
-.content-area > h1 {
+.content-area > h1 { /* This applies to the main H1 if directly under content-area, not feature H1s */
     color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;
     margin-top: 0; margin-bottom: 25px; font-size: 1.8em;
 }
+
 /* Global HTMX Indicator & Spinner */
 .htmx-indicator { display: none; opacity:0; transition: opacity 200ms ease-in; }
 .htmx-request .htmx-indicator { display: block; opacity:1; }
@@ -97,41 +97,56 @@ body, html {
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-/* General Form Element Styling */
+/* General Form Element Styling (Applied within .content-area or .feature-container) */
 .content-area input[type="text"], .content-area input[type="file"],
-.content-area textarea, .content-area select {
+.content-area textarea, .content-area select,
+.feature-container input[type="text"], .feature-container input[type="file"],
+.feature-container textarea, .feature-container select {
     width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #d1d5db;
     border-radius: 4px; box-sizing: border-box; font-size: 0.95em;
 }
-.content-area input[type="file"] { padding: 7px; }
-.content-area label { display: block; margin-bottom: 5px; font-weight: 500; color: #374151; }
-.content-area button[type="submit"], .content-area .submit-button {
+.content-area input[type="file"], .feature-container input[type="file"] { padding: 7px; } /* Slightly less padding for file inputs */
+.content-area label, .feature-container label {
+    display: block; margin-bottom: 5px; font-weight: 500; color: #374151;
+}
+.content-area button[type="submit"], .content-area .submit-button,
+.feature-container button[type="submit"], .feature-container .submit-button {
     background-color: #3b82f6; color: white; padding: 10px 20px; border: none;
     border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: 500;
     transition: background-color 0.2s; display: inline-flex; align-items: center; justify-content: center;
 }
-.content-area button[type="submit"] i, .content-area .submit-button i { margin-right: 8px; }
-.content-area button[type="submit"] .spinner, .content-area .submit-button .spinner {
+.content-area button[type="submit"] i, .content-area .submit-button i,
+.feature-container button[type="submit"] i, .feature-container .submit-button i { margin-right: 8px; }
+
+.content-area button[type="submit"] .spinner, .content-area .submit-button .spinner,
+.feature-container button[type="submit"] .spinner, .feature-container .submit-button .spinner {
     margin-left: 10px; border-left-color: white; width: 16px; height: 16px; border-width: 2px;
 }
-.content-area button[type="submit"]:hover, .content-area .submit-button:hover { background-color: #2563eb; }
-.error-message {
-    color: #ef4444; font-weight: 500; padding: 8px; background-color: #fee2e2;
-    border: 1px solid #fca5a5; border-radius: 4px; margin-top: 10px;
+.content-area button[type="submit"]:hover, .content-area .submit-button:hover,
+.feature-container button[type="submit"]:hover, .feature-container .submit-button:hover { background-color: #2563eb; }
+
+.error-message { /* Global error message style if used outside flashed messages */
+    color: #ef4444; font-weight: 500; padding: 10px 15px; background-color: #fee2e2;
+    border: 1px solid #fca5a5; border-radius: 4px; margin-top: 10px; margin-bottom: 15px;
 }
 
 /* Feature Container Base */
-.feature-container {}
-.feature-container > h1 {
-    font-size: 1.6em; color: #1f2937; margin-bottom: 20px;
-    padding-bottom: 10px; border-bottom: 1px dotted #e0e0e0;
+.feature-container {} /* Base class, can be empty if no universal styles for all */
+.feature-container > h1 { /* Styles the H1 directly inside a feature-container */
+    font-size: 1.6em; color: #1f2937;
+    margin-top: 0; /* CRITICAL for layout consistency */
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px dotted #e0e0e0;
 }
-.feature-container .feature-description {
+.feature-container .feature-description { /* General description para in features */
     font-size: 1.05em; color: #4b5563; margin-bottom: 30px;
-    max-width: 750px; line-height: 1.6;
+    max-width: 750px; /* Good for readability of longer text blocks */
+    line-height: 1.6;
 }
 
-/* --- Blurring Feature Specific Styles (Scoped - Keep these as they were in the previous 'JS scope fix' version) --- */
+/* --- Blurring Feature Specific Styles --- */
+/* ... (Your existing Blurring styles) ... */
 .blurring-feature-container .blur-tabs { border-bottom: 2px solid #e5e7eb; margin-bottom: 25px; display: flex; }
 .blurring-feature-container .blur-tab-link { background: transparent; border: none; padding: 14px 22px; cursor: pointer; font-size: 1em; color: #6b7280; transition: color 0.2s, border-bottom-color 0.2s; border-bottom: 3px solid transparent; margin-right: 10px; margin-bottom: -2px; outline: none; font-weight: 500; }
 .blurring-feature-container .blur-tab-link i { margin-right: 8px; color: #9ca3af; transition: color 0.2s; }
@@ -154,11 +169,13 @@ body, html {
 .blurring-feature-container .remove-file-btn { background: none; border: 1px solid #fca5a5; color: #ef4444; cursor: pointer; font-size: 0.85em; padding: 6px 10px; border-radius: 4px; font-weight: 500; transition: background-color 0.2s, color 0.2s; }
 .blurring-feature-container .remove-file-btn i { margin-right: 4px; }
 .blurring-feature-container .remove-file-btn:hover { background-color: #ef4444; color: white; border-color: #ef4444; }
-.blurring-feature-container .processing-result { margin-top: 30px; padding: 20px; border: 1px solid #e5e7eb; border-radius: 6px; background-color: #f9fafb; }
+.blurring-feature-container .processing-result { margin-top: 30px; padding: 20px; border: 1px solid #e5e7eb; border-radius: 6px; background-color: #f9fafb; } /* Base for results */
 .blurring-feature-container .blur-form h2 { margin-top: 0; margin-bottom: 10px; color: #1f2937; font-size: 1.4em; }
 .blurring-feature-container .blur-form p { color: #4b5563; margin-bottom: 20px; font-size: 0.95em; }
 
-/* --- Info Feature Specific Styles (Scoped - Keep these as they were) --- */
+
+/* --- Info Feature Specific Styles --- */
+/* ... (Your existing Info styles) ... */
 .info-feature-container .info-tabs { border-bottom: 2px solid #e5e7eb; margin-bottom: 25px; display: flex; }
 .info-feature-container .info-tab-link { background: transparent; border: none; padding: 14px 22px; cursor: pointer; font-size: 1em; color: #6b7280; transition: color 0.2s, border-bottom-color 0.2s; border-bottom: 3px solid transparent; margin-right: 10px; margin-bottom: -2px; outline: none; font-weight: 500; }
 .info-feature-container .info-tab-link i { margin-right: 8px; color: #9ca3af; transition: color 0.2s; }
@@ -186,248 +203,152 @@ body, html {
 .info-feature-container .bio-section ul li { margin-bottom: 8px; }
 .info-feature-container .bio-section strong { font-weight: 600; color: #1f2937; }
 
+
 /* Common animation */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- Welcome Page Specific Styles (with Centering) --- */
+/* --- Welcome Page Specific Styles --- */
+/* ... (Your existing Welcome styles) ... */
 .welcome-container {
-    padding: 20px;
-    max-width: 900px;
-    margin: 0 auto;
-    text-align: center; /* Center text for the whole welcome container by default */
+    padding: 20px; max-width: 900px; margin: 0 auto; text-align: center;
 }
+.welcome-header { text-align: center; margin-bottom: 40px; }
+.welcome-header h1 { font-size: 2.8em; color: #1f2937; margin-bottom: 10px; border-bottom: none; font-weight: 600; line-height: 1.2; }
+.welcome-subtitle { font-size: 1.3em; color: #4b5563; margin-bottom: 30px; font-style: italic; }
+.welcome-intro { text-align: center; max-width: 750px; margin-left: auto; margin-right: auto; }
+.welcome-intro p { font-size: 1.1em; line-height: 1.7; color: #374151; margin-bottom: 15px; }
+.welcome-intro p:last-child { margin-bottom: 30px; }
+.welcome-divider { border: none; border-top: 1px solid #e5e7eb; margin: 40px auto; width: 80%; }
+.key-messages { display: flex; flex-direction: column; gap: 30px; margin-bottom: 30px; }
+@media (min-width: 768px) { .key-messages { flex-direction: row; justify-content: space-around; } .key-message-item { flex-basis: 45%; } }
+.key-message-item { display: flex; align-items: center; background-color: #f9fafb; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
+.key-message-icon { font-size: 2em; color: #3b82f6; margin-right: 20px; flex-shrink: 0; }
+.key-message-item.icon-top { flex-direction: column; align-items: center; }
+.key-message-item.icon-top .key-message-icon { margin-right: 0; margin-bottom: 15px; }
+.key-message-text h3 { font-size: 1.25em; color: #111827; margin-top: 0; margin-bottom: 10px; }
+.key-message-text p { font-size: 0.95em; line-height: 1.6; color: #4b5563; margin-bottom: 0; }
+.privacy-commitment-section { display: flex; flex-direction: column; align-items: center; background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 30px 25px; border-radius: 8px; margin-top: 20px; margin-bottom: 30px; text-align: center; max-width: 750px; margin-left: auto; margin-right: auto; }
+.privacy-icon { font-size: 2.8em; color: #2563eb; margin-bottom: 20px; flex-shrink: 0; }
+.privacy-icon i { display: block; }
+.privacy-text h3 { font-size: 1.3em; color: #1e3a8a; margin-top: 0; margin-bottom: 12px; }
+.privacy-text p { font-size: 1em; line-height: 1.6; color: #1e40af; margin-bottom: 0; }
+.privacy-text p strong { font-weight: 600; }
+.welcome-footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+.welcome-footer p { font-size: 1.05em; color: #6b7280; font-style: italic; }
 
-.welcome-container .feature-description {
-    /* For welcome, the subtitle serves this purpose */
-}
-
-.welcome-header {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-.welcome-header h1 {
-    font-size: 2.8em;
-    color: #1f2937;
-    margin-bottom: 10px;
-    border-bottom: none;
-    font-weight: 600;
-    line-height: 1.2; /* For multi-line h1 */
-}
-
-.welcome-subtitle {
-    font-size: 1.3em;
-    color: #4b5563;
-    margin-bottom: 30px;
-    font-style: italic;
-}
-
-.welcome-intro {
-    text-align: center;
-    max-width: 750px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.welcome-intro p {
-    font-size: 1.1em;
-    line-height: 1.7;
-    color: #374151;
-    margin-bottom: 15px;
-}
-.welcome-intro p:last-child {
-    margin-bottom: 30px;
-}
-
-.welcome-divider {
-    border: none;
-    border-top: 1px solid #e5e7eb;
-    margin: 40px auto;
-    width: 80%;
-}
-
-.key-messages {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-    margin-bottom: 30px;
-}
-
-@media (min-width: 768px) {
-    .key-messages {
-        flex-direction: row;
-        justify-content: space-around;
-    }
-    .key-message-item {
-        flex-basis: 45%;
-    }
-}
-
-.key-message-item {
-    display: flex;
-    /* align-items: flex-start; Let's try centering the icon vertically relative to the text block */
-    align-items: center; /* Vertically center icon and text block */
-    background-color: #f9fafb;
-    padding: 25px; /* Increased padding for a bit more space */
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    text-align: center; /* MODIFIED: Center text within these items */
-}
-
-.key-message-icon {
-    font-size: 2em; /* Slightly larger icon */
-    color: #3b82f6;
-    margin-right: 20px; /* Keep margin if icon is on left */
-    /* padding-top: 5px; Removed, as align-items: center handles vertical alignment */
-    flex-shrink: 0;
-    /* To place icon above text if desired when text is centered: */
-    /* display: block; */
-    /* margin: 0 auto 15px auto; */ /* Center icon and add space below if above text */
-}
-/* If icon should be above text in centered box, structure of flex changes: */
-.key-message-item.icon-top {
-    flex-direction: column; /* Stack icon and text */
-    align-items: center;    /* Center items horizontally in the column */
-}
-.key-message-item.icon-top .key-message-icon {
-    margin-right: 0;
-    margin-bottom: 15px; /* Space between icon and text block */
-}
-
-
-.key-message-text {
-    /* No specific text-align needed if .key-message-item is text-align: center */
-}
-
-.key-message-text h3 {
-    font-size: 1.25em;
-    color: #111827;
-    margin-top: 0;
-    margin-bottom: 10px; /* Increased space */
-}
-
-.key-message-text p {
-    font-size: 0.95em;
-    line-height: 1.6;
-    color: #4b5563;
-    margin-bottom: 0;
-}
-
-.privacy-commitment-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background-color: #eff6ff;
-    border: 1px solid #bfdbfe;
-    padding: 30px 25px; /* Increased padding */
-    border-radius: 8px;
-    margin-top: 20px;
-    margin-bottom: 30px;
-    text-align: center;
-    max-width: 750px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* Media query for privacy section remains the same to make it row on wider screens if desired */
-/* If you always want it stacked and centered, you can remove this media query */
-@media (min-width: 600px) {
-    .privacy-commitment-section {
-        /* flex-direction: row; */ /* Comment out if you want it to stay column and centered */
-        /* text-align: left;   */ /* Comment out if text should remain centered */
-    }
-    /* .privacy-icon {
-         margin-bottom: 0;
-         margin-right: 25px;
-    } */
-}
-
-
-.privacy-icon {
-    font-size: 2.8em; /* Larger shield icon */
-    color: #2563eb;
-    margin-bottom: 20px; /* More space below icon when stacked */
-    flex-shrink: 0;
-}
-.privacy-icon i {
-    display: block;
-}
-
-.privacy-text h3 {
-    font-size: 1.3em;
-    color: #1e3a8a;
-    margin-top: 0;
-    margin-bottom: 12px; /* Increased space */
-}
-
-.privacy-text p {
-    font-size: 1em;
-    line-height: 1.6;
-    color: #1e40af;
-    margin-bottom: 0;
-}
-.privacy-text p strong {
-    font-weight: 600;
-}
-
-.welcome-footer {
-    text-align: center;
-    margin-top: 40px;
-    padding-top: 20px;
-    border-top: 1px solid #e5e7eb;
-}
-
-.welcome-footer p {
-    font-size: 1.05em;
-    color: #6b7280;
-    font-style: italic;
-}
-
-.welcome-container .feature-container > h1 {
-    /* This would apply if you nested another .feature-container, which you haven't */
-}
 
 /* --- Translation Feature Specific Styles --- */
 .translation-feature-container {
-    max-width: 700px; /* Adjust this value to your desired width */
-    margin: 0 auto;      /* Horizontally center the container */
-    padding: 20px;      /* Add some padding around the container */
+    max-width: 700px; 
+    margin: 0 auto;
+    padding: 20px; /* Added padding for the tile */
 }
-
 .translation-feature-container .form-group {
-    margin-bottom: 20px; /* More spacing between form groups */
+    margin-bottom: 20px;
 }
-
-.translation-feature-container input[type="file"] {
-    padding: 8px 10px; /* Adjust padding for file input if global isn't ideal */
+.translation-feature-container input[type="file"] { /* Already covered by global feature-container rules */
+    /* padding: 8px 10px; */
 }
-
 .translation-feature-container .submit-button {
-    /* Uses global .submit-button styles, but ensures it's full width here */
-    width: 100%;
-    margin-top: 10px; /* Space above button */
+    width: 100%; 
+    margin-top: 10px;
 }
-
-/* Flashed Messages Styling (mainly relies on inline styles in the template for dynamic coloring) */
-.translation-messages .message-item i.fas { /* Icon styling within messages */
+.translation-messages .message-item i.fas {
     opacity: 0.8;
 }
-
-/* Download Link Area Styling */
 .translation-download-link .submit-button { 
-    /* Overrides for the download button if it uses .submit-button class */
-    width: auto; /* Don't make download link full width by default */
+    width: auto;
 }
+
+
+/* --- Summarization Feature Specific Tile Styling --- */
+.summarization-tile-container.feature-container { /* Specific to summarization */
+    max-width: 800px;  /* Adjust this for your desired tile width */
+    margin-left: auto;
+    margin-right: auto;
+    padding: 25px;      /* Padding inside the tile */
+    background-color: #ffffff; /* White background for the tile */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* Subtle shadow for depth */
+    border-radius: 8px; /* Rounded corners for the tile */
+    margin-top: 20px; /* Optional: add some space above the tile */
+    margin-bottom: 20px; /* Optional: add some space below the tile */
+}
+
+/* Styling for the explanation box within features */
+.feature-explanation {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f8f9fa; /* Light grey, distinct from tile background */
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 0.95em;
+    line-height: 1.6;
+}
+.feature-explanation h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.25em;
+    color: #343a40; /* Darker heading color */
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 10px;
+}
+.feature-explanation p,
+.feature-explanation ol {
+    color: #495057; /* Good readability for paragraph text */
+    margin-bottom: 12px;
+}
+.feature-explanation ol {
+    padding-left: 25px; /* Standard indentation for ordered lists */
+}
+.feature-explanation ol li {
+    margin-bottom: 10px; /* Spacing between list items */
+}
+
+/* Optional: Style for the upload instructions paragraph if needed */
+.upload-instructions {
+    font-size: 1.0em;
+    color: #4b5563;
+    margin-bottom: 20px; /* Increased margin for better separation */
+}
+
+/* --- Styles for the result area of Summarization (and potentially other features) --- */
+/* Using .feature-container .processing-result to scope it if processing-result is generic */
+.feature-container .processing-result {
+    margin-top: 25px; /* More space above the result */
+    padding: 20px;    /* More padding inside the result box */
+    border: 1px solid #dee2e6; /* Slightly softer border */
+    border-radius: 6px;
+    background-color: #f8f9fa; /* Consistent light background */
+}
+.feature-container .processing-result h2 { /* Target H2 within processing-result */
+    margin-top: 0;
+    font-size: 1.3em;
+    color: #343a40;
+    margin-bottom: 15px;
+}
+.feature-container .processing-result textarea#summary-output { /* Specific to summary output textarea */
+    width: 100%; /* Make textarea take full width of its container */
+    box-sizing: border-box; /* Ensure padding and border are included in width */
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 10px;
+    font-family: inherit; /* Inherit font from body/parent */
+    font-size: 0.95em;
+    background-color: #e9ecef; /* Light grey for readonly */
+    color: #495057;
+    resize: vertical; /* Allow vertical resize, disable horizontal */
+}
+
 
 /* Specific classes for styling flashed messages dynamically */
 .message-item {
     padding: 12px 15px;
     margin-bottom: 10px;
     border-radius: 5px;
-    border: 1px solid transparent; /* Important: Always have a border, even if transparent by default */
+    border: 1px solid transparent;
 }
 .message-item.category-error {
     border-color: #fca5a5;
