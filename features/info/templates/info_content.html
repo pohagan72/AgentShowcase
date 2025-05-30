@@ -1,59 +1,99 @@
 <!-- features/info/templates/info_content.html -->
-<div class="info-feature-container feature-container">
-    <h1>Application Information</h1>
+<div class="info-feature-container feature-container"> {# Keep feature-container for base styles #}
+    <h1><i class="fas fa-info-circle"></i> Application Information</h1> {# Added icon #}
     <p class="feature-description">
         Essential details about this application, its terms of use, and the team behind it.
     </p>
-    <div class="info-tabs">
-        <button class="info-tab-link active" data-target-tab="legal-notice-tab">
+
+    <div class="feature-tabs"> {# CHANGED from info-tabs #}
+        <button class="tab-link active" data-target-tab="legal-notice-tab"> {# CHANGED from info-tab-link #}
             <i class="fas fa-gavel"></i> Legal Notice
         </button>
-        <button class="info-tab-link" data-target-tab="about-me-tab">
+        <button class="tab-link" data-target-tab="about-me-tab"> {# CHANGED from info-tab-link #}
             <i class="fas fa-user-circle"></i> Meet Paul O'Hagan
         </button>
     </div>
-    <div id="legal-notice-tab" class="info-tab-content active-content">
+
+    <div id="legal-notice-tab" class="feature-tab-content active-content"> {# CHANGED from info-tab-content #}
         <h2>Legal Notice & Terms of Service</h2>
         <div class="legal-text-container">
-            <p><strong>Last Updated:</strong> July 26, 2025</p>
+            <p><strong>Last Updated:</strong> May 26, 2025</p>
             <ul>
                 <li><strong>No Warranty:</strong> This service is provided "as is" without any warranties, express or implied.<br>Your use of this service is solely at your own risk.</li>
                 <li><strong>Data Handling:</strong> Your input data is processed solely to generate the presentation. We do not intentionally store your data longer than necessary for this processing.</li>
                 <li><strong>AI Training:</strong> Your data will not be used to train AI models.</li>
-                <li><strong>Limitation of Liability:</strong> By using this service, you agree that the creator provides no guarantees<br>and assumes no liability for any outcomes, errors, or issues resulting from its use.</li>
+                <li><strong>Limitation of Liability:</strong> By using this service, you agree that the creator provides no guarantees and assumes no liability for any outcomes, errors, or issues resulting from its use.</li>
             </ul>
         </div>
     </div>
-    <div id="about-me-tab" class="info-tab-content">
+
+    <div id="about-me-tab" class="feature-tab-content"> {# CHANGED from info-tab-content #}
         <h2>About Paul</h2>
         <div class="about-me-content">
             <div class="profile-section">
-                <img src="https://via.placeholder.com/150" alt="Profile Picture Placeholder" class="profile-picture">
+                <!-- Consider adding your actual image path or keeping placeholder -->
+                <img src="{{ url_for('static', filename='images/profile_placeholder.png') }}" alt="Profile Picture Paul O'Hagan" class="profile-picture">
                 <p class="profile-title">AI Patent Holder, Author and Product Manager</p>
             </div>
             <div class="bio-section">
-                <h4>Our Mission</h4><p>Our mission is to showcase the "art of the possible" with custom Generative AI solutions...</p>
-                <!-- ... Rest of your detailed about me text ... -->
-                <h4>Connect With Us</h4><p>We are always eager to hear from our users...</p>
+                <h4>Our Mission</h4>
+                <p>Our mission is to showcase the "art of the possible" with custom Generative AI solutions, demonstrating practical applications that can enhance productivity and unlock new capabilities for businesses and individuals alike. We believe in responsible AI development and aim to provide tools that are both powerful and trustworthy.</p>
+                <h4>Background</h4>
+                <p>Paul O'Hagan has extensive experience in leading AI product development, with a focus on leveraging cutting-edge technologies to solve real-world problems. His work spans across various domains, emphasizing innovation and user-centric design. This AI Agents playground is a testament to his passion for exploring and sharing the potential of Generative AI.</p>
+                <h4>Expertise Includes:</h4>
+                <ul>
+                    <li>Generative AI Application Development</li>
+                    <li>AI Product Strategy & Management</li>
+                    <li>Natural Language Processing (NLP)</li>
+                    <li>Intelligent Automation Solutions</li>
+                    <li>Cloud-Based AI Service Integration</li>
+                </ul>
+                <h4>Connect With Us</h4>
+                <p>We are always eager to hear from our users, discuss potential collaborations, or answer any questions you might have. Feel free to reach out.</p>
+                <!-- Add actual contact links or info if desired -->
             </div>
         </div>
     </div>
 </div>
+
 <script>
 (function() {
-    const container = document.querySelector('.info-feature-container');
-    if (!container) { return; }
-    function openInfoTab(targetTabId) {
-        container.querySelectorAll('.info-tab-content').forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
-        container.querySelectorAll('.info-tab-link').forEach(tl => tl.classList.remove('active'));
-        const currentTabContent = container.querySelector('#' + targetTabId);
-        const currentTabLink = container.querySelector(`.info-tab-link[data-target-tab="${targetTabId}"]`);
+    const infoFeatureContainer = document.querySelector('.info-feature-container');
+    if (!infoFeatureContainer) { return; }
+
+    // Tab Switching Logic for Info Feature
+    const tabLinksInfo = infoFeatureContainer.querySelectorAll('.feature-tabs .tab-link'); // Use generic class
+    const tabContentsInfo = infoFeatureContainer.querySelectorAll('.feature-tab-content'); // Use generic class
+
+    function openInfoFeatureTab(targetTabId) {
+        tabContentsInfo.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
+        tabLinksInfo.forEach(tl => tl.classList.remove('active'));
+        
+        const currentTabContent = infoFeatureContainer.querySelector('#' + targetTabId);
+        const currentTabLink = infoFeatureContainer.querySelector(`.feature-tabs .tab-link[data-target-tab="${targetTabId}"]`);
+        
         if (currentTabContent) { currentTabContent.style.display = 'block'; currentTabContent.classList.add('active-content'); }
         if (currentTabLink) { currentTabLink.classList.add('active'); }
     }
-    container.querySelectorAll('.info-tab-link').forEach(link => {
-        link.addEventListener('click', function(event) { event.preventDefault(); const targetTabId = this.dataset.targetTab; if (targetTabId) { openInfoTab(targetTabId); } });
+
+    tabLinksInfo.forEach(link => {
+        link.addEventListener('click', function(event) {
+            event.preventDefault();
+            const targetTabId = this.dataset.targetTab;
+            if (targetTabId) { openInfoFeatureTab(targetTabId); }
+        });
     });
-    openInfoTab('legal-notice-tab');
+
+    // Open the first tab by default if it exists
+    if (tabLinksInfo.length > 0 && tabLinksInfo[0].dataset.targetTab) {
+        openInfoFeatureTab(tabLinksInfo[0].dataset.targetTab);
+    } else if (infoFeatureContainer.querySelector('.feature-tab-content')) { // Fallback
+        const firstTabContentInfo = infoFeatureContainer.querySelector('.feature-tab-content');
+        firstTabContentInfo.classList.add('active-content');
+        firstTabContentInfo.style.display = 'block';
+        if(infoFeatureContainer.querySelector('.feature-tabs .tab-link')) {
+             infoFeatureContainer.querySelector('.feature-tabs .tab-link').classList.add('active');
+        }
+    }
 })();
 </script>

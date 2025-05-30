@@ -33,8 +33,6 @@
         </nav>
         <main class="content-area" id="main-content-wrapper">
             
-            <!-- **** TEST BUTTON BLOCK REMOVED FROM HERE **** -->
-
             <div class="global-loader htmx-indicator" style="text-align: center; padding: 30px 0; display:none;">
                 <div class="spinner" style="width: 36px; height: 36px; border-width: 4px; margin: 0 auto;"></div>
                 <p style="margin-top: 12px; color: #555; font-size: 1.1em;">Loading Content...</p>
@@ -47,8 +45,9 @@
     </div>
 
     <script>
-        // This script is for the main layout (sidebar active state, title).
+        // --- Existing JavaScript for Sidebar and Title ---
         document.body.addEventListener('htmx:afterSwap', function(event) {
+            // Update sidebar active state
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
                 link.classList.remove('active');
             });
@@ -63,8 +62,18 @@
                     activeFound = true;
                 }
             });
+
+            // --- NEW: Initialize Drop Zones and Tabs in swapped content ---
+            const swappedElement = event.detail.target; // Target is where content was swapped into
+            if (swappedElement && (swappedElement.querySelector('.drop-zone') || swappedElement.classList.contains('drop-zone'))) {
+                initDropZones();
+            }
+            // If you dynamically load tab content that itself has more tabs or dropzones,
+            // you might need more specific initialization or a more generic re-init approach.
         });
+
         document.addEventListener('DOMContentLoaded', function() {
+            // Initial sidebar active state and title
             const currentPath = window.location.pathname;
             let activeFoundOnLoad = false;
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
@@ -79,10 +88,10 @@
                 }
             });
             if (!activeFoundOnLoad && currentPath === '/') {
-                 const defaultLinkQuery = 'a.sidebar-link[href$="/feature/{{ DEFAULT_FEATURE_KEY }}"]';
+                 const defaultLinkQuery = 'a.sidebar-link[href$="/feature/{{ DEFAULT_FEATURE_KEY }}"]'; // DEFAULT_FEATURE_KEY from Flask context
                  let defaultLink = document.querySelector(defaultLinkQuery);
-                 if (!defaultLink) {
-                     defaultLink = document.querySelector('a.sidebar-link[href="/"]');
+                 if (!defaultLink) { // Fallback if DEFAULT_FEATURE_KEY link not found
+                     defaultLink = document.querySelector('a.sidebar-link[href="/"]'); // Check for root path link
                  }
                  if (defaultLink) {
                      defaultLink.classList.add('active');
@@ -90,7 +99,108 @@
                      document.title = featureName + " - AI Agents";
                  }
             }
+
+            // --- NEW: Initialize Drop Zones and Tabs on initial load ---
+            initDropZones();
+            // If initial content (e.g. welcome page) has tabs, they would need initialization if not pre-rendered.
+            // Your current setup loads `initial_content_template` which might contain them.
         });
+
+        // --- NEW: Function to handle tab switching ---
+        function openTab(event, tabId, tabContentClass) {
+            var i, tabcontent, tablinks;
+            var currentTabContainer = document.getElementById(tabId).closest('.feature-container') || document.body; // Scope tab operations
+
+            tabcontent = currentTabContainer.getElementsByClassName(tabContentClass);
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+                tabcontent[i].classList.remove("active-content");
+            }
+            
+            // Deactivate sibling tab links within the same tab group
+            if (event && event.currentTarget) {
+                const currentTabGroup = event.currentTarget.closest('.feature-tabs');
+                if (currentTabGroup) {
+                    tablinks = currentTabGroup.getElementsByClassName("tab-link");
+                    for (i = 0; i < tablinks.length; i++) {
+                        tablinks[i].classList.remove("active");
+                    }
+                    event.currentTarget.classList.add("active");
+                }
+            }
+            
+            document.getElementById(tabId).style.display = "block";
+            document.getElementById(tabId).classList.add("active-content");
+        }
+
+        // --- NEW: Function to display file name for file inputs ---
+        function displayFileName(inputId, displayId) {
+            const input = document.getElementById(inputId);
+            const display = document.getElementById(displayId);
+            if (!input || !display) {
+                // console.warn("displayFileName: Input or display element not found for", inputId, displayId);
+                return;
+            }
+
+            if (input.files && input.files.length > 0) {
+                display.textContent = input.files[0].name;
+                display.style.display = 'block'; 
+            } else {
+                display.textContent = '';
+                display.style.display = 'none';
+            }
+        }
+
+        // --- NEW: Function to initialize drop zones ---
+        function initDropZones() {
+            const dropZones = document.querySelectorAll('.drop-zone');
+
+            dropZones.forEach(zone => {
+                const input = zone.querySelector('input[type="file"]');
+                
+                // Click on drop-zone itself to trigger file input, unless an inner button/link is clicked
+                zone.addEventListener('click', (e) => {
+                    if (input && e.target.closest('.drop-zone') === zone && 
+                        !e.target.closest('button, a, .browse-button-link')) {
+                        input.click();
+                    }
+                });
+                
+                if (input) {
+                    // The 'onchange' attribute in HTML (e.g., onchange="displayFileName(...)")
+                    // will handle updating the file display. This JS listener is primarily for drag-drop.
+                    input.addEventListener('change', () => {
+                        // If onchange in HTML is used, this is redundant for click-select,
+                        // but good for drag-drop to ensure display is updated.
+                        const displayId = input.getAttribute('onchange')
+                                            ?.match(/displayFileName\s*\(\s*this\.id\s*,\s*['"]([^'"]+)['"]\s*\)/)?.[1];
+                        if (displayId) {
+                            displayFileName(input.id, displayId);
+                        }
+                    });
+
+                    zone.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        zone.classList.add('dragover');
+                    });
+
+                    zone.addEventListener('dragleave', () => {
+                        zone.classList.remove('dragover');
+                    });
+
+                    zone.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        zone.classList.remove('dragover');
+                        if (e.dataTransfer.files.length > 0) {
+                            input.files = e.dataTransfer.files;
+                            // Manually trigger change event for file input
+                            const event = new Event('change', { bubbles: true });
+                            input.dispatchEvent(event);
+                        }
+                    });
+                }
+            });
+        }
     </script>
 </body>
 </html>

@@ -1,43 +1,43 @@
 <!-- features/blurring/templates/blurring_content.html -->
-<div class="blurring-feature-container feature-container">
-    <h1>Advanced Face Blurring</h1>
+<div class="blurring-feature-container feature-container"> {# Keep feature-container for base styles #}
+    <h1><i class="fas fa-eye-slash"></i> Advanced Face Blurring</h1> {# Added icon #}
     <p class="feature-description">
         Protect privacy with our state-of-the-art face blurring technology.
         Simply upload your video or image, and let our AI handle the rest with precision and speed.
     </p>
 
-    <div class="blur-tabs">
-        <button class="blur-tab-link active" data-target-tab="video-blur-tab">
+    <div class="feature-tabs"> {# CHANGED from blur-tabs #}
+        <button class="tab-link active" data-target-tab="video-blur-tab"> {# CHANGED from blur-tab-link #}
             <i class="fas fa-video"></i> Blur Video Faces
         </button>
-        <button class="blur-tab-link" data-target-tab="image-blur-tab">
+        <button class="tab-link" data-target-tab="image-blur-tab"> {# CHANGED from blur-tab-link #}
             <i class="fas fa-image"></i> Blur Image Faces
         </button>
     </div>
 
-    <div id="video-blur-tab" class="blur-tab-content active-content">
+    <div id="video-blur-tab" class="feature-tab-content active-content"> {# CHANGED from blur-tab-content #}
         <h2>Process Video Files</h2>
         <p>Upload your video (MP4, MOV, AVI). Our system will automatically detect and blur faces.</p>
         <form hx-post="{{ url_for('process_blur_video_action') }}" hx-target="#video-blur-result" hx-swap="innerHTML" hx-encoding="multipart/form-data" class="blur-form">
-            <div class="drop-zone" id="video-drop-zone">
-                <span class="drop-zone-prompt"><i class="fas fa-cloud-upload-alt"></i> Drag & drop your video here, or click to select file</span>
+            <div class="drop-zone" id="video-drop-zone"> {# Specific ID for JS targeting #}
+                <span class="drop-zone-prompt"><i class="fas fa-cloud-upload-alt drop-zone-icon"></i> <span class="drop-zone-text">Drag & drop your video here, or <span class="browse-button-link">click to select file</span></span></span>
                 <input type="file" name="video_file" class="drop-zone-input" accept="video/*">
             </div>
-            <div class="file-info" id="video-file-info"></div>
+            <div class="file-name-display" id="video-file-info"></div> {# Generic class for styling #}
             <button type="submit" class="submit-button"><i class="fas fa-cogs"></i> Start Video Processing <span class="htmx-indicator spinner"></span></button>
         </form>
         <div id="video-blur-result" class="processing-result"></div>
     </div>
 
-    <div id="image-blur-tab" class="blur-tab-content">
+    <div id="image-blur-tab" class="feature-tab-content"> {# CHANGED from blur-tab-content #}
         <h2>Process Image Files</h2>
         <p>Upload your image (JPG, PNG, WEBP). Faces will be detected and blurred effectively.</p>
         <form hx-post="{{ url_for('process_blur_image_action') }}" hx-target="#image-blur-result" hx-swap="innerHTML" hx-encoding="multipart/form-data" class="blur-form">
-            <div class="drop-zone" id="image-drop-zone">
-                <span class="drop-zone-prompt"><i class="fas fa-cloud-upload-alt"></i> Drag & drop your image here, or click to select file</span>
+            <div class="drop-zone" id="image-drop-zone"> {# Specific ID for JS targeting #}
+                <span class="drop-zone-prompt"><i class="fas fa-cloud-upload-alt drop-zone-icon"></i> <span class="drop-zone-text">Drag & drop your image here, or <span class="browse-button-link">click to select file</span></span></span>
                 <input type="file" name="image_file" class="drop-zone-input" accept="image/*">
             </div>
-            <div class="file-info" id="image-file-info"></div>
+            <div class="file-name-display" id="image-file-info"></div> {# Generic class for styling #}
             <button type="submit" class="submit-button"><i class="fas fa-cogs"></i> Start Image Processing <span class="htmx-indicator spinner"></span></button>
         </form>
         <div id="image-blur-result" class="processing-result"></div>
@@ -46,50 +46,134 @@
 
 <script>
 (function() {
-    const container = document.querySelector('.blurring-feature-container');
-    if (!container) { return; }
-    function openBlurTab(targetTabId) {
-        container.querySelectorAll('.blur-tab-content').forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
-        container.querySelectorAll('.blur-tab-link').forEach(tl => tl.classList.remove('active'));
-        const currentTabContent = container.querySelector('#' + targetTabId);
-        const currentTabLink = container.querySelector(`.blur-tab-link[data-target-tab="${targetTabId}"]`);
+    const blurringFeatureContainer = document.querySelector('.blurring-feature-container');
+    if (!blurringFeatureContainer) { return; }
+
+    // Tab Switching Logic for Blurring Feature
+    const tabLinksBlur = blurringFeatureContainer.querySelectorAll('.feature-tabs .tab-link'); // Use generic class
+    const tabContentsBlur = blurringFeatureContainer.querySelectorAll('.feature-tab-content'); // Use generic class
+
+    function openBlurringFeatureTab(targetTabId) {
+        tabContentsBlur.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
+        tabLinksBlur.forEach(tl => tl.classList.remove('active'));
+        
+        const currentTabContent = blurringFeatureContainer.querySelector('#' + targetTabId);
+        const currentTabLink = blurringFeatureContainer.querySelector(`.feature-tabs .tab-link[data-target-tab="${targetTabId}"]`);
+        
         if (currentTabContent) { currentTabContent.style.display = 'block'; currentTabContent.classList.add('active-content'); }
         if (currentTabLink) { currentTabLink.classList.add('active'); }
     }
-    container.querySelectorAll('.blur-tab-link').forEach(link => {
-        link.addEventListener('click', function(event) { event.preventDefault(); const targetTabId = this.dataset.targetTab; if (targetTabId) { openBlurTab(targetTabId); } });
+
+    tabLinksBlur.forEach(link => {
+        link.addEventListener('click', function(event) {
+            event.preventDefault();
+            const targetTabId = this.dataset.targetTab;
+            if (targetTabId) { openBlurringFeatureTab(targetTabId); }
+        });
     });
-    openBlurTab('video-blur-tab');
-    function setupDropZone(dropZoneElem, inputElem, fileInfoElem) {
-        if (!dropZoneElem || !inputElem || !fileInfoElem) { return; }
-        dropZoneElem.addEventListener('click', (e) => { if (e.target.tagName !== 'BUTTON' && !e.target.closest('.remove-file-btn')) { inputElem.click(); } });
-        inputElem.addEventListener('change', () => { if (inputElem.files.length > 0) { handleFile(inputElem.files[0], fileInfoElem, dropZoneElem, inputElem); } });
-        dropZoneElem.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneElem.classList.add('drag-over'); });
-        dropZoneElem.addEventListener('dragleave', (e) => { e.preventDefault(); dropZoneElem.classList.remove('drag-over'); });
+    
+    // Open the first tab by default if it exists
+    if (tabLinksBlur.length > 0 && tabLinksBlur[0].dataset.targetTab) {
+        openBlurringFeatureTab(tabLinksBlur[0].dataset.targetTab);
+    } else if (blurringFeatureContainer.querySelector('.feature-tab-content')) { // Fallback if no data-target-tab
+        blurringFeatureContainer.querySelector('.feature-tab-content').classList.add('active-content');
+        blurringFeatureContainer.querySelector('.feature-tab-content').style.display = 'block';
+        if(blurringFeatureContainer.querySelector('.feature-tabs .tab-link')) {
+             blurringFeatureContainer.querySelector('.feature-tabs .tab-link').classList.add('active');
+        }
+    }
+
+
+    // Drag and Drop Zone Logic (from your original, now generic)
+    function setupDropZone(dropZoneId, inputId, fileInfoId) {
+        const dropZoneElem = blurringFeatureContainer.querySelector('#' + dropZoneId);
+        const inputElem = blurringFeatureContainer.querySelector('#' + inputId + ' input[type="file"].drop-zone-input'); // Be more specific
+        const fileInfoElem = blurringFeatureContainer.querySelector('#' + fileInfoId);
+
+        if (!dropZoneElem || !inputElem || !fileInfoElem) { 
+            // console.warn(`Drop zone elements not found for ${dropZoneId}`);
+            return; 
+        }
+
+        const browseLink = dropZoneElem.querySelector('.browse-button-link');
+        if (browseLink) {
+            browseLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Prevent click on drop-zone from also firing
+                inputElem.click();
+            });
+        }
+        // Click on drop zone (but not on specific buttons/links inside it) should trigger file input
+        dropZoneElem.addEventListener('click', (e) => { 
+            if (e.target === dropZoneElem || e.target.classList.contains('drop-zone-prompt') || e.target.classList.contains('drop-zone-icon') || e.target.classList.contains('drop-zone-text')) {
+                 inputElem.click();
+            }
+        });
+
+        inputElem.addEventListener('change', () => { 
+            if (inputElem.files.length > 0) { 
+                handleFile(inputElem.files[0], fileInfoElem, dropZoneElem, inputElem); 
+            } else {
+                clearFileSelection(fileInfoElem, dropZoneElem, inputElem);
+            }
+        });
+        dropZoneElem.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneElem.classList.add('dragover'); });
+        dropZoneElem.addEventListener('dragleave', (e) => { e.preventDefault(); dropZoneElem.classList.remove('dragover'); });
         dropZoneElem.addEventListener('drop', (e) => {
-            e.preventDefault(); dropZoneElem.classList.remove('drag-over');
-            if (e.dataTransfer.files.length > 0) { inputElem.files = e.dataTransfer.files; handleFile(e.dataTransfer.files[0], fileInfoElem, dropZoneElem, inputElem); }
+            e.preventDefault(); dropZoneElem.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) { 
+                inputElem.files = e.dataTransfer.files; 
+                handleFile(e.dataTransfer.files[0], fileInfoElem, dropZoneElem, inputElem); 
+            }
         });
     }
+
     function handleFile(file, fileInfoEl, dropZoneEl, inputEl) {
-        const fileSizeMB = (file.size / 1024 / 1024).toFixed(2); let fileTypeValid = true;
-        if (inputEl.accept && inputEl.accept !== "*/*") {
-            const acceptedTypes = inputEl.accept.split(',').map(t => t.trim().toLowerCase()); const fileTypeLower = file.type.toLowerCase();
-            fileTypeValid = acceptedTypes.some(acceptedType => { if (acceptedType.endsWith('/*')) return fileTypeLower.startsWith(acceptedType.slice(0, -2)); return fileTypeLower === acceptedType; });
+        const fileSizeMB = (file.size / 1024 / 1024).toFixed(2); 
+        let fileTypeValid = true;
+        const acceptedTypesRaw = inputEl.accept; // e.g. "video/*, .mkv"
+        
+        if (acceptedTypesRaw && acceptedTypesRaw !== "*/*") {
+            const acceptedTypes = acceptedTypesRaw.split(',').map(t => t.trim().toLowerCase());
+            const fileTypeLower = file.type.toLowerCase(); // e.g. "video/mp4"
+            const fileNameLower = file.name.toLowerCase();
+
+            fileTypeValid = acceptedTypes.some(acceptedType => {
+                if (acceptedType.startsWith('.')) { // Handles extensions like .mkv
+                    return fileNameLower.endsWith(acceptedType);
+                }
+                if (acceptedType.endsWith('/*')) { // Handles wildcards like video/*
+                    return fileTypeLower.startsWith(acceptedType.slice(0, -2));
+                }
+                return fileTypeLower === acceptedType; // Exact MIME type match
+            });
         }
+
         if (!fileTypeValid) {
-            fileInfoEl.innerHTML = `<p style="color: red;"><i class="fas fa-exclamation-triangle"></i> Invalid file type. Accepted: ${inputEl.accept}</p>`; inputEl.value = ''; dropZoneEl.classList.remove('file-selected'); return;
+            fileInfoEl.innerHTML = `<p style="color: red;"><i class="fas fa-exclamation-triangle"></i> Invalid file type. Accepted: ${acceptedTypesRaw}</p>`; 
+            inputEl.value = ''; // Clear the invalid file
+            dropZoneEl.classList.remove('file-selected'); 
+            return;
         }
-        fileInfoEl.innerHTML = `<p><i class="fas fa-file-alt"></i> Selected: <strong>${file.name}</strong> (${fileSizeMB} MB)</p><button type="button" class="remove-file-btn"><i class="fas fa-times-circle"></i> Change file</button>`;
-        dropZoneEl.classList.add('file-selected');
-        fileInfoEl.querySelector('.remove-file-btn').addEventListener('click', () => { clearFileSelection(fileInfoEl, dropZoneEl, inputEl); });
+        // Display file info and a remove button
+        fileInfoEl.innerHTML = `Selected: <strong>${file.name}</strong> (${fileSizeMB} MB) <button type="button" class="remove-file-btn" style="margin-left:10px; background:none; border:none; color:red; cursor:pointer; font-size:0.9em;">× Remove</button>`;
+        dropZoneEl.classList.add('file-selected'); // Optional: style drop zone differently when file is selected
+
+        const removeBtn = fileInfoEl.querySelector('.remove-file-btn');
+        if(removeBtn) {
+            removeBtn.addEventListener('click', () => { 
+                clearFileSelection(fileInfoEl, dropZoneEl, inputEl); 
+            });
+        }
     }
+
     function clearFileSelection(fileInfoEl, dropZoneEl, inputEl) {
-        if (inputEl) inputEl.value = ''; if (fileInfoEl) fileInfoEl.innerHTML = ''; if (dropZoneEl) dropZoneEl.classList.remove('file-selected');
+        if (inputEl) inputEl.value = ''; // Clear the file input
+        if (fileInfoEl) fileInfoEl.innerHTML = ''; // Clear the file info display
+        if (dropZoneEl) dropZoneEl.classList.remove('file-selected'); // Reset drop zone appearance
     }
-    const videoDropZone = container.querySelector('#video-drop-zone'); const videoInput = videoDropZone ? videoDropZone.querySelector('.drop-zone-input') : null; const videoFileInfo = container.querySelector('#video-file-info');
-    if (videoDropZone && videoInput && videoFileInfo) { setupDropZone(videoDropZone, videoInput, videoFileInfo); }
-    const imageDropZone = container.querySelector('#image-drop-zone'); const imageInput = imageDropZone ? imageDropZone.querySelector('.drop-zone-input') : null; const imageFileInfo = container.querySelector('#image-file-info');
-    if (imageDropZone && imageInput && imageFileInfo) { setupDropZone(imageDropZone, imageInput, imageFileInfo); }
+
+    setupDropZone('video-drop-zone', 'video-drop-zone', 'video-file-info'); // Pass ID of drop-zone for input query
+    setupDropZone('image-drop-zone', 'image-drop-zone', 'image-file-info'); // Pass ID of drop-zone for input query
 })();
 </script>
