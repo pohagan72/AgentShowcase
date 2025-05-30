@@ -19,7 +19,7 @@
           hx-target="#main-content"
           hx-swap="innerHTML"
           hx-encoding="multipart/form-data"
-          hx-indicator=".global-loader">
+          hx-indicator="#translation-submit-loader"> {# MODIFIED: hx-indicator points to the local loader #}
         
         <div class="form-group">
             <label for="translation-file-input">Upload File (.docx, .pptx, .xlsx):</label>
@@ -43,10 +43,19 @@
             </select>
         </div>
 
-        <button type="submit" class="submit-button" 
-                {% if not gcs_available or not gemini_configured %}disabled aria-disabled="true" title="Translation service is not fully configured." {% endif %}>
-            <i class="fas fa-cogs"></i> Translate File
-        </button>
+        {# ADDED: Wrapper div for button and loader for better layout control #}
+        <div class="submit-area" style="display: flex; align-items: center; margin-top: 20px;">
+            <button type="submit" class="submit-button" 
+                    {% if not gcs_available or not gemini_configured %}disabled aria-disabled="true" title="Translation service is not fully configured." {% endif %}>
+                <i class="fas fa-cogs"></i> Translate File
+            </button>
+            {# ADDED: Loader element that hx-indicator will target #}
+            <div id="translation-submit-loader" style="margin-left: 15px;">
+                {# This spinner will inherit animation and border-left-color from your .spinner CSS class. #}
+                {# Inline styles for size are specific to this instance. #}
+                <div class="spinner" style="width: 24px; height: 24px; border-width: 3px;"></div>
+            </div>
+        </div>
     </form>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -88,5 +97,6 @@
 
 <script>
     // Minimal script, relying on HTMX attributes for behavior.
-    // Global loader is handled by hx-indicator on the form.
+    // For this specific form, the indicator is now #translation-submit-loader.
+    // The global loader in layout.html handles other htmx requests unless overridden.
 </script>

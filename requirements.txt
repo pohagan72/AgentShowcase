@@ -13,7 +13,6 @@ PyPDF2
 presidio-analyzer
 presidio-anonymizer
 spacy
-en_core_web_lg
 stanza
 torch
 PyMuPDF 
