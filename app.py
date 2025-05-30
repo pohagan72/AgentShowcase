@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, url_for, current_app
+from flask import Flask, render_template, request, url_for, current_app, redirect # Added redirect
 import os
-from jinja2 import ChoiceLoader, FileSystemLoader # ADDED: For multiple template folders
-from dotenv import load_dotenv # Uncomment if you use a .env file for local dev
+from jinja2 import ChoiceLoader, FileSystemLoader
+from dotenv import load_dotenv
 
 # --- For Translation Feature Global Imports ---
 import google.generativeai as genai
@@ -9,16 +9,14 @@ from google.cloud import storage
 from google.cloud.exceptions import NotFound
 # --- End Translation Feature Global Imports ---
 
-load_dotenv() # Uncomment if you use a .env file for local dev
+load_dotenv() # Load environment variables from .env
 
 app = Flask(__name__)
 
 # --- Configure Jinja2 Template Loader ---
-# This tells Flask to look for templates in the default 'templates' folder
-# AND also within the 'features' directory (relative to the app root).
 app.jinja_loader = ChoiceLoader([
-    app.jinja_loader,  # This is Flask's default (looks in 'templates/' at app root)
-    FileSystemLoader('features') # Adds 'features/' as a root for template searching
+    app.jinja_loader,
+    FileSystemLoader('features')
 ])
 # --- End of Jinja2 Configuration ---
 
@@ -29,7 +27,7 @@ if app.secret_key == "a_very_strong_default_secret_key_for_dev_only_32_chars_lon
     print("WARNING: Using default FLASK_SECRET_KEY. Set a strong, unique key in your environment for production!")
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash-latest") # Consistent with standalone app's GEMINI_MODEL
+GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash-latest")
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
 GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")
 
@@ -41,7 +39,6 @@ app.config['GCS_BUCKET_NAME'] = GCS_BUCKET_NAME
 app.config['GOOGLE_CLOUD_PROJECT'] = GOOGLE_CLOUD_PROJECT
 
 # --- Initialize Google Services (Gemini & GCS) Globally ---
-# These will be accessible via current_app.config['GEMINI_CONFIGURED'], current_app.storage_client etc.
 app.config['GEMINI_CONFIGURED'] = False
 if GOOGLE_API_KEY:
     try:
@@ -54,13 +51,13 @@ else:
     print("Global: GOOGLE_API_KEY not found. Gemini-dependent features may be affected.")
 
 app.config['GCS_AVAILABLE'] = False
-app.storage_client = None # Will hold the storage.Client instance
-app.gcs_bucket = None     # Will hold the bucket object
+app.storage_client = None
+app.gcs_bucket = None
 if GCS_BUCKET_NAME and GOOGLE_CLOUD_PROJECT:
     try:
         app.storage_client = storage.Client(project=GOOGLE_CLOUD_PROJECT)
         app.gcs_bucket = app.storage_client.bucket(GCS_BUCKET_NAME)
-        app.gcs_bucket.reload() # Check existence and permissions
+        app.gcs_bucket.reload()
         app.config['GCS_AVAILABLE'] = True
         print(f"Global: GCS client initialized (Bucket: gs://{GCS_BUCKET_NAME}).")
     except NotFound:
@@ -77,15 +74,13 @@ else:
 
 
 # --- Data for our features (UI driven for sidebar and content loading) ---
-# IMPORTANT: Template paths for features are now relative to the 'features' directory
-# due to the FileSystemLoader('features') configuration above.
 FEATURES_DATA = {
-    "welcome": {"name": "Welcome", "icon": "fas fa-home", "template": "partials/_welcome_content.html"}, # Found by default loader
-    "transcription": {"name": "Transcription", "icon": "fas fa-microphone-alt", "template": "transcription/templates/transcription_content.html"}, # Relative to 'features/'
-    "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"}, # Relative to 'features/'
-    "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"}, # Relative to 'features/'
-    "blurring": {"name": "Blurring", "icon": "fas fa-eye-slash", "template": "blurring/templates/blurring_content.html"}, # Relative to 'features/'
-    "info": {"name": "Information", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"}, # Relative to 'features/'
+    "welcome": {"name": "Welcome", "icon": "fas fa-home", "template": "partials/_welcome_content.html"},
+    "transcription": {"name": "Transcription", "icon": "fas fa-microphone-alt", "template": "transcription/templates/transcription_content.html"},
+    "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"},
+    "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"},
+    "blurring": {"name": "Blurring", "icon": "fas fa-eye-slash", "template": "blurring/templates/blurring_content.html"},
+    "info": {"name": "Information", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"},
 }
 DEFAULT_FEATURE_KEY = "welcome"
 
@@ -97,63 +92,85 @@ app.config['TRANSLATION_LANGUAGES'] = [
 
 
 # --- Import and Register Feature Routes ---
-# These imports will execute the code in each routes.py, defining routes on the 'app' object
 from features.transcription.routes import define_transcription_routes
-from features.translation.routes import define_translation_routes # Our new feature routes
+from features.translation.routes import define_translation_routes
 from features.summarization.routes import define_summarization_routes
 from features.blurring.routes import define_blurring_routes
-from features.info.routes import define_info_routes # info might not have process routes
+from features.info.routes import define_info_routes
 
 define_transcription_routes(app)
-define_translation_routes(app) # Registering the translation routes
+define_translation_routes(app)
 define_summarization_routes(app)
 define_blurring_routes(app)
-define_info_routes(app) # Call this even if it only defines a simple route or no new routes
+define_info_routes(app)
 
 # --- Main Layout & Content Swapping Routes ---
+
 @app.route('/')
+def root_redirect():
+    """Redirects the root path to the default welcome feature."""
+    return redirect(url_for('index', feature_key=DEFAULT_FEATURE_KEY))
+
 @app.route('/feature/<feature_key>')
-def index(feature_key=None):
-    if feature_key is None or feature_key not in FEATURES_DATA:
-        feature_key = DEFAULT_FEATURE_KEY
+def index(feature_key): # feature_key will always be provided here
+    """Displays the main layout and the content for the specified feature."""
+    if feature_key not in FEATURES_DATA:
+        # If an invalid feature key is accessed directly via URL,
+        # render the default feature's content but keep the URL as is.
+        # The sidebar will correctly highlight "Welcome".
+        feature_key_to_render = DEFAULT_FEATURE_KEY
+        # Optionally, you could redirect to the default feature's URL if strictness is preferred:
+        # return redirect(url_for('index', feature_key=DEFAULT_FEATURE_KEY))
+    else:
+        feature_key_to_render = feature_key
     
-    current_feature_data = FEATURES_DATA[feature_key]
-    initial_content_template_path = FEATURES_DATA[DEFAULT_FEATURE_KEY]["template"]
+    current_feature_data = FEATURES_DATA[feature_key_to_render]
+    # For direct navigation or refresh, initial_content_template should be the template
+    # of the *requested* valid feature (or default if invalid key).
+    initial_content_template_path = current_feature_data["template"]
 
     return render_template(
         'layout.html',
         features=FEATURES_DATA,
-        current_feature=current_feature_data, # Pass the data for the selected/default feature
-        active_feature_key=feature_key,
+        current_feature=current_feature_data,
+        active_feature_key=feature_key_to_render, # Use the key that's actually being rendered
         initial_content_template=initial_content_template_path,
         DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY
     )
 
 @app.route('/content/<feature_key>')
 def get_feature_content(feature_key):
+    """Serves the HTML content for a specific feature, used by HTMX."""
     if feature_key not in FEATURES_DATA:
-        return "Feature content not found", 404
+        # This case should ideally be prevented by UI, but good for robustness
+        # Return content for the default feature or an error snippet
+        # For now, let's try rendering default or a simple error
+        # return render_template(FEATURES_DATA[DEFAULT_FEATURE_KEY]["template"]), 200 # Or 404
+        return "Feature content not found", 404 # Sticking to original 404 for direct access
     
     feature_data = FEATURES_DATA[feature_key]
     template_to_render = feature_data["template"]
     
-    # Context specific to the translation feature when its content is loaded
+    # Context specific to features when their content is loaded via this HTMX route
     context = {}
     if feature_key == "translation":
         context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
         context["gcs_available"] = current_app.config.get('GCS_AVAILABLE', False)
         context["gemini_configured"] = current_app.config.get('GEMINI_CONFIGURED', False)
-        context["file_id"] = None # No file processed yet on initial load
-        # Flashed messages are handled by Flask's get_flashed_messages in the template itself
+        # file_id is typically set after a POST, so not needed for initial GET of content partial
+    elif feature_key == "summarization":
+        # For summarization, the initial content doesn't need much special context
+        # The 'summary' variable is passed after a POST request from its own route.
+        context["summary"] = "" # Initial state
+        context["hx_target_is_result"] = False # For initial load, not an HTMX result swap
+        
 
-    return render_template(template_to_render, **context) # Jinja will now search both 'templates/' and 'features/'
+    return render_template(template_to_render, **context)
 
 # Note: Individual /process/<action> routes are now defined within each
 # feature's routes.py file by the define_xxx_routes(app) functions.
 
 if __name__ == '__main__':
-    # This is for running locally with `python app.py` (Flask's dev server)
-    # Your `run.py` will use Waitress for a more production-like local server or for deployment.
     print(f"Starting Flask development server on http://localhost:5001")
     print(f"FLASK_SECRET_KEY is {'SET (hopefully not the default)' if app.secret_key != 'a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this' else 'USING DEFAULT DEV KEY - NOT FOR PRODUCTION'}")
     print(f"GOOGLE_API_KEY is {'SET' if GOOGLE_API_KEY else 'NOT SET (will be needed for AI features)'}")
