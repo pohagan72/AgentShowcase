@@ -3,7 +3,7 @@
 {# Check if this is an HTMX request specifically for the TEXT summary result #}
 {% if request.headers.get('HX-Request') and hx_target_is_text_summary_result %}
     {# --- This block is ONLY for HTMX swapping the TEXT summary result --- #}
-    {% if summary %} {# This 'summary' variable is for the text summary #}
+    {% if summary %}
         <h2>Summary:</h2>
         <textarea id="summary-output" rows="8" cols="60" readonly>{{ summary }}</textarea>
         <p style="font-size: 0.85em; color: #777; margin-top: 5px;">(Read-only summary - copy and paste as needed)</p>
@@ -24,7 +24,7 @@
         <p><i>No text summary generated yet or an issue occurred.</i></p>
     {% endif %}
 {% elif request.headers.get('HX-Request') and hx_target_is_ppt_status_result %}
-    {# --- This block is for HTMX swapping PPT status (currently not used, JS handles PPT status) --- #}
+    {# --- This block is for HTMX swapping PPT status --- #}
     {% if ppt_error_message %}
         <div id="ppt-builder-status" class="ppt-builder-error">{{ ppt_error_message }}</div>
     {% elif ppt_success_message and ppt_download_url %} 
@@ -62,47 +62,32 @@
         <div id="text-summary-tab" class="feature-tab-content active-content">
             <h2>Generate a Concise Text Summary</h2>
             <div class="feature-explanation" style="margin-top:15px;">
-                <p>
-                    This service utilizes a sophisticated two-step GenAI process to deliver contextually relevant text summaries.
-                    This approach enhances the quality and relevance of the output compared to a generic summarization method.
-                </p>
-                <ol>
-                    <li>
-                        <strong>Document Classification:</strong> First, the GenAI model analyzes the document to understand the context. For example, is it a Financial Report, Legal Contract, Technical Manual?
-                    </li>
-                    <li>
-                        <strong>Context-Aware Summarization:</strong> Based on the context, a specialized prompt is constructed to guide the GenAI model to focus on the aspects most critical for that specific type of document.
-                    </li>
-                </ol>
-                <p>
-                    This intelligent, type-specific approach has 20+ custom AI prompts that allows the AI Agent to generate more insightful and actionable text summaries.
-                </p>
+                <p>This service utilizes a sophisticated two-step GenAI process to deliver contextually relevant text summaries...</p>
+                <ol><li><strong>Document Classification...</strong></li><li><strong>Context-Aware Summarization...</strong></li></ol>
+                <p>This intelligent, type-specific approach has 20+ custom AI prompts...</p>
             </div>
-
-            <p class="upload-instructions">
-                Upload a Word, PowerPoint, Excel, or PDF file, or paste text below.
-                Maximum text length for summarization is 1,000,000 characters.
-            </p>
-
-            <form hx-post="{{ url_for('process_summarize') }}" hx-target="#text-summarization-result" hx-swap="innerHTML" enctype="multipart/form-data" hx-indicator="#text-summary-tab .spinner">
+            <p class="upload-instructions">Upload a Word, PowerPoint, Excel, or PDF file, or paste text below...</p>
+            <form id="text-summary-form" hx-post="{{ url_for('process_summarize') }}" hx-target="#text-summarization-result" hx-swap="innerHTML" enctype="multipart/form-data" hx-indicator="#text-summary-tab .spinner">
                 <div class="form-group">
                     <label for="text_to_summarize">Paste Text (or leave blank to upload a file):</label>
                     <textarea id="text_to_summarize" name="text_to_summarize" rows="8"></textarea>
                 </div>
-
                 <div class="form-group">
-                    <label for="text-summary-file-input">Upload File (.docx, .pptx, .xlsx, .pdf):</label>
-                    <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf">
+                    <label for="text-summary-file-input" id="text-summary-drop-zone-label" class="drop-zone-style" 
+                           style="display: block; border: 2px dashed #007bff; padding: 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 10px;">
+                        <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drop .docx, .pptx, .xlsx, or .pdf file here, or click to select.</p>
+                        <p id="text-summary-file-name-display" style="margin-top:5px; font-weight: bold; color: #555;">No file selected</p>
+                    </label>
+                    <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf"
+                           style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">
                 </div>
-
                 <button type="submit" class="submit-button">
                     <i class="fas fa-file-alt"></i> Summarize Text
                     <span class="htmx-indicator spinner"></span>
                 </button>
             </form>
-
             <div id="text-summarization-result" class="processing-result">
-                {% if summary %}
+                 {% if summary %} 
                     <h2>Summary:</h2>
                     <textarea id="summary-output" rows="8" readonly>{{ summary }}</textarea>
                     <p style="font-size: 0.85em; color: #777; margin-top: 5px;">(Read-only summary)</p>
@@ -112,18 +97,13 @@
             </div>
         </div>
 
-        <!-- Tab Content for PPT Summary -->
+        <!-- SIMPLIFIED Tab Content for PPT Summary (URL option removed) -->
         <div id="ppt-summary-tab" class="feature-tab-content">
             <h2>Generate an Executive PowerPoint Summary</h2>
             <div class="feature-explanation" style="margin-top:15px;">
                  <p>
-                    This tool creates executive-level PowerPoint presentations from your documents (e.g., Word, PDF, Python code) or web pages.
-                    It uses a multi-step AI process involving document classification and tailored slide generation with over 20 expert AI personas.
-                </p>
-                <p>
-                    <a href="javascript:void(0);" id="ppt-builder-ai-experts-link" class="ppt-builder-intro-feature-link">
-                        <span class="link-icon">✨</span> Meet the AI Slide Experts <span class="link-icon">✨</span>
-                    </a>
+                    This tool creates executive-level PowerPoint presentations from your uploaded documents (e.g., Word, PDF, Python code).
+                    It uses a multi-step AI process. Default presentation style will be used.
                 </p>
             </div>
 
@@ -134,80 +114,30 @@
             {% endif %}
 
             <form id="ppt-builder-upload-form" action="{{ url_for('process_create_ppt') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="template" value="{{ ppt_default_template | default('professional') }}">
+                {# ADDED HIDDEN INPUT FOR inputType #}
+                <input type="hidden" name="inputType" value="file">
+
                 <div class="ppt-builder-step-section">
-                    <div class="ppt-builder-step-title"><span class="ppt-builder-step-number">1</span>Choose Presentation Style</div>
-                    <div class="form-group">
-                        <input type="hidden" id="ppt-builder-template-input" name="template" value="{{ ppt_default_template | default('professional') }}">
-                        <div class="ppt-builder-option-preview ppt-builder-template-preview">
-                            {% for tpl_name in ppt_templates | default(['professional', 'creative', 'minimalist']) %}
-                            <div class="ppt-builder-option-box ppt-builder-template-option {% if tpl_name == (ppt_default_template | default('professional')) %}selected{% endif %}" data-value="{{ tpl_name }}"><div class="ppt-builder-option-color-bar"></div>{{ tpl_name|capitalize }}</div>
-                            {% endfor %}
-                        </div>
+                    {# MODIFIED: Title changed #}
+                    <div class="ppt-builder-step-title"><span class="ppt-builder-step-number"></span></div>
+                    
+                    {# REMOVED: .ppt-builder-input-type-selector div (radio buttons) #}
+
+                    <div id="ppt-builder-file-upload-section"> 
+                         <label for="ppt-builder-file-input" id="ppt-builder-drop-zone-label" class="drop-zone-style"
+                                style="display: block; border: 2px dashed #007bff; padding: 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 10px;">
+                             <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">
+                                 Source Files ({{ ppt_allowed_extensions_str|default('.docx, .pdf, or .py') }}, up to {{ ppt_max_files|default(5) }} files, max {{ ppt_max_file_size_mb|default(10) }}MB each)
+                             </p>
+                             <p style="margin:0 0 10px 0; font-size: 1.0em; color: #333;">Drag & drop your file(s) here or click to select.</p>
+                             <div id="ppt-builder-file-info" style="margin-top:10px; font-weight: bold; color: #555;"><p class="ppt-builder-no-files-msg">No files selected.</p></div>
+                         </label>
+                         <input type="file" id="ppt-builder-file-input" name="file" accept="{{ ppt_allowed_extensions_str|default('.docx,.pdf,.py') }}" 
+                                style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;" multiple>
                     </div>
-                </div>
-                <div class="ppt-builder-step-section">
-                    <div class="ppt-builder-step-title"><span class="ppt-builder-step-number">2</span>Refine Content (Optional)</div>
-                    <div class="form-group">
-                        <label>Target Audience <span class="ppt-builder-optional-tag">(Helps tailor language)</span><i class="ppt-builder-tooltip-icon" title="Select the primary audience. Click again to deselect (optional).">?</i></label>
-                        <input type="hidden" id="ppt-builder-audience-input" name="audience" value="">
-                        <div class="ppt-builder-option-preview ppt-builder-audience-options">
-                             <div class="ppt-builder-option-box" data-value="Executives"><div class="ppt-builder-option-color-bar"></div>Executives</div>
-                             <div class="ppt-builder-option-box" data-value="Technical Team"><div class="ppt-builder-option-color-bar"></div>Technical</div>
-                             <div class="ppt-builder-option-box" data-value="General"><div class="ppt-builder-option-color-bar"></div>General</div>
-                        </div>
-                    </div>
-                     <div class="form-group">
-                          <label>Desired Tone <span class="ppt-builder-optional-tag">(Adjusts formality & style)</span><i class="ppt-builder-tooltip-icon" title="Choose the overall tone. Click again to deselect (optional).">?</i></label>
-                         <input type="hidden" id="ppt-builder-tone-input" name="tone" value="">
-                         <div class="ppt-builder-option-preview ppt-builder-tone-options">
-                              <div class="ppt-builder-option-box" data-value="Formal"><div class="ppt-builder-option-color-bar"></div>Formal</div>
-                              <div class="ppt-builder-option-box" data-value="Persuasive"><div class="ppt-builder-option-color-bar"></div>Persuasive</div>
-                              <div class="ppt-builder-option-box" data-value="Informative"><div class="ppt-builder-option-color-bar"></div>Informative</div>
-                         </div>
-                     </div>
-                    <div class="form-group">
-                         <label for="ppt-builder-language">Output Language <span class="ppt-builder-optional-tag">(Default: English)</span><i class="ppt-builder-tooltip-icon" title="Select the language for the generated presentation text. Translation uses AI and may take longer.">?</i></label>
-                        <select id="ppt-builder-language" name="language">
-                            <option value="">English (Default)</option>
-                            <option value="Spanish">Spanish</option>
-                            <option value="French">French</option>
-                            <option value="German">German</option>
-                            <option value="Portuguese">Portuguese</option>
-                            <option value="Italian">Italian</option>
-                            <option value="Dutch">Dutch</option>
-                            <option value="Russian">Russian</option>
-                            <option value="Japanese">Japanese</option>
-                            <option value="Korean">Korean</option>
-                            <option value="Chinese (Simplified)">Chinese (Simplified)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="ppt-builder-step-section">
-                    <div class="ppt-builder-step-title"><span class="ppt-builder-step-number">3</span>Choose Input Source</div>
-                    <div class="form-group ppt-builder-input-type-selector">
-                         <input type="radio" id="ppt-builder-input-type-file" name="inputType" value="file" checked>
-                         <label for="ppt-builder-input-type-file">Upload File(s)</label>
-                         <input type="radio" id="ppt-builder-input-type-url" name="inputType" value="url">
-                         <label for="ppt-builder-input-type-url">Enter Web Page URL</label>
-                    </div>
-                    <div id="ppt-builder-file-upload-section">
-                         <input type="file" id="ppt-builder-file-input" name="file" accept="{{ ppt_allowed_extensions_str|default('.docx,.pdf,.py') }}" style="display: none;" multiple>
-                         <div class="form-group">
-                            <label for="ppt-builder-drop-zone">Source Files ({{ ppt_allowed_extensions_str|default('.docx, .pdf, or .py') }}, up to {{ ppt_max_files|default(5) }} files, max {{ ppt_max_file_size_mb|default(10) }}MB each):</label>
-                            <div id="ppt-builder-drop-zone" aria-labelledby="ppt-builder-drop-zone-label">
-                                <p>Drag & drop your file(s) here</p>
-                                <p>or</p>
-                                <button type="button" id="ppt-builder-browse-btn" class="submit-button" style="width:auto; padding: 0.6rem 1.2rem; background-color: #6c757d;">Browse Files</button>
-                                <div id="ppt-builder-file-info"><p class="ppt-builder-no-files-msg">No files selected.</p></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="ppt-builder-url-input-section" class="ppt-builder-hidden">
-                         <div class="form-group">
-                             <label for="ppt-builder-source-url">Web Page URL:<i class="ppt-builder-tooltip-icon" title="Enter the full public URL (http:// or https://) of the web page you want to summarize.">?</i></label>
-                             <input type="url" id="ppt-builder-source-url" name="sourceUrl" placeholder="e.g., https://www.example.com/article.html">
-                        </div>
-                    </div>
+                    
+                    {# REMOVED: div#ppt-builder-url-input-section #}
                 </div>
                 <button type="submit" id="ppt-builder-convert-btn" class="submit-button" {% if not ppt_api_key_configured %}disabled{% endif %}>
                     <i class="fas fa-magic"></i> Generate Presentation
@@ -225,61 +155,6 @@
             </div>
         </div> <!-- End of ppt-summary-tab -->
 
-        <!-- Popups from PPT Builder - IDs are prefixed 
-        <div id="ppt-builder-legal-notice-overlay" class="ppt-builder-popup-overlay">
-            <div id="ppt-builder-legal-notice-popup" class="ppt-builder-popup-content">
-                <button id="ppt-builder-legal-notice-close" class="ppt-builder-popup-close-button">×</button>
-                <h2>Legal Notice</h2>
-                <p><strong>Important Information:</strong> Please read the following carefully.</p>
-                <ul>
-                    <li><strong>No Warranty:</strong> This service is provided "as is" without any warranties, express or implied. Your use of this service is solely at your own risk.</li>
-                    <li><strong>Data Handling:</strong> Your input data is processed solely to generate the presentation. We do not intentionally store your data longer than necessary for this processing.</li>
-                    <li><strong>AI Training:</strong> Your data will <strong>not</strong> be used to train AI models.</li>
-                    <li><strong>Limitation of Liability:</strong> By using this service, you agree that the creator provides no guarantees and assumes no liability for any outcomes, errors, or issues resulting from its use.</li>
-                </ul>
-            </div>
-        </div>
-
-        <div id="ppt-builder-ai-experts-overlay" class="ppt-builder-popup-overlay">
-            <div id="ppt-builder-ai-experts-popup" class="ppt-builder-popup-content">
-                <button id="ppt-builder-ai-experts-close" class="ppt-builder-popup-close-button">×</button>
-                <h2>Meet the AI Slide Experts</h2>
-                
-                    IMPORTANT: PASTE ALL YOUR 20+ <div class="ppt-builder-expert-category">...</div> blocks here
-                    from your standalone PPT Builder's index.html
-                
-                <div class="ppt-builder-expert-category">
-                    <h3><span class="emoji-icon">💼</span>Ava, Your Resume & CV Expert</h3>
-                    <p><strong>Expertise:</strong> Highlighting candidate qualifications, key experiences, skills, and achievements.</p>
-                     <p><strong>Acts on documents like:</strong></p><ul><li>A) Candidate Resumes.</li><li>B) Curriculum Vitae (CVs).</li><li>C) Professional profile summaries.</li></ul>
-                </div>
-                <div class="ppt-builder-expert-category">
-                    <h3><span class="emoji-icon">💡</span>Kenji, Your Patent Insights Expert</h3>
-                    <p><strong>Expertise:</strong> Deconstructing patent documents for core inventions, claims, and technical fields.</p>
-                     <p><strong>Acts on documents like:</strong></p><ul><li>A) Full-text Patent Specifications.</li><li>B) Patent applications.</li><li>C) Prior art search results.</li></ul>
-                </div>
-                <div class="ppt-builder-expert-category">
-                    <h3><span class="emoji-icon">💰</span>Raj, Your Financial Report Analyst</h3>
-                    <p><strong>Expertise:</strong> Focusing on KPIs, YoY changes, and risks from financial disclosures.</p>
-                    <p><strong>Acts on documents like:</strong></p><ul><li>A) Annual Reports (10-K).</li><li>B) Quarterly Reports (10-Q).</li></ul>
-                </div>
-                <div class="ppt-builder-expert-category">
-                    <h3><span class="emoji-icon">⚖️</span>Advocate Lishni, Your Legal Case Analyst</h3>
-                    <p><strong>Expertise:</strong> Deconstructing legal arguments using FIRAC/IRAC.</p>
-                     <p><strong>Acts on documents like:</strong></p><ul><li>A) Formal Legal Case Briefs.</li><li>B) Full-text Court Opinions.</li></ul>
-                </div>
-                <div class="ppt-builder-expert-category">
-                     <h3><span class="emoji-icon">🌐</span>Sharon, Your News & Blog Digest Expert</h3>
-                     <p><strong>Expertise:</strong> Summarizing the main topic and arguments of online content.</p>
-                     <p><strong>Acts on documents like:</strong></p><ul><li>A) News Articles.</li><li>B) Blog Posts and opinion pieces.</li></ul>
-                </div>
-                 Add the rest of your expert categories here, following the same pattern 
-            </div>
-        </div>
-         <div class="ppt-builder-container-footer" style="margin-top: 30px;">
-             <p>PPT Builder Logic © Paul O'Hagan</p>
-             <a href="javascript:void(0);" id="ppt-builder-legal-notice-link">Legal Notice (PPT Feature)</a>
-        </div> -->
     </div> {# End of summarization-tile-container #}
 
     <script>
@@ -290,10 +165,9 @@
             return;
         }
 
-        // --- Tab Switching Logic ---
+        // --- Tab Switching Logic (Remains the same) ---
         const tabLinks = summarizationFeatureContainer.querySelectorAll('.feature-tabs .tab-link');
         const tabContents = summarizationFeatureContainer.querySelectorAll('.feature-tab-content');
-
         function openSummarizationTab(targetTabId) {
             tabContents.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
             tabLinks.forEach(tl => tl.classList.remove('active'));
@@ -309,36 +183,38 @@
                 if (targetTabId) { openSummarizationTab(targetTabId); }
             });
         });
-        if (tabLinks.length > 0 && tabLinks[0].dataset.targetTab) {
-             openSummarizationTab(tabLinks[0].dataset.targetTab);
+        if (tabLinks.length > 0 && !summarizationFeatureContainer.querySelector('.feature-tabs .tab-link.active')) {
+             const firstTabId = tabLinks[0].dataset.targetTab;
+             if (firstTabId) openSummarizationTab(firstTabId);
         }
 
 
-        // --- PPT Builder Specific JavaScript ---
+        // --- Text Summary Tab File Upload Logic (Remains the same) ---
+        const textSummaryDropZoneLabel = summarizationFeatureContainer.querySelector('#text-summary-drop-zone-label');
+        const textSummaryFileInput = summarizationFeatureContainer.querySelector('#text-summary-file-input');
+        const textSummaryFileNameDisplay = summarizationFeatureContainer.querySelector('#text-summary-file-name-display');
+        const textSummaryForm = summarizationFeatureContainer.querySelector('#text-summary-form');
+        if (textSummaryDropZoneLabel && textSummaryFileInput && textSummaryFileNameDisplay && textSummaryForm) {
+            textSummaryDropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); textSummaryDropZoneLabel.classList.add('drag-over'); textSummaryDropZoneLabel.style.borderColor = '#28a745'; });
+            textSummaryDropZoneLabel.addEventListener('dragleave', () => { textSummaryDropZoneLabel.classList.remove('drag-over'); textSummaryDropZoneLabel.style.borderColor = '#007bff'; });
+            textSummaryDropZoneLabel.addEventListener('drop', (e) => { e.preventDefault(); textSummaryDropZoneLabel.classList.remove('drag-over'); textSummaryDropZoneLabel.style.borderColor = '#007bff'; const files = e.dataTransfer.files; if (files.length > 0) { textSummaryFileInput.files = files; const event = new Event('change', { bubbles: true }); textSummaryFileInput.dispatchEvent(event); } });
+            textSummaryFileInput.addEventListener('change', () => { if (textSummaryFileInput.files.length > 0) { textSummaryFileNameDisplay.textContent = textSummaryFileInput.files[0].name; textSummaryDropZoneLabel.classList.add('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#28a745'; } else { textSummaryFileNameDisplay.textContent = 'No file selected'; textSummaryDropZoneLabel.classList.remove('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#007bff'; } });
+            textSummaryForm.addEventListener('submit', function(event) { const textToSummarizeInput = summarizationFeatureContainer.querySelector('#text_to_summarize'); if (textSummaryFileInput.files.length === 0 && (!textToSummarizeInput || textToSummarizeInput.value.trim() === '')) { alert('Please upload a file or paste text to summarize.'); event.preventDefault(); } });
+        }
+
+        // --- SIMPLIFIED PPT Builder Specific JavaScript (URL option and popups removed) ---
         const pptBuilderForm = summarizationFeatureContainer.querySelector('#ppt-builder-upload-form');
         if (pptBuilderForm) {
-            const pptDropZoneContainer = summarizationFeatureContainer.querySelector('#ppt-builder-file-upload-section');
-            const pptUrlInputContainer = summarizationFeatureContainer.querySelector('#ppt-builder-url-input-section');
-            const pptDropZone = summarizationFeatureContainer.querySelector('#ppt-builder-drop-zone');
+            const pptDropZoneLabel = summarizationFeatureContainer.querySelector('#ppt-builder-drop-zone-label'); 
             const pptFileInput = summarizationFeatureContainer.querySelector('#ppt-builder-file-input');
-            const pptUrlInput = summarizationFeatureContainer.querySelector('#ppt-builder-source-url');
-            const pptBrowseBtn = summarizationFeatureContainer.querySelector('#ppt-builder-browse-btn');
             const pptConvertBtn = summarizationFeatureContainer.querySelector('#ppt-builder-convert-btn');
             const pptStatusDiv = summarizationFeatureContainer.querySelector('#ppt-builder-status');
             const pptStatusContainer = summarizationFeatureContainer.querySelector('#ppt-builder-status-container');
             const pptLoaderContainer = summarizationFeatureContainer.querySelector('#ppt-builder-loader-container');
             const pptLoaderText = summarizationFeatureContainer.querySelector('#ppt-builder-loader-text');
-            const pptTemplateInput = summarizationFeatureContainer.querySelector('#ppt-builder-template-input');
-            const pptTemplateOptions = summarizationFeatureContainer.querySelectorAll('.ppt-builder-template-option');
-            const pptAudienceInput = summarizationFeatureContainer.querySelector('#ppt-builder-audience-input');
-            const pptAudienceOptions = summarizationFeatureContainer.querySelectorAll('.ppt-builder-audience-options .ppt-builder-option-box');
-            const pptToneInput = summarizationFeatureContainer.querySelector('#ppt-builder-tone-input');
-            const pptToneOptions = summarizationFeatureContainer.querySelectorAll('.ppt-builder-tone-options .ppt-builder-option-box');
             const pptFileInfoDiv = summarizationFeatureContainer.querySelector('#ppt-builder-file-info');
-            const pptLanguageSelect = summarizationFeatureContainer.querySelector('#ppt-builder-language');
-            const pptInputTypeRadios = pptBuilderForm.querySelectorAll('input[name="inputType"]');
 
-            let pptCurrentInputType = pptBuilderForm.querySelector('input[name="inputType"]:checked') ? pptBuilderForm.querySelector('input[name="inputType"]:checked').value : 'file';
+            // const pptCurrentInputType = 'file'; // Hardcoded, no longer needed as a variable here
             let pptValidFiles = [];
             
             const PPT_MAX_FILES = parseInt("{{ ppt_max_files|default(5) }}", 10);
@@ -346,80 +222,187 @@
             const PPT_MAX_FILE_SIZE = PPT_MAX_FILE_SIZE_MB * 1024 * 1024;
             const PPT_ALLOWED_EXTENSIONS_STR = "{{ ppt_allowed_extensions_str|default('.docx,.pdf,.py') }}";
             const PPT_ALLOWED_EXTENSIONS = PPT_ALLOWED_EXTENSIONS_STR.split(',').map(ext => ext.trim().replace('.', ''));
-            
-            // CORRECTED: Define pptApiKeyIsConfigured using tojson for proper boolean conversion
             const pptApiKeyIsConfigured = {{ ppt_api_key_configured|default(false)|tojson }};
 
-            if(pptTemplateInput && pptTemplateOptions.length > 0) {
-                pptTemplateOptions.forEach(option => option.addEventListener('click', function() { selectPptOption(this.dataset.value, pptTemplateInput, pptTemplateOptions, false); }));
-                const defaultTpl = "{{ ppt_default_template|default('professional') }}";
-                selectPptOption(defaultTpl, pptTemplateInput, pptTemplateOptions, false);
-            }
-            if(pptAudienceInput && pptAudienceOptions.length > 0) {
-                pptAudienceOptions.forEach(option => option.addEventListener('click', function() { selectPptOption(this.dataset.value, pptAudienceInput, pptAudienceOptions, true); }));
-            }
-            if(pptToneInput && pptToneOptions.length > 0) {
-                pptToneOptions.forEach(option => option.addEventListener('click', function() { selectPptOption(this.dataset.value, pptToneInput, pptToneOptions, true); }));
-            }
-
-            if(pptBrowseBtn && pptFileInput) pptBrowseBtn.addEventListener('click', () => pptFileInput.click());
-            if(pptFileInput) pptFileInput.addEventListener('change', function(e) { if (e.target.files.length) { handlePptFileSelection(e.target.files); } updatePptConvertButtonState(); });
-            
-            if(pptDropZone) {
-                pptDropZone.addEventListener('dragover', (e) => { e.preventDefault(); pptDropZone.classList.add('dragover'); });
-                ['dragleave', 'dragend', 'drop'].forEach(type => pptDropZone.addEventListener(type, (e) => { e.preventDefault(); pptDropZone.classList.remove('dragover'); }));
-                pptDropZone.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) { handlePptFileSelection(e.dataTransfer.files); if(pptFileInput) pptFileInput.files = e.dataTransfer.files; } updatePptConvertButtonState(); });
-            }
-            if(pptUrlInput) pptUrlInput.addEventListener('input', updatePptConvertButtonState);
-            
-            if(pptInputTypeRadios.length > 0) {
-                pptInputTypeRadios.forEach(radio => radio.addEventListener('change', handlePptInputTypeChange));
-                const initialPptInputTypeRadio = pptBuilderForm.querySelector('input[name="inputType"]:checked') || pptBuilderForm.querySelector('#ppt-builder-input-type-file');
-                if (initialPptInputTypeRadio) handlePptInputTypeChange({target: initialPptInputTypeRadio});
-            }
-
-            pptBuilderForm.addEventListener('submit', handlePptFormSubmit);
-
-            function handlePptInputTypeChange(event) {
-                pptCurrentInputType = event.target.value;
-                if (pptCurrentInputType === 'file') {
-                    if(pptUrlInputContainer) pptUrlInputContainer.classList.add('ppt-builder-hidden');
-                    if(pptDropZoneContainer) pptDropZoneContainer.classList.remove('ppt-builder-hidden');
-                    if(pptUrlInput) pptUrlInput.value = '';
-                } else {
-                    if(pptDropZoneContainer) pptDropZoneContainer.classList.add('ppt-builder-hidden');
-                    if(pptUrlInputContainer) pptUrlInputContainer.classList.remove('ppt-builder-hidden');
-                    resetPptFileInput();
-                }
-                updatePptConvertButtonState();
-                clearPptStatus();
-            }
+            // --- START: Core PPT Function Definitions (Simplified Set) ---
+            // REMOVED: initializePptPopup, selectPptOption, handlePptInputTypeChange, isValidPptHttpUrl
 
             function updatePptConvertButtonState() {
                  if(!pptConvertBtn) return;
-                 let isReady = false;
-                 if (pptCurrentInputType === 'file') { isReady = pptValidFiles.length > 0; }
-                 else { isReady = pptUrlInput && pptUrlInput.value.trim() !== '' && isValidPptHttpUrl(pptUrlInput.value.trim()); }
-                 // --- CORRECTED: Use the JavaScript boolean variable ---
+                 const isReady = pptValidFiles.length > 0;
                  pptConvertBtn.disabled = !isReady || !pptApiKeyIsConfigured;
             }
+            function handlePptFileSelection(fileList) { 
+                clearPptStatus(); pptValidFiles = [];
+                let invalidCount = 0; let typeErrorCount = 0; let sizeErrorCount = 0;
+                const totalSelected = fileList.length;
+                if (totalSelected > PPT_MAX_FILES) { 
+                    showPptStatus(`Too many files selected (${totalSelected}). Max: ${PPT_MAX_FILES}.`, 'error'); 
+                    resetPptFileInput(); return; 
+                }
+                for (const file of fileList) {
+                    const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+                    let isTypeValid = PPT_ALLOWED_EXTENSIONS.includes(fileExt);
+                    let isSizeValid = file.size <= PPT_MAX_FILE_SIZE;
+                    if (isTypeValid && isSizeValid) { pptValidFiles.push(file); }
+                    else {
+                        invalidCount++;
+                        if (!isTypeValid) typeErrorCount++;
+                        if (!isSizeValid) sizeErrorCount++;
+                    }
+                }
+                displayPptFileInfo(pptValidFiles, invalidCount, typeErrorCount, sizeErrorCount);
+                updatePptConvertButtonState(); // Update button state after file selection
+            }
+            function displayPptFileInfo(validFiles, invalidCount, typeErrorCount, sizeErrorCount) { 
+                if (!pptFileInfoDiv) return;
+                pptFileInfoDiv.innerHTML = ''; 
+                if (validFiles.length > 0) {
+                    const p = document.createElement('p');
+                    p.textContent = `Selected Files (${validFiles.length}):`;
+                    p.style.color = 'var(--success-text, #0f5132)'; 
+                    p.style.fontWeight = 'normal'; p.style.textAlign = 'left'; p.style.marginBottom = '0.3rem';
+                    pptFileInfoDiv.appendChild(p);
+                    const ul = document.createElement('ul');
+                    ul.style.listStyleType = 'none'; ul.style.paddingLeft = '0'; ul.style.textAlign = 'left';
+                    validFiles.forEach(file => { 
+                        const li = document.createElement('li'); 
+                        li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                        li.style.fontSize = '0.9em'; li.style.marginBottom = '0.2rem';
+                        ul.appendChild(li); 
+                    });
+                    pptFileInfoDiv.appendChild(ul);
+                } else if (invalidCount === 0) {
+                    pptFileInfoDiv.innerHTML = '<p class="ppt-builder-no-files-msg" style="font-weight:normal; color:#555;">No files selected.</p>';
+                }
+                if (invalidCount > 0) {
+                    const pWarn = document.createElement('p'); 
+                    pWarn.style.color = 'var(--error-text, #842029)';
+                    pWarn.style.fontSize = '0.9em'; pWarn.style.marginTop = '0.5rem'; pWarn.style.textAlign = 'left';
+                    let warnMsgParts = [];
+                    if (typeErrorCount > 0) warnMsgParts.push(`invalid type (allowed: ${PPT_ALLOWED_EXTENSIONS.join(', ')})`);
+                    if (sizeErrorCount > 0) warnMsgParts.push(`too large (max ${PPT_MAX_FILE_SIZE_MB}MB)`);
+                    pWarn.textContent = `${invalidCount} file(s) ignored: ${warnMsgParts.join(' and ')}.`;
+                    pptFileInfoDiv.appendChild(pWarn);
+                }
+            }
+            function resetPptFileInput() { 
+                 if(pptFileInput) pptFileInput.value = ''; 
+                pptValidFiles = []; 
+                displayPptFileInfo([], 0, 0, 0); 
+                updatePptConvertButtonState();
+            }
+            function setPptUIState(processing) { 
+                const formElements = pptBuilderForm.elements;
+                for (let i = 0; i < formElements.length; i++) {
+                    if (formElements[i].type !== 'hidden') formElements[i].disabled = processing;
+                }
+                if (pptDropZoneLabel) {
+                    pptDropZoneLabel.style.opacity = processing ? 0.6 : 1;
+                    pptDropZoneLabel.style.cursor = processing ? 'not-allowed' : 'pointer';
+                    pptDropZoneLabel.style.pointerEvents = processing ? 'none' : 'auto';
+                }
+                if (pptLoaderContainer) pptLoaderContainer.style.display = processing ? 'flex' : 'none';
+                if (!processing) updatePptConvertButtonState(); 
+                else { if(pptConvertBtn) pptConvertBtn.disabled = true; clearPptStatus(); }
+            }
+            function updatePptLoaderText(text) { if(pptLoaderText) pptLoaderText.textContent = text; }
+            function showPptStatus(message, type) { 
+                clearPptStatus(); 
+                if(pptStatusDiv) {
+                    pptStatusDiv.innerHTML = '';
+                    const p = document.createElement('p');
+                    p.textContent = message;
+                    pptStatusDiv.appendChild(p);
+                    pptStatusDiv.className = 'ppt-builder-' + type; 
+                    if (pptStatusContainer) pptStatusContainer.style.display = 'block';
+                }
+            }
+            function clearPptStatus() { 
+                if(pptStatusDiv) {
+                    pptStatusDiv.innerHTML = '<p><i>PowerPoint generation status and download link will appear here.</i></p>';
+                    pptStatusDiv.className = '';
+                }
+                const btn = summarizationFeatureContainer.querySelector('#ppt-builder-status #download-btn'); 
+                if (btn) btn.remove();
+            }
 
-            function isValidPptHttpUrl(string) { try { const url = new URL(string); return url.protocol === "http:" || url.protocol === "https:"; } catch (_) { return false; } }
-            function handlePptFileSelection(fileList) { /* ... (as before) ... */ }
-            function displayPptFileInfo(validFiles, invalidCount, typeErrorCount, sizeErrorCount) { /* ... (as before) ... */ }
-            function resetPptFileInput() { /* ... (as before) ... */ }
-            function setPptUIState(processing) { /* ... (as before) ... */ }
-            function updatePptLoaderText(text) { /* ... (as before) ... */ }
-            function showPptStatus(message, type) { /* ... (as before) ... */ }
-            function clearPptStatus() { /* ... (as before) ... */ }
-            function handlePptFormSubmit(event) { /* ... (as before, using fetch) ... */ }
-            function selectPptOption(value, hiddenInput, options, allowDeselect) { /* ... (as before) ... */ }
+            function handlePptFormSubmit(event) {
+                event.preventDefault(); clearPptStatus();
+                const formData = new FormData(pptBuilderForm);
+                // 'inputType' is now set by a hidden field, so no need to set it via JS here.
 
-            if(pptConvertBtn) updatePptConvertButtonState();
-            if(pptFileInfoDiv) displayPptFileInfo([],0,0,0);
+                if (pptValidFiles.length === 0) { 
+                    showPptStatus('Please select valid file(s).', 'error'); return; 
+                }
+                formData.delete('file'); 
+                pptValidFiles.forEach(file => formData.append('file', file, file.name));
+                // No 'sourceUrl' to delete as it's not in the form.
 
-            initializePptPopup('ppt-builder-ai-experts-link', 'ppt-builder-ai-experts-overlay', 'ppt-builder-ai-experts-popup', 'ppt-builder-ai-experts-close');
-            initializePptPopup('ppt-builder-legal-notice-link', 'ppt-builder-legal-notice-overlay', 'ppt-builder-legal-notice-popup', 'ppt-builder-legal-notice-close');
+                setPptUIState(true); 
+                updatePptLoaderText('Preparing request...');
+
+                fetch(pptBuilderForm.action, { method: 'POST', body: formData })
+                .then(async response => { /* ... (fetch response handling - REMAINS THE SAME) ... */ 
+                    updatePptLoaderText('Waiting for server...');
+                    if (!response.ok) {
+                        let errorMsg = 'Processing failed on server.';
+                        try { const errData = await response.json(); errorMsg = errData.error || `Server error (${response.status}).`; }
+                        catch (jsonError) { errorMsg = `Server error (${response.status} ${response.statusText}). Invalid JSON response.`; }
+                        if (response.status === 503) errorMsg = errorMsg.includes("AI service unavailable") ? errorMsg : "Service is temporarily busy. Please try again shortly.";
+                        throw new Error(errorMsg);
+                    }
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.presentationml.presentation')) {
+                         updatePptLoaderText('Downloading presentation...'); return response.blob();
+                    } else { 
+                        try { const errData = await response.json(); throw new Error(errData.error || 'Server returned an unexpected response type.'); }
+                        catch(e) { throw new Error(e.message || 'Server returned an unexpected response type and invalid error format.');}
+                    }
+                })
+                .then(blob => { /* ... (fetch success handling - REMAINS THE SAME) ... */ 
+                     updatePptLoaderText('Presentation ready!'); 
+                     showPptStatus('Presentation generated successfully!', 'success');
+                     const downloadLink = document.createElement('a');
+                     const langSuffix = ''; 
+                     let baseName = "presentation";
+                     // Simplified baseName logic as only file input is possible
+                     if (pptValidFiles.length === 1) { const fn = pptValidFiles[0].name; baseName = fn.substring(0, fn.lastIndexOf('.')) || 'document'; } 
+                     else if (pptValidFiles.length > 1) { baseName = `${pptValidFiles.length}_docs`; }
+                     const safeBaseName = baseName.replace(/[^\w\-]+/g, '_').replace(/_+/g, '_').substring(0, 50);
+                     const downloadFilename = `${safeBaseName}_presentation${langSuffix}_${new Date().toISOString().split('T')[0].replace(/-/g,'')}.pptx`;
+                     downloadLink.href = window.URL.createObjectURL(blob);
+                     downloadLink.download = downloadFilename;
+                     downloadLink.textContent = `Download: ${downloadFilename}`;
+                     downloadLink.className = 'submit-button';
+                     downloadLink.style.marginTop = '1rem';
+                     downloadLink.style.display = 'inline-block';
+                     downloadLink.style.width = 'auto';
+                     if (pptStatusDiv) {
+                        const successMsgP = pptStatusDiv.querySelector('p');
+                        if (successMsgP) successMsgP.insertAdjacentElement('afterend', downloadLink);
+                        else pptStatusDiv.appendChild(downloadLink);
+                     }
+                })
+                .catch(error => { console.error('PPT Generation Error:', error); showPptStatus(`Error: ${error.message}`, 'error'); })
+                .finally(() => { setPptUIState(false); if (pptLoaderContainer) pptLoaderContainer.style.display = 'none';});
+            }
+            // --- END: Core PPT Function Definitions ---
+
+            // Initializations for PPT Builder
+            if(pptFileInput) pptFileInput.addEventListener('change', function(e) { 
+                if (e.target.files.length) { handlePptFileSelection(e.target.files); } 
+                // updatePptConvertButtonState(); // handlePptFileSelection now calls this
+            });
+            if(pptDropZoneLabel) {
+                pptDropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); pptDropZoneLabel.classList.add('drag-over'); pptDropZoneLabel.style.borderColor = '#28a745';});
+                ['dragleave', 'dragend'].forEach(type => pptDropZoneLabel.addEventListener(type, (e) => { e.preventDefault(); pptDropZoneLabel.classList.remove('drag-over'); pptDropZoneLabel.style.borderColor = '#007bff';}));
+                pptDropZoneLabel.addEventListener('drop', (e) => {  e.preventDefault(); pptDropZoneLabel.classList.remove('drag-over'); pptDropZoneLabel.style.borderColor = '#007bff'; if (e.dataTransfer.files.length) { handlePptFileSelection(e.dataTransfer.files); if(pptFileInput) pptFileInput.files = e.dataTransfer.files; } /*updatePptConvertButtonState();*/ });
+            }
+            // Removed event listeners for URL input and radio buttons
+            if(pptBuilderForm) pptBuilderForm.addEventListener('submit', handlePptFormSubmit);
+            if(pptConvertBtn) updatePptConvertButtonState(); // Initial button state
+            if(pptFileInfoDiv) displayPptFileInfo([],0,0,0); // Initial file info display
         } 
     })(); 
     </script>

@@ -19,12 +19,15 @@
           hx-target="#main-content"
           hx-swap="innerHTML"
           hx-encoding="multipart/form-data"
-          hx-indicator="#translation-submit-loader"> {# MODIFIED: hx-indicator points to the local loader #}
+          hx-indicator="#translation-submit-button">  {# MODIFIED: Target the button itself as indicator #}
         
         <div class="form-group">
             <label for="translation-file-input">Upload File (.docx, .pptx, .xlsx):</label>
-            <input type="file" id="translation-file-input" name="file" accept=".docx,.pptx,.xlsx" required 
-                   {% if not gcs_available or not gemini_configured %}disabled{% endif %}>
+            <label for="translation-file-input" id="translation-drop-zone-label" class="drop-zone-style">
+                <p>Drop .docx, .pptx, .xlsx file here, or click to select.</p>
+                <p id="translation-file-name-display">No file selected</p>
+            </label>
+            <input type="file" id="translation-file-input" name="file" accept=".docx,.pptx,.xlsx" required>
         </div>
 
         <div class="form-group">
@@ -43,35 +46,30 @@
             </select>
         </div>
 
-        {# ADDED: Wrapper div for button and loader for better layout control #}
-        <div class="submit-area" style="display: flex; align-items: center; margin-top: 20px;">
-            <button type="submit" class="submit-button" 
+        {# MODIFIED: Added htmx-indicator class to the button, spinner inside it #}
+        <div class="submit-area">
+            <button type="submit" class="submit-button" id="translation-submit-button"
                     {% if not gcs_available or not gemini_configured %}disabled aria-disabled="true" title="Translation service is not fully configured." {% endif %}>
                 <i class="fas fa-cogs"></i> Translate File
+                <span class="htmx-indicator spinner"></span> {# SPINNER INSIDE BUTTON #}
             </button>
-            {# ADDED: Loader element that hx-indicator will target #}
-            <div id="translation-submit-loader" style="margin-left: 15px;">
-                {# This spinner will inherit animation and border-left-color from your .spinner CSS class. #}
-                {# Inline styles for size are specific to this instance. #}
-                <div class="spinner" style="width: 24px; height: 24px; border-width: 3px;"></div>
-            </div>
         </div>
     </form>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <div class="translation-messages" style="margin-top: 25px;">
+            <div class="translation-messages">
                 {% for category, message in messages %}
                     <div class="message-item category-{{ category|default('info') }}" 
                          role="alert">
                         {% if category == 'error' %}
-                            <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                            <i class="fas fa-exclamation-triangle"></i>
                         {% elif category == 'success' %}
-                            <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+                            <i class="fas fa-check-circle"></i>
                         {% elif category == 'warning' %}
-                            <i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i>
+                            <i class="fas fa-exclamation-circle"></i>
                         {% else %}
-                            <i class="fas fa-info-circle" style="margin-right: 8px;"></i>
+                            <i class="fas fa-info-circle"></i>
                         {% endif %}
                         {{ message }}
                     </div>
@@ -81,14 +79,12 @@
     {% endwith %}
 
     {% if file_id %}
-        <div class="translation-download-link" style="margin-top: 25px; padding: 20px; background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; text-align: center;">
+        <div class="translation-download-link">
             <a href="{{ url_for('download_translated_file', file_id=file_id) }}" 
-               class="submit-button" style="text-decoration: none; display: inline-block; background-color: #0ea5e9; width: auto; padding: 12px 25px;"
-               onmouseover="this.style.backgroundColor='#0284c7';" 
-               onmouseout="this.style.backgroundColor='#0ea5e9';">
+               class="submit-button">
                <i class="fas fa-download"></i> Download Translated File
             </a>
-            <p style="font-size: 0.9em; color: #0c5464; margin-top: 10px; margin-bottom: 0;">
+            <p>
                 Note: Download links are temporary. The file will be removed from storage after a period defined by system policy.
             </p>
         </div>
@@ -96,7 +92,61 @@
 </div>
 
 <script>
-    // Minimal script, relying on HTMX attributes for behavior.
-    // For this specific form, the indicator is now #translation-submit-loader.
-    // The global loader in layout.html handles other htmx requests unless overridden.
+// --- Translation Specific JavaScript ---
+document.addEventListener('DOMContentLoaded', function() {
+    const translationFeatureContainer = document.querySelector('.translation-feature-container');
+    if (!translationFeatureContainer) return;
+
+    // --- Drop Zone Logic ---
+    const dropZoneLabel = translationFeatureContainer.querySelector('#translation-drop-zone-label');
+    const fileInput = translationFeatureContainer.querySelector('#translation-file-input');
+    const fileNameDisplay = translationFeatureContainer.querySelector('#translation-file-name-display');
+
+    if (dropZoneLabel && fileInput && fileNameDisplay) {
+        // --- Drag and Drop Event Listeners ---
+        dropZoneLabel.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZoneLabel.classList.add('drag-over');
+            dropZoneLabel.style.borderColor = '#28a745';
+        });
+
+        dropZoneLabel.addEventListener('dragleave', () => {
+            e.preventDefault();
+            dropZoneLabel.classList.remove('drag-over');
+            dropZoneLabel.style.borderColor = '#007bff';
+        });
+
+        dropZoneLabel.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZoneLabel.classList.remove('drag-over');
+            dropZoneLabel.style.borderColor = '#007bff';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                // Manually trigger change event on fileInputPii so its listener updates the display
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+            }
+        });
+
+        // Listener to update file name display
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                fileNameDisplay.textContent = fileInput.files[0].name;
+                dropZoneLabel.classList.add('file-selected');
+                dropZoneLabel.style.borderColor = '#28a745';
+            } else {
+                fileNameDisplay.textContent = 'No file selected';
+                dropZoneLabel.classList.remove('file-selected');
+                dropZoneLabel.style.borderColor = '#007bff';
+            }
+        });
+
+        // Click on drop-zone itself to trigger file input
+        dropZoneLabel.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+    }
+});
 </script>

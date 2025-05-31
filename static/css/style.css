@@ -1,265 +1,847 @@
 /* static/css/style.css */
 
-/* --- Core Layout Styles (Ensure these are not changed) --- */
+/* --- Root Variables for Theming --- */
+:root {
+    --primary-color: #3b82f6;         /* Primary interactive color */
+    --primary-color-dark: #2563eb;    /* Darker shade for hover/active */
+    --secondary-color: #6b7280;       /* Secondary text and UI elements */
+    --background-color: #f9fafb;        /* Main background color */
+    --surface-color: #fff;              /* Background for content areas */
+    --text-color-primary: #1f2937;      /* Primary text color */
+    --text-color-secondary: #4b5563;    /* Secondary text color */
+    --border-color: #e5e7eb;          /* Border and divider color */
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-size-base: 1em;            /* Base font size */
+    --spacing-unit: 1rem;               /* Base spacing unit */
+}
+
+/* --- Basic Resets and Box Sizing --- */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body, html {
-    margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    height: 100%; background-color: #f9fafb; color: #374151;
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    background-color: var(--background-color);
+    color: var(--text-color-primary);
+    height: 100%;
+    overflow: hidden; /* Prevent body scrollbar */
 }
-.app-container { display: flex; height: 100vh; }
 
-/* --- Sidebar Specific Styling --- */
+/* --- App Container (Main Layout) --- */
+.app-container {
+    display: flex;
+    height: 100vh; /* Full viewport height */
+}
+
+/* --- Sidebar --- */
 .sidebar {
-    width: 230px; background-color: #111827; color: #d1d5db; padding: 20px 0;
-    box-shadow: 3px 0 15px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow-y: auto;
+    width: 230px;
+    background-color: #111827;
+    color: #d1d5db;
+    box-shadow: 3px 0 15px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; /* Sidebar can scroll internally */
+    padding: var(--spacing-unit) 0;
 }
+
 .sidebar-header {
-    padding: 0 25px 20px 25px; font-size: 1.6em; font-weight: 600; color: #fff;
-    border-bottom: 1px solid #374151; margin-bottom: 20px; display: flex; align-items: center;
+    padding: 0 var(--spacing-unit) calc(var(--spacing-unit) / 2) var(--spacing-unit);
+    font-size: 1.6em;
+    font-weight: 600;
+    color: var(--surface-color);
+    border-bottom: 1px solid #374151;
+    margin-bottom: var(--spacing-unit);
+    display: flex;
+    align-items: center;
 }
-.sidebar-header i { margin-right: 12px; color: #60a5fa; }
-.sidebar ul { list-style-type: none; padding: 0; margin: 0; width: 100%; }
+
+.sidebar-header i {
+    margin-right: calc(var(--spacing-unit) / 2);
+    color: #60a5fa;
+}
+
+.sidebar ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+}
+
 .sidebar ul li a.sidebar-link {
-    display: flex; align-items: center; padding: 14px 25px; text-decoration: none; color: #9ca3af;
+    display: flex;
+    align-items: center;
+    padding: calc(var(--spacing-unit) / 2) var(--spacing-unit);
+    text-decoration: none;
+    color: #9ca3af;
     transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-left-color 0.2s ease-in-out;
-    border-left: 4px solid transparent; font-size: 0.95em;
-}
-.sidebar ul li a.sidebar-link i { margin-right: 15px; width: 20px; text-align: center; color: #60a5fa; flex-shrink: 0; }
-.sidebar ul li a.sidebar-link span { flex-grow: 1; }
-.sidebar ul li a.sidebar-link:hover { background-color: #1f2937; color: #e5e7eb; border-left-color: #3b82f6; }
-.sidebar ul li a.sidebar-link:hover i { color: #93c5fd; }
-.sidebar ul li a.sidebar-link.active { background-color: #3b82f6; color: #fff; border-left: 4px solid #fff; font-weight: 500; }
-.sidebar ul li a.sidebar-link.active i { color: #fff; }
-/* --- End of Sidebar Specific Styling --- */
-
-
-/* --- Content Area & Global Styles --- */
-.content-area { flex-grow: 1; padding: 30px 40px; overflow-y: auto; background-color: #fff; }
-/* This .content-area > h1 is if you have a title directly in layout.html's content-area, not for feature titles */
-.content-area > h1 { 
-    color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;
-    margin-top: 0; margin-bottom: 25px; font-size: 1.8em;
+    border-left: 4px solid transparent;
+    font-size: 0.95em;
 }
 
-/* Global HTMX Indicator & Spinner */
-.htmx-indicator { display: none; opacity:0; transition: opacity 200ms ease-in; }
-.htmx-request .htmx-indicator { display: block; opacity:1; } /* This is for child indicators */
-.htmx-request.htmx-indicator{ display: inline-block; opacity:1; vertical-align: middle; } /* This is for the element itself being an indicator */
-.spinner {
-    border: 3px solid rgba(0, 0, 0, 0.1); width: 18px; height: 18px;
-    border-radius: 50%; border-left-color: #09f; 
-    animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle;
+.sidebar ul li a.sidebar-link i {
+    margin-right: calc(var(--spacing-unit) / 2);
+    width: 20px;
+    text-align: center;
+    color: #60a5fa;
+    flex-shrink: 0;
 }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+.sidebar ul li a.sidebar-link span {
+    flex-grow: 1;
+}
 
-/* --- NEW: Styles for the Translation Feature's Submit Loader --- */
-/* This is the loader specific to the translation form submit button */
-#translation-submit-loader {
-    display: none; /* Hidden by default */
+.sidebar ul li a.sidebar-link:hover {
+    background-color: #1f2937;
+    color: #e5e7eb;
+    border-left-color: #3b82f6;
+}
+
+.sidebar ul li a.sidebar-link:hover i {
+    color: #93c5fd;
+}
+
+.sidebar ul li a.sidebar-link.active {
+    background-color: #3b82f6;
+    color: var(--surface-color);
+    border-left: 4px solid var(--surface-color);
+    font-weight: 500;
+}
+
+.sidebar ul li a.sidebar-link.active i {
+    color: var(--surface-color);
+}
+
+/* --- Content Area --- */
+.content-area {
+    flex-grow: 1;
+    padding: calc(var(--spacing-unit) * 1.5) calc(var(--spacing-unit) * 2);
+    background-color: var(--surface-color);
+    overflow-y: auto; /* Main scrolling area */
+}
+
+/* --- Global HTMX Indicator & Spinner --- */
+.htmx-indicator {
+    display: none;
     opacity: 0;
-    transition: opacity 0.2s ease-in-out;
-    vertical-align: middle; /* Aligns well when display is inline-block */
+    transition: opacity 200ms ease-in;
 }
-/* When HTMX adds the 'htmx-request' class to the indicator element (#translation-submit-loader) */
-#translation-submit-loader.htmx-request {
-    display: inline-block; /* Show it next to the button */
+
+.htmx-request .htmx-indicator {
+    display: block;
     opacity: 1;
 }
-/* --- END: NEW Styles for the Translation Feature's Submit Loader --- */
 
+.htmx-request.htmx-indicator {
+    display: inline-block;
+    opacity: 1;
+    vertical-align: middle;
+}
 
-/* --- General Form Element Styling (scoped to .feature-container FOR OTHER FEATURES) --- */
-/* These should NOT affect .welcome-container if its HTML is separate */
-.feature-container input[type="text"], 
+.spinner {
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border-left-color: #09f;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- General Form Element Styling (scoped to .feature-container) --- */
+.feature-container input[type="text"],
 .feature-container input[type="url"],
 .feature-container input[type="file"],
-.feature-container textarea, 
+.feature-container textarea,
 .feature-container select {
-    width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #d1d5db;
-    border-radius: 4px; box-sizing: border-box; font-size: 0.95em;
-    background-color: #ffffff; color: #333333;
+    width: 100%;
+    padding: calc(var(--spacing-unit) / 2);
+    margin-bottom: var(--spacing-unit);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.95em;
+    background-color: var(--surface-color);
+    color: var(--text-color-primary);
     transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
-.feature-container input[type="file"] { padding: 7px; }
+
+.feature-container input[type="file"] {
+    padding: calc(var(--spacing-unit) / 3);
+}
+
 .feature-container label {
-    display: block; margin-bottom: 5px; font-weight: 500; color: #374151;
+    display: block;
+    margin-bottom: calc(var(--spacing-unit) / 4);
+    font-weight: 500;
+    color: var(--text-color-primary);
 }
-.feature-container button[type="submit"], 
+
+.feature-container button[type="submit"],
 .feature-container .submit-button {
-    background-color: #3b82f6; color: white; padding: 10px 20px; border: none;
-    border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: 500;
-    transition: background-color 0.2s; display: inline-flex; align-items: center; justify-content: center;
-    margin-top: 10px;
+    background-color: var(--primary-color);
+    color: var(--surface-color);
+    padding: calc(var(--spacing-unit) / 2) var(--spacing-unit);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 500;
+    transition: background-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--spacing-unit);
 }
-.feature-container button[type="submit"] i, 
-.feature-container .submit-button i { margin-right: 8px; }
-.feature-container button[type="submit"] .spinner, 
+
+.feature-container button[type="submit"] i,
+.feature-container .submit-button i {
+    margin-right: calc(var(--spacing-unit) / 4);
+}
+
+.feature-container button[type="submit"] .spinner,
 .feature-container .submit-button .spinner {
-    margin-left: 10px; border-left-color: white; width: 16px; height: 16px; border-width: 2px;
+    margin-left: calc(var(--spacing-unit) / 4);
+    border-left-color: var(--surface-color);
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
 }
-.feature-container button[type="submit"]:hover, 
-.feature-container .submit-button:hover { background-color: #2563eb; }
-.feature-container input[type="text"]:focus, 
-.feature-container input[type="url"]:focus, 
+
+.feature-container button[type="submit"]:hover,
+.feature-container .submit-button:hover {
+    background-color: var(--primary-color-dark);
+}
+
+.feature-container input[type="text"]:focus,
+.feature-container input[type="url"]:focus,
 .feature-container textarea:focus,
-.feature-container select:focus { 
-    border-color: #3b82f6; outline: 0;
+.feature-container select:focus {
+    border-color: var(--primary-color);
+    outline: 0;
     box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
 }
+
 .feature-container button:disabled,
 .feature-container .submit-button:disabled {
-    background: #e9ecef; color: #adb5bd; cursor: not-allowed; box-shadow: none;
+    background: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
-/* --- Feature Container Base (styles for general features like Translation, PII, Summarization tiles) --- */
-.feature-container { /* General padding for features that use this class */
-    padding: 20px;
-}
-.feature-container > h1 { /* Titles for features like Blurring, Summarization, PII (NOT Welcome) */
-    font-size: 1.8em; 
-    color: #1f2937;
-    margin-top: 0; 
-    margin-bottom: 15px; 
-    padding-bottom: 10px;
-    border-bottom: 1px solid #e5e7eb; 
-}
-.feature-container .feature-description { /* For intro paragraphs in features */
-    font-size: 1.05em; color: #4b5563; margin-bottom: 25px;
-    max-width: 850px; line-height: 1.6;
-}
-.feature-container h2 { /* Sub-headings within features */
-    font-size: 1.4em; color: #111827; margin-top: 25px; margin-bottom: 15px;
-    padding-bottom: 8px; border-bottom: 1px dotted #d1d5db;
+/* --- Feature Container Base --- */
+.feature-container {
+    padding: var(--spacing-unit);
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
+.feature-container > h1 {
+    font-size: 1.8em;
+    color: var(--text-color-primary);
+    margin-top: 0;
+    margin-bottom: calc(var(--spacing-unit) / 2);
+    padding-bottom: calc(var(--spacing-unit) / 4);
+    border-bottom: 1px solid var(--border-color);
+}
 
-/* --- Welcome Page Specific Styles --- */
-/* These should take precedence for elements within .welcome-container */
-.welcome-container {
-    padding: 20px; max-width: 900px; margin: 0 auto; text-align: center;
+.feature-container .feature-description {
+    font-size: 1.05em;
+    color: var(--text-color-secondary);
+    margin-bottom: calc(var(--spacing-unit) * 1.5);
+    max-width: 850px;
+    line-height: 1.6;
 }
-.welcome-container .welcome-header { text-align: center; margin-bottom: 40px; }
-.welcome-container .welcome-header h1 {
-    font-size: 2.8em; color: #1f2937; margin-bottom: 10px;
-    border-bottom: none; font-weight: 600; line-height: 1.2;
-}
-.welcome-container .welcome-subtitle { font-size: 1.3em; color: #4b5563; margin-bottom: 30px; font-style: italic; }
-.welcome-container .welcome-intro { text-align: center; max-width: 750px; margin-left: auto; margin-right: auto; }
-.welcome-container .welcome-intro p { font-size: 1.1em; line-height: 1.7; color: #374151; margin-bottom: 15px; }
-.welcome-container .welcome-intro p:last-child { margin-bottom: 30px; }
-.welcome-container .welcome-divider { border: none; border-top: 1px solid #e5e7eb; margin: 40px auto; width: 80%; }
-.welcome-container .key-messages { display: flex; flex-direction: column; gap: 30px; margin-bottom: 30px; }
-@media (min-width: 768px) {
-    .welcome-container .key-messages { flex-direction: row; justify-content: space-around; }
-    .welcome-container .key-message-item { flex-basis: 45%; }
-}
-.welcome-container .key-message-item {
-    display: flex; align-items: center; background-color: #f9fafb; padding: 25px; border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; 
-}
-.welcome-container .key-message-icon { font-size: 2em; color: #3b82f6; margin-right: 20px; flex-shrink: 0; }
-.welcome-container .key-message-item.icon-top { flex-direction: column; align-items: center; }
-.welcome-container .key-message-item.icon-top .key-message-icon { margin-right: 0; margin-bottom: 15px; }
-.welcome-container .key-message-text h3 { font-size: 1.25em; color: #111827; margin-top: 0; margin-bottom: 10px; }
-.welcome-container .key-message-text p { font-size: 0.95em; line-height: 1.6; color: #4b5563; margin-bottom: 0; }
-.welcome-container .privacy-commitment-section {
-    display: flex; flex-direction: column; align-items: center; background-color: #eff6ff; border: 1px solid #bfdbfe;
-    padding: 30px 25px; border-radius: 8px; margin-top: 20px; margin-bottom: 30px; text-align: center;
-    max-width: 750px; margin-left: auto; margin-right: auto;
-}
-.welcome-container .privacy-icon { font-size: 2.8em; color: #2563eb; margin-bottom: 20px; flex-shrink: 0; }
-.welcome-container .privacy-icon i { display: block; }
-.welcome-container .privacy-text h3 { font-size: 1.3em; color: #1e3a8a; margin-top: 0; margin-bottom: 12px; }
-.welcome-container .privacy-text p { font-size: 1em; line-height: 1.6; color: #1e40af; margin-bottom: 0; }
-.welcome-container .privacy-text p strong { font-weight: 600; }
-.welcome-container .welcome-footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
-.welcome-container .welcome-footer p { font-size: 1.05em; color: #6b7280; font-style: italic; }
-/* --- END Welcome Page Specific Styles --- */
 
+.feature-container h2 {
+    font-size: 1.4em;
+    color: var(--text-color-primary);
+    margin-top: calc(var(--spacing-unit) * 1.5);
+    margin-bottom: calc(var(--spacing-unit) / 2);
+    padding-bottom: calc(var(--spacing-unit) / 4);
+    border-bottom: 1px dotted var(--border-color);
+}
 
-/* --- Generic Tab Styling (Used by Blurring, Info, Summarization) --- */
+/* --- Generic Tab Styling --- */
 .feature-tabs {
-    border-bottom: 2px solid #e5e7eb; margin-bottom: 25px; display: flex; flex-wrap: wrap;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: var(--spacing-unit);
+    display: flex;
+    flex-wrap: wrap;
 }
-.feature-tabs .tab-link { /* Changed from .feature-tab-link to .feature-tabs .tab-link for consistency */
-    padding: 12px 20px; cursor: pointer; border: none; background-color: transparent;
-    font-size: 1em; font-weight: 500; color: #4b5563;
-    border-bottom: 3px solid transparent; margin-bottom: -2px; /* Align with the container's border */
-    transition: color 0.2s, border-bottom-color 0.2s; display: inline-flex; align-items: center;
-    margin-right: 10px; /* Add space between tab buttons */
+
+.feature-tabs .tab-link {
+    padding: calc(var(--spacing-unit) / 3) calc(var(--spacing-unit) / 2);
+    cursor: pointer;
+    border: none;
+    background-color: transparent;
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--text-color-secondary);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.2s, border-bottom-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    margin-right: calc(var(--spacing-unit) / 4);
     outline: none;
 }
-.feature-tabs .tab-link i { margin-right: 8px; color: #6b7280; transition: color 0.2s; }
-.feature-tabs .tab-link:hover { color: #111827; }
-.feature-tabs .tab-link:hover i { color: #374151; }
-.feature-tabs .tab-link.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 600; }
-.feature-tabs .tab-link.active i { color: #3b82f6; }
-.feature-tab-content { display: none; animation: fadeIn 0.5s; padding: 20px 5px; } /* Added padding here too */
-.feature-tab-content.active-content { display: block; }
-/* --- END: Generic Tab Styling --- */
 
+.feature-tabs .tab-link i {
+    margin-right: calc(var(--spacing-unit) / 4);
+    color: var(--secondary-color);
+    transition: color 0.2s;
+}
+
+.feature-tabs .tab-link:hover {
+    color: var(--text-color-primary);
+}
+
+.feature-tabs .tab-link:hover i {
+    color: var(--text-color-primary);
+}
+
+.feature-tabs .tab-link.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    font-weight: 600;
+}
+
+.feature-tabs .tab-link.active i {
+    color: var(--primary-color);
+}
+
+.feature-tab-content {
+    display: none;
+    animation: fadeIn 0.5s;
+    padding: var(--spacing-unit) calc(var(--spacing-unit) / 4);
+}
+
+.feature-tab-content.active-content {
+    display: block;
+}
 
 /* --- Generic File Drop Zone & Display --- */
-.feature-container .drop-zone { /* ... (Keep as is) ... */ }
-/* ... (rest of drop zone styles) ... */
-.feature-container .file-name-display { /* ... (Keep as is) ... */ }
+.drop-zone-style {
+    display: block;
+    border: 2px dashed var(--primary-color);
+    padding: var(--spacing-unit);
+    text-align: center;
+    cursor: pointer;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    margin-bottom: var(--spacing-unit);
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
 
+.drop-zone-style.drag-over {
+    border-color: #28a745;
+    background-color: #e9f5ee;
+}
+
+.drop-zone-style.file-selected {
+    border-color: #17a2b8;
+    background-color: #e7f6f8;
+}
+
+.drop-zone-style p {
+    margin: calc(var(--spacing-unit) / 4) 0;
+    color: #495057;
+}
+
+.drop-zone-style .file-name-display {
+    font-weight: bold;
+    color: #333;
+    margin-top: calc(var(--spacing-unit) / 4);
+    font-size: 0.95em;
+}
+
+.disabled-drop-zone {
+    cursor: not-allowed !important;
+    border-color: #ced4da !important;
+    background-color: #e9ecef !important;
+    color: #6c757d !important;
+}
+
+.disabled-drop-zone p {
+    color: #6c757d !important;
+}
 
 /* --- Feature Specific Container Styles (Tiles) --- */
 .translation-feature-container,
 .pii-redaction-tile-container.feature-container,
 .summarization-tile-container.feature-container {
-    max-width: 800px; /* Consistent max-width for tiled features */
+    max-width: 800px;
     margin-left: auto;
     margin-right: auto;
-    background-color: #ffffff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    background-color: var(--surface-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border-radius: 8px;
-    margin-top: 10px; /* Reduced top margin for tiles to align better with feature H1 */
-    margin-bottom: 20px;
-    /* Padding is already in .feature-container base */
+    margin-top: var(--spacing-unit);
+    margin-bottom: calc(var(--spacing-unit) * 1.5);
 }
-.translation-feature-container { max-width: 700px; } /* Specific override if needed */
-.pii-redaction-tile-container.feature-container { max-width: 700px; } /* Specific override */
 
-/* --- Explanation Box within features (used by Summarization, PII) --- */
-.feature-explanation { /* ... (Keep as is) ... */ }
-.upload-instructions { /* ... (Keep as is) ... */ }
-
-/* --- Processing Result Area (used by Summarization, PII, Blurring) --- */
-.feature-container .processing-result { /* ... (Keep as is) ... */ }
-.feature-container .processing-result h2 { /* ... (Keep as is, ensure border-bottom: none;) ... */ border-bottom: none; }
-.feature-container .processing-result textarea#summary-output { /* ... (Keep as is) ... */ }
-
-
-/* --- PPT Builder Specific Styles (Prefixed: ppt-builder-) --- */
-/* :root { --ppt-builder-primary-color: #005A9C; ... } */ /* These are already defined, ensure they don't conflict or are used via var() */
-#ppt-summary-tab .ppt-builder-intro-text { /* Scoped to the PPT tab */
-    text-align: center; color: var(--ppt-builder-label-color, #555); margin-bottom: 1.5rem;
-    font-size: 1.0rem; line-height: 1.6;
+.translation-feature-container {
+    max-width: 700px;
 }
-/* ... (ALL your other .ppt-builder- and #ppt-builder- prefixed styles - KEEP AS IS) ... */
-.ppt-builder-container-footer a:hover { text-decoration: underline; color: var(--ppt-builder-secondary-color, #007bff); }
-/* --- END: PPT Builder Specific Styles --- */
 
+.pii-redaction-tile-container.feature-container {
+    max-width: 700px;
+}
+
+/* --- Explanation Box within features --- */
+.feature-explanation {
+    margin-top: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
+    padding: var(--spacing-unit);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background-color: #f8f9fa;
+}
+
+.upload-instructions {
+    margin-bottom: var(--spacing-unit);
+    font-style: italic;
+    color: var(--text-color-secondary);
+}
+
+/* --- Processing Result Area --- */
+.feature-container .processing-result {
+    margin-top: var(--spacing-unit);
+    padding: var(--spacing-unit);
+    background-color: #f8f9fa;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.feature-container .processing-result h2 {
+    border-bottom: none;
+    margin-top: 0;
+    font-size: 1.2em;
+    color: var(--text-color-primary);
+}
+
+.feature-container .processing-result textarea#summary-output {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color);
+    padding: calc(var(--spacing-unit) / 2);
+    font-family: monospace;
+    font-size: 0.9em;
+    background-color: var(--surface-color);
+    color: var(--text-color-primary);
+}
 
 /* --- Flashed Messages & Common Animation --- */
-.error-message { /* This is a general one, ensure it doesn't conflict with .message-item.category-error */
-    color: #ef4444; font-weight: 500; padding: 10px 15px; background-color: #fee2e2;
-    border: 1px solid #fca5a5; border-radius: 4px; margin-top: 10px; margin-bottom: 15px;
+.error-message {
+    color: #ef4444;
+    font-weight: 500;
+    padding: calc(var(--spacing-unit) / 2) var(--spacing-unit);
+    background-color: #fee2e2;
+    border: 1px solid #fca5a5;
+    border-radius: 4px;
+    margin-top: var(--spacing-unit);
+    margin-bottom: calc(var(--spacing-unit) / 2);
 }
+
 .message-item {
-    padding: 15px 20px; margin-bottom: 20px; border-radius: 5px;
-    border: 1px solid transparent; font-size: 0.95em; display: flex;
-    align-items: center; animation: fadeIn 0.3s ease-out;
+    padding: calc(var(--spacing-unit) / 2) var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
+    border-radius: 5px;
+    border: 1px solid transparent;
+    font-size: 0.95em;
+    display: flex;
+    align-items: center;
+    animation: fadeIn 0.3s ease-out;
 }
-.message-item i { margin-right: 10px; font-size: 1.2em; }
-.message-item.category-success { border-color: #a7f3d0; background-color: #dcfce7; color: #065f46; }
-.message-item.category-error   { border-color: #fca5a5; background-color: #fee2e2; color: #b91c1c; }
-.message-item.category-warning { border-color: #fcd34d; background-color: #fef9c3; color: #92400e; }
-.message-item.category-info    { border-color: #bfdbfe; background-color: #eff6ff; color: #1e40af; }
+
+.message-item i {
+    margin-right: calc(var(--spacing-unit) / 4);
+    font-size: 1.2em;
+}
+
+.message-item.category-success {
+    border-color: #a7f3d0;
+    background-color: #dcfce7;
+    color: #065f46;
+}
+
+.message-item.category-error {
+    border-color: #fca5a5;
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.message-item.category-warning {
+    border-color: #fcd34d;
+    background-color: #fef9c3;
+    color: #92400e;
+}
+
+.message-item.category-info {
+    border-color: #bfdbfe;
+    background-color: #eff6ff;
+    color: #1e40af;
+}
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Welcome Page Specific Styles - RESTORED and IMPROVED --- */
+.welcome-container {
+    padding: var(--spacing-unit);
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.welcome-container .welcome-header {
+    text-align: center;
+    margin-bottom: calc(var(--spacing-unit) * 2); /* More natural spacing */
+}
+
+.welcome-container .welcome-header h1 {
+    font-size: 3em; /* Larger Header */
+    color: var(--text-color-primary);
+    margin-bottom: calc(var(--spacing-unit) / 2);
+    border-bottom: none;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.welcome-container .welcome-subtitle {
+    font-size: 1.3em;
+    color: var(--text-color-secondary);
+    margin-bottom: calc(var(--spacing-unit) * 1.5);
+    font-style: italic;
+}
+
+.welcome-container .welcome-intro {
+    text-align: center;
+    max-width: 750px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.welcome-container .welcome-intro p {
+    font-size: 1.15em; /* Slightly larger intro text */
+    line-height: 1.7;
+    color: var(--text-color-primary);
+    margin-bottom: var(--spacing-unit);
+}
+
+.welcome-container .welcome-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: calc(var(--spacing-unit) * 2) auto;
+    width: 80%;
+}
+
+.welcome-container .key-messages {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-unit) * 1.5);
+    margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+@media (min-width: 768px) {
+    .welcome-container .key-messages {
+        flex-direction: row;
+        justify-content: space-around;
+    }
+
+    .welcome-container .key-message-item {
+        flex-basis: 45%;
+    }
+}
+
+.welcome-container .key-message-item {
+    display: flex;
+    align-items: center;
+    background-color: var(--surface-color); /* Surface color for card */
+    padding: calc(var(--spacing-unit) * 1.25);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    text-align: left; /* Align text to the left */
+}
+
+.welcome-container .key-message-icon {
+    font-size: 2.5em; /* Larger Icons */
+    color: var(--primary-color);
+    margin-right: calc(var(--spacing-unit) * 0.75); /* Adjust spacing */
+    flex-shrink: 0;
+}
+
+.welcome-container .key-message-item.icon-top {
+    flex-direction: column;
+    align-items: center;
+    text-align: center; /* Center align when icon is on top */
+}
+
+.welcome-container .key-message-item.icon-top .key-message-icon {
+    margin-right: 0;
+    margin-bottom: calc(var(--spacing-unit) / 2);
+}
+
+.welcome-container .key-message-text h3 {
+    font-size: 1.3em;
+    color: var(--text-color-primary);
+    margin-top: 0;
+    margin-bottom: calc(var(--spacing-unit) / 4);
+}
+
+.welcome-container .key-message-text p {
+    font-size: 1em;
+    line-height: 1.6;
+    color: var(--text-color-secondary);
+    margin-bottom: 0;
+}
+
+.welcome-container .privacy-commitment-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #eff6ff; /* Lighter Privacy Section */
+    border: 1px solid #bfdbfe;
+    padding: calc(var(--spacing-unit) * 1.5) var(--spacing-unit);
+    border-radius: 8px;
+    margin-top: calc(var(--spacing-unit) * 1.5); /* Add top margin */
+    margin-bottom: calc(var(--spacing-unit) * 2);
+    text-align: center;
+    max-width: 750px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.welcome-container .privacy-icon {
+    font-size: 3em;
+    color: var(--primary-color);
+    margin-bottom: calc(var(--spacing-unit) / 2);
+    flex-shrink: 0;
+}
+
+.welcome-container .privacy-icon i {
+    display: block;
+}
+
+.welcome-container .privacy-text h3 {
+    font-size: 1.4em;
+    color: #1e3a8a;
+    margin-top: 0;
+    margin-bottom: calc(var(--spacing-unit) / 4);
+}
+
+.welcome-container .privacy-text p {
+    font-size: 1.05em;
+    line-height: 1.6;
+    color: #1e40af;
+    margin-bottom: 0;
+}
+
+.welcome-container .privacy-text p strong {
+    font-weight: 600;
+}
+
+.welcome-container .welcome-footer {
+    text-align: center;
+    margin-top: calc(var(--spacing-unit) * 2);
+    padding-top: var(--spacing-unit);
+    border-top: 1px solid var(--border-color);
+}
+
+.welcome-container .welcome-footer p {
+    font-size: 1.1em;
+    color: var(--secondary-color);
+    font-style: italic;
+}
+
+/* --- Translation Feature Specific Styles --- */
+.translation-feature-container {
+    max-width: 700px;
+    margin: var(--spacing-unit) auto;
+    background-color: var(--surface-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: var(--spacing-unit);
+}
+
+.translation-feature-container h1 {
+    font-size: 1.8em;
+    color: var(--text-color-primary);
+    margin-bottom: var(--spacing-unit);
+}
+
+.translation-feature-container .feature-description {
+    color: var(--text-color-secondary);
+    margin-bottom: calc(var(--spacing-unit) * 1.5);
+    line-height: 1.6;
+}
+
+.translation-feature-container .form-group {
+    margin-bottom: var(--spacing-unit);
+}
+
+.translation-feature-container label {
+    display: block;
+    font-weight: 500;
+    color: var(--text-color-primary);
+    margin-bottom: calc(var(--spacing-unit) / 4);
+}
+
+/* Style for the select element */
+.translation-feature-container select {
+    width: 100%;
+    padding: calc(var(--spacing-unit) / 2);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 1em;
+    appearance: none; /* Remove default arrow */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z' fill='%234a5568'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right calc(var(--spacing-unit) / 2) center;
+    background-size: 1.2em;
+    cursor: pointer;
+    color: var(--text-color-primary);
+}
+
+/* Hover and focus states for select */
+.translation-feature-container select:hover,
+.translation-feature-container select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+/* Style for the submit button */
+.translation-feature-container .submit-button {
+    background-color: var(--primary-color);
+    color: var(--surface-color);
+    padding: calc(var(--spacing-unit) / 2) var(--spacing-unit);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--spacing-unit);
+}
+
+.translation-feature-container .submit-button i {
+    margin-right: calc(var(--spacing-unit) / 4);
+}
+
+.translation-feature-container .submit-button:hover {
+    background-color: var(--primary-color-dark);
+}
+
+/* Style for the download link */
+.translation-feature-container .translation-download-link {
+    margin-top: var(--spacing-unit);
+    padding: var(--spacing-unit);
+    background-color: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.translation-feature-container .translation-download-link a {
+    display: inline-block;
+    background-color: #0ea5e9;
+    color: var(--surface-color);
+    text-decoration: none;
+    padding: calc(var(--spacing-unit) / 2) var(--spacing-unit);
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+.translation-feature-container .translation-download-link a:hover {
+    background-color: #0284c7;
+}
+
+.translation-feature-container .translation-download-link p {
+    font-size: 0.9em;
+    color: #0c5464;
+    margin-top: calc(var(--spacing-unit) / 4);
+    margin-bottom: 0;
+}
+
+/* Style for the error messages */
+.translation-feature-container .error-message {
+    color: #ef4444;
+    font-weight: 500;
+    padding: calc(var(--spacing-unit) / 2) var(--spacing-unit);
+    background-color: #fee2e2;
+    border: 1px solid #fca5a5;
+    border-radius: 4px;
+    margin-top: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
+}
+
+/* General adjustments */
+.translation-feature-container .form-group,
+.translation-feature-container .submit-area {
+    margin-bottom: var(--spacing-unit); /* Ensure space below each form element */
+}
+
+/* File Upload Styling (Consistent with Summarization) */
+.translation-feature-container .drop-zone-style {
+    display: block;
+    border: 2px dashed var(--primary-color);
+    padding: var(--spacing-unit);
+    text-align: center;
+    cursor: pointer;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    margin-bottom: var(--spacing-unit);
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.translation-feature-container .drop-zone-style.drag-over {
+    border-color: #28a745;
+    background-color: #e9f5ee;
+}
+
+.translation-feature-container .drop-zone-style.file-selected {
+    border-color: #17a2b8;
+    background-color: #e7f6f8;
+}
+
+.translation-feature-container .drop-zone-style p {
+    margin: calc(var(--spacing-unit) / 4) 0;
+    color: #495057;
+}
+
+.translation-feature-container .drop-zone-style .file-name-display {
+    font-weight: bold;
+    color: #333;
+    margin-top: calc(var(--spacing-unit) / 4);
+    font-size: 0.95em;
+}
+
+/* --- Added Style to HIDE file input --- */
+.translation-feature-container #translation-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
 }
