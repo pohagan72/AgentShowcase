@@ -27,7 +27,7 @@
     {# --- This block is for HTMX swapping PPT status --- #}
     {% if ppt_error_message %}
         <div id="ppt-builder-status" class="ppt-builder-error">{{ ppt_error_message }}</div>
-    {% elif ppt_success_message and ppt_download_url %} 
+    {% elif ppt_success_message and ppt_download_url %}
         <div id="ppt-builder-status" class="ppt-builder-success">
             {{ ppt_success_message }}
             <br>
@@ -67,13 +67,13 @@
                 <p>This intelligent, type-specific approach has 20+ custom AI prompts...</p>
             </div>
             <p class="upload-instructions">Upload a Word, PowerPoint, Excel, or PDF file, or paste text below...</p>
-            <form id="text-summary-form" hx-post="{{ url_for('process_summarize') }}" hx-target="#text-summarization-result" hx-swap="innerHTML" enctype="multipart/form-data" hx-indicator="#text-summary-tab .spinner">
+            <form id="text-summary-form" hx-post="{{ url_for('process_summarize') }}" hx-target="#text-summarization-result" hx-swap="innerHTML" enctype="multipart/form-data" hx-indicator="#text-summary-form .spinner">
                 <div class="form-group">
                     <label for="text_to_summarize">Paste Text (or leave blank to upload a file):</label>
                     <textarea id="text_to_summarize" name="text_to_summarize" rows="8"></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="text-summary-file-input" id="text-summary-drop-zone-label" class="drop-zone-style" 
+                    <label for="text-summary-file-input" id="text-summary-drop-zone-label" class="drop-zone-style"
                            style="display: block; border: 2px dashed #007bff; padding: 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 10px;">
                         <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drop .docx, .pptx, .xlsx, or .pdf file here, or click to select.</p>
                         <p id="text-summary-file-name-display" style="margin-top:5px; font-weight: bold; color: #555;">No file selected</p>
@@ -87,9 +87,9 @@
                 </button>
             </form>
             <div id="text-summarization-result" class="processing-result">
-                 {% if summary %} 
+                 {% if summary %}
                     <h2>Summary:</h2>
-                    <textarea id="summary-output" rows="8" readonly>{{ summary }}</textarea>
+                    <textarea id="summary-output" rows="8" cols="60" readonly>{{ summary }}</textarea>
                     <p style="font-size: 0.85em; color: #777; margin-top: 5px;">(Read-only summary)</p>
                 {% else %}
                     <p><i>Text summary will appear here.</i></p>
@@ -97,7 +97,7 @@
             </div>
         </div>
 
-        <!-- SIMPLIFIED Tab Content for PPT Summary (URL option removed) -->
+        <!-- Tab Content for PPT Summary -->
         <div id="ppt-summary-tab" class="feature-tab-content">
             <h2>Generate an Executive PowerPoint Summary</h2>
             <div class="feature-explanation" style="margin-top:15px;">
@@ -113,41 +113,43 @@
             </div>
             {% endif %}
 
-            <form id="ppt-builder-upload-form" action="{{ url_for('process_create_ppt') }}" method="POST" enctype="multipart/form-data">
+            <form id="ppt-builder-upload-form" method="POST" enctype="multipart/form-data"
+                  hx-post="{{ url_for('process_create_ppt') }}"
+                  hx-target="#ppt-builder-status-container" {# Target the status container for HTMX response #}
+                  hx-swap="innerHTML"
+                  enctype="multipart/form-data"
+                  hx-indicator="#ppt-builder-convert-btn"> {# Point indicator to the button itself #}
+
                 <input type="hidden" name="template" value="{{ ppt_default_template | default('professional') }}">
-                {# ADDED HIDDEN INPUT FOR inputType #}
                 <input type="hidden" name="inputType" value="file">
 
                 <div class="ppt-builder-step-section">
-                    {# MODIFIED: Title changed #}
-                    <div class="ppt-builder-step-title"><span class="ppt-builder-step-number"></span></div>
-                    
-                    {# REMOVED: .ppt-builder-input-type-selector div (radio buttons) #}
-
-                    <div id="ppt-builder-file-upload-section"> 
-                         <label for="ppt-builder-file-input" id="ppt-builder-drop-zone-label" class="drop-zone-style"
-                                style="display: block; border: 2px dashed #007bff; padding: 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 10px;">
-                             <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">
+                    <div id="ppt-builder-file-upload-section">
+                         {# MODIFIED: Removed inline styles, added disabled class #}
+                         <label for="ppt-builder-file-input" id="ppt-builder-drop-zone-label" class="drop-zone-style {% if not ppt_api_key_configured %}disabled-drop-zone{% endif %}">
+                             <p>
                                  Source Files ({{ ppt_allowed_extensions_str|default('.docx, .pdf, or .py') }}, up to {{ ppt_max_files|default(5) }} files, max {{ ppt_max_file_size_mb|default(10) }}MB each)
                              </p>
-                             <p style="margin:0 0 10px 0; font-size: 1.0em; color: #333;">Drag & drop your file(s) here or click to select.</p>
-                             <div id="ppt-builder-file-info" style="margin-top:10px; font-weight: bold; color: #555;"><p class="ppt-builder-no-files-msg">No files selected.</p></div>
+                             <p>Drag & drop your file(s) here or click to select.</p>
+                             <div id="ppt-builder-file-info"><p class="ppt-builder-no-files-msg">No files selected.</p></div>
                          </label>
-                         <input type="file" id="ppt-builder-file-input" name="file" accept="{{ ppt_allowed_extensions_str|default('.docx,.pdf,.py') }}" 
-                                style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;" multiple>
+                         {# MODIFIED: Added disabled attribute based on backend var #}
+                         <input type="file" id="ppt-builder-file-input" name="file" accept="{{ ppt_allowed_extensions_str|default('.docx,.pdf,.py') }}"
+                                style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;" multiple
+                                {% if not ppt_api_key_configured %}disabled{% endif %}>
                     </div>
-                    
-                    {# REMOVED: div#ppt-builder-url-input-section #}
                 </div>
+
+                {# Put spinner INSIDE the button #}
                 <button type="submit" id="ppt-builder-convert-btn" class="submit-button" {% if not ppt_api_key_configured %}disabled{% endif %}>
                     <i class="fas fa-magic"></i> Generate Presentation
+                    <span class="spinner htmx-indicator"></span> {# SPINNER #}
                 </button>
             </form>
 
-            <div class="ppt-builder-loader-container" id="ppt-builder-loader-container">
-                 <div id="ppt-builder-loader" class="ppt-builder-loader"></div>
-                 <p id="ppt-builder-loader-text">Processing...</p>
-            </div>
+            {# Removed the separate loader container #}
+
+            {# Keep the status container for HTMX swaps #}
             <div id="ppt-builder-status-container" class="processing-result" style="min-height: 50px;">
                 <div id="ppt-builder-status">
                     <p><i>PowerPoint generation status and download link will appear here.</i></p>
@@ -188,7 +190,6 @@
              if (firstTabId) openSummarizationTab(firstTabId);
         }
 
-
         // --- Text Summary Tab File Upload Logic (Remains the same) ---
         const textSummaryDropZoneLabel = summarizationFeatureContainer.querySelector('#text-summary-drop-zone-label');
         const textSummaryFileInput = summarizationFeatureContainer.querySelector('#text-summary-file-input');
@@ -202,208 +203,316 @@
             textSummaryForm.addEventListener('submit', function(event) { const textToSummarizeInput = summarizationFeatureContainer.querySelector('#text_to_summarize'); if (textSummaryFileInput.files.length === 0 && (!textToSummarizeInput || textToSummarizeInput.value.trim() === '')) { alert('Please upload a file or paste text to summarize.'); event.preventDefault(); } });
         }
 
-        // --- SIMPLIFIED PPT Builder Specific JavaScript (URL option and popups removed) ---
+        // --- SIMPLIFIED PPT Builder Specific JavaScript ---
         const pptBuilderForm = summarizationFeatureContainer.querySelector('#ppt-builder-upload-form');
         if (pptBuilderForm) {
-            const pptDropZoneLabel = summarizationFeatureContainer.querySelector('#ppt-builder-drop-zone-label'); 
+            const pptDropZoneLabel = summarizationFeatureContainer.querySelector('#ppt-builder-drop-zone-label');
             const pptFileInput = summarizationFeatureContainer.querySelector('#ppt-builder-file-input');
             const pptConvertBtn = summarizationFeatureContainer.querySelector('#ppt-builder-convert-btn');
-            const pptStatusDiv = summarizationFeatureContainer.querySelector('#ppt-builder-status');
-            const pptStatusContainer = summarizationFeatureContainer.querySelector('#ppt-builder-status-container');
-            const pptLoaderContainer = summarizationFeatureContainer.querySelector('#ppt-builder-loader-container');
-            const pptLoaderText = summarizationFeatureContainer.querySelector('#ppt-builder-loader-text');
             const pptFileInfoDiv = summarizationFeatureContainer.querySelector('#ppt-builder-file-info');
 
-            // const pptCurrentInputType = 'file'; // Hardcoded, no longer needed as a variable here
-            let pptValidFiles = [];
-            
-            const PPT_MAX_FILES = parseInt("{{ ppt_max_files|default(5) }}", 10);
-            const PPT_MAX_FILE_SIZE_MB = parseInt("{{ ppt_max_file_size_mb|default(10) }}", 10);
-            const PPT_MAX_FILE_SIZE = PPT_MAX_FILE_SIZE_MB * 1024 * 1024;
-            const PPT_ALLOWED_EXTENSIONS_STR = "{{ ppt_allowed_extensions_str|default('.docx,.pdf,.py') }}";
-            const PPT_ALLOWED_EXTENSIONS = PPT_ALLOWED_EXTENSIONS_STR.split(',').map(ext => ext.trim().replace('.', ''));
+            // This variable comes from the Flask backend and controls the button's initial disabled state in HTML
             const pptApiKeyIsConfigured = {{ ppt_api_key_configured|default(false)|tojson }};
 
-            // --- START: Core PPT Function Definitions (Simplified Set) ---
-            // REMOVED: initializePptPopup, selectPptOption, handlePptInputTypeChange, isValidPptHttpUrl
+            // --- Core PPT Functions ---
 
+            // Updates the disabled state of the Generate button based on file selection and API config
             function updatePptConvertButtonState() {
                  if(!pptConvertBtn) return;
-                 const isReady = pptValidFiles.length > 0;
-                 pptConvertBtn.disabled = !isReady || !pptApiKeyIsConfigured;
-            }
-            function handlePptFileSelection(fileList) { 
-                clearPptStatus(); pptValidFiles = [];
-                let invalidCount = 0; let typeErrorCount = 0; let sizeErrorCount = 0;
-                const totalSelected = fileList.length;
-                if (totalSelected > PPT_MAX_FILES) { 
-                    showPptStatus(`Too many files selected (${totalSelected}). Max: ${PPT_MAX_FILES}.`, 'error'); 
-                    resetPptFileInput(); return; 
-                }
-                for (const file of fileList) {
-                    const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
-                    let isTypeValid = PPT_ALLOWED_EXTENSIONS.includes(fileExt);
-                    let isSizeValid = file.size <= PPT_MAX_FILE_SIZE;
-                    if (isTypeValid && isSizeValid) { pptValidFiles.push(file); }
-                    else {
-                        invalidCount++;
-                        if (!isTypeValid) typeErrorCount++;
-                        if (!isSizeValid) sizeErrorCount++;
-                    }
-                }
-                displayPptFileInfo(pptValidFiles, invalidCount, typeErrorCount, sizeErrorCount);
-                updatePptConvertButtonState(); // Update button state after file selection
-            }
-            function displayPptFileInfo(validFiles, invalidCount, typeErrorCount, sizeErrorCount) { 
-                if (!pptFileInfoDiv) return;
-                pptFileInfoDiv.innerHTML = ''; 
-                if (validFiles.length > 0) {
-                    const p = document.createElement('p');
-                    p.textContent = `Selected Files (${validFiles.length}):`;
-                    p.style.color = 'var(--success-text, #0f5132)'; 
-                    p.style.fontWeight = 'normal'; p.style.textAlign = 'left'; p.style.marginBottom = '0.3rem';
-                    pptFileInfoDiv.appendChild(p);
-                    const ul = document.createElement('ul');
-                    ul.style.listStyleType = 'none'; ul.style.paddingLeft = '0'; ul.style.textAlign = 'left';
-                    validFiles.forEach(file => { 
-                        const li = document.createElement('li'); 
-                        li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
-                        li.style.fontSize = '0.9em'; li.style.marginBottom = '0.2rem';
-                        ul.appendChild(li); 
-                    });
-                    pptFileInfoDiv.appendChild(ul);
-                } else if (invalidCount === 0) {
-                    pptFileInfoDiv.innerHTML = '<p class="ppt-builder-no-files-msg" style="font-weight:normal; color:#555;">No files selected.</p>';
-                }
-                if (invalidCount > 0) {
-                    const pWarn = document.createElement('p'); 
-                    pWarn.style.color = 'var(--error-text, #842029)';
-                    pWarn.style.fontSize = '0.9em'; pWarn.style.marginTop = '0.5rem'; pWarn.style.textAlign = 'left';
-                    let warnMsgParts = [];
-                    if (typeErrorCount > 0) warnMsgParts.push(`invalid type (allowed: ${PPT_ALLOWED_EXTENSIONS.join(', ')})`);
-                    if (sizeErrorCount > 0) warnMsgParts.push(`too large (max ${PPT_MAX_FILE_SIZE_MB}MB)`);
-                    pWarn.textContent = `${invalidCount} file(s) ignored: ${warnMsgParts.join(' and ')}.`;
-                    pptFileInfoDiv.appendChild(pWarn);
-                }
-            }
-            function resetPptFileInput() { 
-                 if(pptFileInput) pptFileInput.value = ''; 
-                pptValidFiles = []; 
-                displayPptFileInfo([], 0, 0, 0); 
-                updatePptConvertButtonState();
-            }
-            function setPptUIState(processing) { 
-                const formElements = pptBuilderForm.elements;
-                for (let i = 0; i < formElements.length; i++) {
-                    if (formElements[i].type !== 'hidden') formElements[i].disabled = processing;
-                }
-                if (pptDropZoneLabel) {
-                    pptDropZoneLabel.style.opacity = processing ? 0.6 : 1;
-                    pptDropZoneLabel.style.cursor = processing ? 'not-allowed' : 'pointer';
-                    pptDropZoneLabel.style.pointerEvents = processing ? 'none' : 'auto';
-                }
-                if (pptLoaderContainer) pptLoaderContainer.style.display = processing ? 'flex' : 'none';
-                if (!processing) updatePptConvertButtonState(); 
-                else { if(pptConvertBtn) pptConvertBtn.disabled = true; clearPptStatus(); }
-            }
-            function updatePptLoaderText(text) { if(pptLoaderText) pptLoaderText.textContent = text; }
-            function showPptStatus(message, type) { 
-                clearPptStatus(); 
-                if(pptStatusDiv) {
-                    pptStatusDiv.innerHTML = '';
-                    const p = document.createElement('p');
-                    p.textContent = message;
-                    pptStatusDiv.appendChild(p);
-                    pptStatusDiv.className = 'ppt-builder-' + type; 
-                    if (pptStatusContainer) pptStatusContainer.style.display = 'block';
-                }
-            }
-            function clearPptStatus() { 
-                if(pptStatusDiv) {
-                    pptStatusDiv.innerHTML = '<p><i>PowerPoint generation status and download link will appear here.</i></p>';
-                    pptStatusDiv.className = '';
-                }
-                const btn = summarizationFeatureContainer.querySelector('#ppt-builder-status #download-btn'); 
-                if (btn) btn.remove();
-            }
+                 // Button is enabled only if there are files selected AND API is configured
+                 const isReady = pptFileInput && pptFileInput.files && pptFileInput.files.length > 0 && pptApiKeyIsConfigured;
+                 pptConvertBtn.disabled = !isReady;
 
-            function handlePptFormSubmit(event) {
-                event.preventDefault(); clearPptStatus();
-                const formData = new FormData(pptBuilderForm);
-                // 'inputType' is now set by a hidden field, so no need to set it via JS here.
-
-                if (pptValidFiles.length === 0) { 
-                    showPptStatus('Please select valid file(s).', 'error'); return; 
-                }
-                formData.delete('file'); 
-                pptValidFiles.forEach(file => formData.append('file', file, file.name));
-                // No 'sourceUrl' to delete as it's not in the form.
-
-                setPptUIState(true); 
-                updatePptLoaderText('Preparing request...');
-
-                fetch(pptBuilderForm.action, { method: 'POST', body: formData })
-                .then(async response => { /* ... (fetch response handling - REMAINS THE SAME) ... */ 
-                    updatePptLoaderText('Waiting for server...');
-                    if (!response.ok) {
-                        let errorMsg = 'Processing failed on server.';
-                        try { const errData = await response.json(); errorMsg = errData.error || `Server error (${response.status}).`; }
-                        catch (jsonError) { errorMsg = `Server error (${response.status} ${response.statusText}). Invalid JSON response.`; }
-                        if (response.status === 503) errorMsg = errorMsg.includes("AI service unavailable") ? errorMsg : "Service is temporarily busy. Please try again shortly.";
-                        throw new Error(errorMsg);
-                    }
-                    const contentType = response.headers.get("content-type");
-                    if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.presentationml.presentation')) {
-                         updatePptLoaderText('Downloading presentation...'); return response.blob();
-                    } else { 
-                        try { const errData = await response.json(); throw new Error(errData.error || 'Server returned an unexpected response type.'); }
-                        catch(e) { throw new Error(e.message || 'Server returned an unexpected response type and invalid error format.');}
-                    }
-                })
-                .then(blob => { /* ... (fetch success handling - REMAINS THE SAME) ... */ 
-                     updatePptLoaderText('Presentation ready!'); 
-                     showPptStatus('Presentation generated successfully!', 'success');
-                     const downloadLink = document.createElement('a');
-                     const langSuffix = ''; 
-                     let baseName = "presentation";
-                     // Simplified baseName logic as only file input is possible
-                     if (pptValidFiles.length === 1) { const fn = pptValidFiles[0].name; baseName = fn.substring(0, fn.lastIndexOf('.')) || 'document'; } 
-                     else if (pptValidFiles.length > 1) { baseName = `${pptValidFiles.length}_docs`; }
-                     const safeBaseName = baseName.replace(/[^\w\-]+/g, '_').replace(/_+/g, '_').substring(0, 50);
-                     const downloadFilename = `${safeBaseName}_presentation${langSuffix}_${new Date().toISOString().split('T')[0].replace(/-/g,'')}.pptx`;
-                     downloadLink.href = window.URL.createObjectURL(blob);
-                     downloadLink.download = downloadFilename;
-                     downloadLink.textContent = `Download: ${downloadFilename}`;
-                     downloadLink.className = 'submit-button';
-                     downloadLink.style.marginTop = '1rem';
-                     downloadLink.style.display = 'inline-block';
-                     downloadLink.style.width = 'auto';
-                     if (pptStatusDiv) {
-                        const successMsgP = pptStatusDiv.querySelector('p');
-                        if (successMsgP) successMsgP.insertAdjacentElement('afterend', downloadLink);
-                        else pptStatusDiv.appendChild(downloadLink);
+                 // Update disabled state of the drop zone label as well
+                 if (pptDropZoneLabel) {
+                     if (!pptApiKeyIsConfigured) {
+                          // If API is not configured, the drop zone is always disabled regardless of files
+                          pptDropZoneLabel.classList.add('disabled-drop-zone');
+                          pptDropZoneLabel.style.cursor = 'not-allowed';
+                          // Set title from warning message if available
+                           const apiWarningDiv = summarizationFeatureContainer.querySelector('.ppt-builder-api-warning');
+                           if (apiWarningDiv) {
+                               pptDropZoneLabel.title = apiWarningDiv.textContent.trim() || 'Presentation generation service is currently unavailable.';
+                           } else {
+                               pptDropZoneLabel.title = 'Presentation generation service is currently unavailable.';
+                           }
+                     } else {
+                          // If API is configured, the drop zone is enabled
+                          pptDropZoneLabel.classList.remove('disabled-drop-zone');
+                          pptDropZoneLabel.style.cursor = 'pointer';
+                          pptDropZoneLabel.title = ''; // Clear title if enabled
                      }
-                })
-                .catch(error => { console.error('PPT Generation Error:', error); showPptStatus(`Error: ${error.message}`, 'error'); })
-                .finally(() => { setPptUIState(false); if (pptLoaderContainer) pptLoaderContainer.style.display = 'none';});
+                     // Re-apply drop zone border color based on selection after state update
+                     const isFileSelected = pptFileInput && pptFileInput.files && pptFileInput.files.length > 0;
+                     if (!isFileSelected) {
+                          pptDropZoneLabel.style.borderColor = !pptApiKeyIsConfigured ? '#ced4da' : '#007bff';
+                     }
+                 }
             }
-            // --- END: Core PPT Function Definitions ---
 
-            // Initializations for PPT Builder
-            if(pptFileInput) pptFileInput.addEventListener('change', function(e) { 
-                if (e.target.files.length) { handlePptFileSelection(e.target.files); } 
-                // updatePptConvertButtonState(); // handlePptFileSelection now calls this
-            });
-            if(pptDropZoneLabel) {
-                pptDropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); pptDropZoneLabel.classList.add('drag-over'); pptDropZoneLabel.style.borderColor = '#28a745';});
-                ['dragleave', 'dragend'].forEach(type => pptDropZoneLabel.addEventListener(type, (e) => { e.preventDefault(); pptDropZoneLabel.classList.remove('drag-over'); pptDropZoneLabel.style.borderColor = '#007bff';}));
-                pptDropZoneLabel.addEventListener('drop', (e) => {  e.preventDefault(); pptDropZoneLabel.classList.remove('drag-over'); pptDropZoneLabel.style.borderColor = '#007bff'; if (e.dataTransfer.files.length) { handlePptFileSelection(e.dataTransfer.files); if(pptFileInput) pptFileInput.files = e.dataTransfer.files; } /*updatePptConvertButtonState();*/ });
+            // Updates the text and list showing selected files in the info div
+            function displayPptFileInfo(fileList) {
+                console.log('displayPptFileInfo called. Files selected:', fileList.length); // Debug log
+                if (!pptFileInfoDiv || !pptFileInput) return; // Ensure elements exist
+
+                pptFileInfoDiv.innerHTML = ''; // Clear existing content
+
+                const files = pptFileInput.files; // Always work directly from the file input's files list
+
+                if (files.length > 0) {
+                    const p = document.createElement('p');
+                    p.textContent = `Selected Files (${files.length}):`;
+                    p.style.color = 'var(--text-color-primary)';
+                    p.style.fontWeight = 'bold';
+                    p.style.textAlign = 'left';
+                    p.style.marginBottom = '0.3rem';
+                    pptFileInfoDiv.appendChild(p);
+
+                    // --- Optional: Display list of selected files and perform client-side validation info ---
+                    let invalidCount = 0;
+                    let typeErrorCount = 0;
+                    let sizeErrorCount = 0;
+                    const fileListElement = document.createElement('ul');
+                    fileListElement.style.listStyleType = 'none';
+                    fileListElement.style.paddingLeft = '0';
+                    fileListElement.style.textAlign = 'left';
+
+                    Array.from(files).forEach(file => {
+                        const li = document.createElement('li');
+                        const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+                        let isTypeValid = PPT_ALLOWED_EXTENSIONS.includes(fileExt);
+                        let isSizeValid = file.size <= PPT_MAX_FILE_SIZE;
+                        let isValid = isTypeValid && isSizeValid;
+
+                        li.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                        li.style.fontSize = '0.9em';
+                        li.style.marginBottom = '0.2rem';
+
+                        // Add visual feedback for invalid files in the list (Optional)
+                        if (!isValid) {
+                            li.style.color = 'var(--error-message-color, #ef4444)';
+                            li.textContent += ' (Invalid)'; // Add indicator
+                            invalidCount++;
+                            if (!isTypeValid) typeErrorCount++;
+                            if (!isSizeValid) sizeErrorCount++;
+                        } else {
+                            li.style.color = 'var(--text-color-secondary)'; // Color for valid files
+                        }
+                        fileListElement.appendChild(li);
+                    });
+                     pptFileInfoDiv.appendChild(fileListElement); // Append the list
+
+                    // Display summary of invalid files if any
+                    if (invalidCount > 0) {
+                        const pWarn = document.createElement('p');
+                        pWarn.style.color = 'var(--error-message-color, #ef4444)';
+                        pWarn.style.fontSize = '0.9em';
+                        pWarn.style.marginTop = '0.5rem';
+                        pWarn.style.textAlign = 'left';
+
+                        let warnMsgParts = [];
+                        if (typeErrorCount > 0) warnMsgParts.push(`invalid type (allowed: ${PPT_ALLOWED_EXTENSIONS.join(', ')})`);
+                        if (sizeErrorCount > 0) warnMsgParts.push(`too large (max ${PPT_MAX_FILE_SIZE_MB}MB each)`);
+                        if (files.length > PPT_MAX_FILES) { // Check total file count limit explicitly for the warning message
+                             pWarn.textContent = `Too many files selected (${files.length}). Maximum allowed is ${PPT_MAX_FILES}.`;
+                        } else if (warnMsgParts.length > 0) {
+                             pWarn.textContent = `${invalidCount} file(s) ignored: ${warnMsgParts.join(' and ')}.`;
+                        }
+                        pptFileInfoDiv.appendChild(pWarn);
+                    }
+
+                } else {
+                     // If no files are selected, show the default "No files selected" message
+                     pptFileInfoDiv.innerHTML = '<p class="ppt-builder-no-files-msg" style="font-weight:normal; color:#555;">No files selected.</p>';
+                }
+
+                 // Update drop zone border color based on selection
+                 if (pptDropZoneLabel) {
+                     const isFileSelected = files.length > 0;
+                     if (isFileSelected) {
+                         pptDropZoneLabel.classList.add('file-selected');
+                         pptDropZoneLabel.style.borderColor = '#17a2b8'; // Blue-green for selected
+                     } else {
+                         pptDropZoneLabel.classList.remove('file-selected');
+                         // Reset to default unless disabled by API config
+                         pptDropZoneLabel.style.borderColor = !pptApiKeyIsConfigured ? '#ced4da' : '#007bff';
+                     }
+                 }
             }
-            // Removed event listeners for URL input and radio buttons
-            if(pptBuilderForm) pptBuilderForm.addEventListener('submit', handlePptFormSubmit);
-            if(pptConvertBtn) updatePptConvertButtonState(); // Initial button state
-            if(pptFileInfoDiv) displayPptFileInfo([],0,0,0); // Initial file info display
-        } 
-    })(); 
+
+            // Resets the file input element and updates display/state
+            function resetPptFileInput() {
+                 console.log('resetPptFileInput called.'); // Debug log
+                 if(pptFileInput) pptFileInput.value = ''; // Clear the actual file input element
+                 displayPptFileInfo([]); // Update display to "No files selected"
+                 updatePptConvertButtonState(); // Update button state
+            }
+
+            // --- Event Listeners and Initializations ---
+
+            // File input change listener (triggered by direct input change OR drop assigned)
+            // This is the primary event handler for file selection.
+            if(pptFileInput) {
+                 pptFileInput.addEventListener('change', function(e) {
+                    console.log('PPT File input change detected.', e.target.files.length, 'files.'); // Debug log
+                    // Update the file info display and button state based on the new files
+                    displayPptFileInfo(e.target.files); // Pass the actual file list
+                    updatePptConvertButtonState(); // Update button state
+                     clearPptStatus(); // Clear previous status on new file selection
+                 });
+            }
+
+            // Drop zone listeners (dragover, dragleave, drop)
+            // These listeners manage visual feedback and assign dropped files to the hidden input.
+            if(pptDropZoneLabel && pptFileInput) {
+                // Dragover: visual feedback when dragging over
+                pptDropZoneLabel.addEventListener('dragover', (e) => {
+                    e.preventDefault(); // Necessary to allow drop
+                    if (!pptFileInput.disabled) { // Only show feedback if input is enabled
+                       pptDropZoneLabel.classList.add('drag-over');
+                       pptDropZoneLabel.style.borderColor = '#28a745'; // Highlight border
+                    }
+                });
+
+                // Dragleave/dragend: remove feedback when dragging stops
+                ['dragleave', 'dragend'].forEach(type => pptDropZoneLabel.addEventListener(type, (e) => {
+                    e.preventDefault(); // Prevent default behavior
+                    if (!pptFileInput.disabled) { // Only remove feedback if input was enabled
+                        pptDropZoneLabel.classList.remove('drag-over');
+                        // Reset border color based on file selected state or default (enabled state color)
+                        const isFileSelected = pptFileInput.files && pptFileInput.files.length > 0;
+                        pptDropZoneLabel.style.borderColor = isFileSelected ? '#17a2b8' : '#007bff';
+                    }
+                }));
+
+                // Drop: handle the files that were dropped
+                pptDropZoneLabel.addEventListener('drop', (e) => {
+                    e.preventDefault(); // Prevent default browser handling of drop
+                    if (!pptFileInput.disabled) { // Only process drop if input is enabled
+                        pptDropZoneLabel.classList.remove('drag-over');
+                        // Reset border color based on file selected state or default (enabled state color)
+                        const isFileSelected = pptFileInput.files && pptFileInput.files.length > 0;
+                        pptDropZoneLabel.style.borderColor = isFileSelected ? '#17a2b8' : '#007bff';
+
+                        const files = e.dataTransfer.files; // Get the files from the drop event
+                        if (files.length > 0) {
+                            // IMPORTANT: Clear the file input FIRST before assigning new files
+                            // This ensures the 'change' event is reliably fired even if the same file is dropped again
+                            pptFileInput.value = ''; // Clear previous selection
+                            pptFileInput.files = files; // Assign dropped files
+                            // Manually dispatch the 'change' event on the file input
+                            // This triggers the file input's change listener -> displayPptFileInfo and updatePptConvertButtonState
+                            const event = new Event('change', { bubbles: true });
+                            pptFileInput.dispatchEvent(event);
+                        }
+                    } else {
+                        console.log('PPT File input disabled, ignoring drop.'); // Debug log
+                    }
+                });
+
+                 // Click listener on dropZoneLabel to explicitly trigger fileInput
+                 // This supplements the <label for="..."> linkage for potentially better compatibility.
+                 // Added check for disabled state.
+                 pptDropZoneLabel.addEventListener('click', () => {
+                     console.log('PPT Drop zone label clicked.'); // Debug log
+                     // Check if the file input exists and is NOT disabled before clicking it
+                     if (pptFileInput && !pptFileInput.disabled) {
+                         // pptFileInput.click(); // Removed: The <label for="..."> attribute already handles this.
+                     } else {
+                         console.log('PPT File input disabled, cannot click.'); // Debug log
+                     }
+                 });
+            }
+
+            // Add htmx:submit listener to the form for client-side validation *before* HTMX sends the request
+            // HTMX provides event.detail.formData for us to modify the data being sent.
+            if(pptBuilderForm && pptFileInput) {
+                 pptBuilderForm.addEventListener('htmx:submit', function(event) {
+                    console.log('PPT htmx:submit event fired. Files in input:', pptFileInput.files.length); // Debug log
+
+                    // Perform client-side validation based on the files currently in the input
+                    const files = pptFileInput.files;
+                    let isValidSelection = true;
+                    let validationMessage = '';
+
+                    if (files.length === 0) {
+                        isValidSelection = false;
+                        validationMessage = 'Please select a file(s) to generate a presentation.';
+                    } else if (files.length > PPT_MAX_FILES) {
+                         isValidSelection = false;
+                         validationMessage = `Too many files selected (${files.length}). Maximum allowed is ${PPT_MAX_FILES}.`;
+                    } else {
+                         // Check individual files for type and size if within total limit
+                         Array.from(files).forEach(file => {
+                             const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+                             let isTypeValid = PPT_ALLOWED_EXTENSIONS.includes(fileExt);
+                             let isSizeValid = file.size <= PPT_MAX_FILE_SIZE;
+                             if (!isTypeValid || !isSizeValid) {
+                                 isValidSelection = false;
+                                 // We could gather detailed invalid messages here, but a simple alert/status might suffice
+                             }
+                         });
+                         if (!isValidSelection && files.length <= PPT_MAX_FILES) {
+                            validationMessage = `One or more selected files are invalid (check type or size). Allowed: ${PPT_ALLOWED_EXTENSIONS.join(', ')}, Max size: ${PPT_MAX_FILE_SIZE_MB}MB each.`;
+                         }
+                    }
+
+                    if (!isValidSelection) {
+                        // If validation fails, show an alert or status message
+                        alert(validationMessage || 'Invalid file selection.'); // Default fallback alert
+                        showPptStatus(validationMessage || 'Invalid file selection.', 'error'); // Show in status area
+                        event.preventDefault(); // **Crucially, cancel the HTMX request**
+                        console.log('PPT Validation failed, HTMX request cancelled.'); // Debug log
+                    } else {
+                        // --- Append files to the HTMX formData ---
+                        // HTMX automatically serializes the form, but assigning to input.files might
+                        // not always be picked up perfectly, especially with multiple files.
+                        // Explicitly appending them ensures they are sent.
+                        // Remove the default 'file' entry first to avoid duplicates or empty entries
+                        event.detail.formData.delete('file');
+                        // Append each file currently in the file input's files list
+                        Array.from(files).forEach(file => {
+                             event.detail.formData.append('file', file, file.name);
+                        });
+                         console.log('PPT Validation passed, files appended to formData, HTMX request proceeding.'); // Debug log
+                         // Note: Spinner display is handled by hx-indicator automatically now.
+                    }
+                 });
+            }
+
+            // Initial state setup on DOM load and potentially when tab is activated
+            document.addEventListener('DOMContentLoaded', function() {
+                 console.log('PPT DOMContentLoaded: Initializing tab state.'); // Debug log
+                 // Initialize state based on the files currently in the input (e.g., browser history)
+                 // Use a small timeout to ensure the DOM is fully ready, especially if rendered by HTMX swap
+                 setTimeout(() => {
+                      console.log('PPT DOMContentLoaded/setTimeout: processing initial files and state.');
+                      // Call display and state update based on current files in input
+                      if (pptFileInput) {
+                          displayPptFileInfo(pptFileInput.files); // Update file info display
+                      }
+                      updatePptConvertButtonState(); // Update button disabled state
+                      clearPptStatus(); // Clear status area
+                 }, 50); // Short delay to ensure DOM is stable
+            });
+
+             // If your tab switching dispatches a custom event 'openSummarizationTab'
+             // This ensures the state is correctly re-initialized when the tab is opened.
+             summarizationFeatureContainer.addEventListener('openSummarizationTab', function(event) {
+                 if (event.detail.targetTabId === 'ppt-summary-tab') {
+                     console.log('PPT tab activated: Re-initializing state.'); // Debug log
+                      setTimeout(() => {
+                         console.log('PPT tab activated/setTimeout: processing current files and state.');
+                         if (pptFileInput) {
+                             displayPptFileInfo(pptFileInput.files);
+                         }
+                         updatePptConvertButtonState();
+                         clearPptStatus();
+                      }, 50); // Short delay
+                 }
+             });
+
+        } // End if(pptBuilderForm)
+    })();
     </script>
 {% endif %}

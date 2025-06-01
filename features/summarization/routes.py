@@ -8,6 +8,7 @@ import re
 import logging
 import time
 import threading
+from urllib.parse import urlparse # <--- ADDED THIS IMPORT
 
 from werkzeug.utils import secure_filename
 import google.generativeai as genai
@@ -48,7 +49,6 @@ except ImportError as e:
     ppt_prompts = type('DummyPrompts', (), {'MAX_INPUT_CHARS': 3000000})() 
     ppt_translate = type('DummyTranslate', (), {'translate_slide_data': dummy_ppt_func})()
 
-
 # --- Constants for Text Summarization ---
 MAX_CONTENT_LENGTH_TEXT_SUMMARY = 1000000
 MAX_CLASSIFICATION_EXCERPT_TEXT_SUMMARY = 15000 # Max chars for classifying text summary input
@@ -76,7 +76,6 @@ DEFAULT_PPT_MAX_CONCURRENT_REQUESTS = 3
 
 ppt_processing_semaphore = threading.Semaphore(DEFAULT_PPT_MAX_CONCURRENT_REQUESTS)
 logging.info(f"Summarization Feature: Initialized PPT processing semaphore with static limit: {DEFAULT_PPT_MAX_CONCURRENT_REQUESTS}")
-
 
 # --- Generic File Reading Utilities ---
 def read_text_from_docx(file_stream):
@@ -134,7 +133,6 @@ def read_text_from_pdf(file_stream):
                     text_list.append(extracted.strip())
         return "\n".join(text_list) if text_list else ""
     except Exception as e: logging.error(f"Error reading PDF: {e}", exc_info=True); raise
-
 
 # --- HELPER FUNCTIONS FOR "CREATE TEXT SUMMARY" TAB ---
 def get_classification_prompt_for_text_summary(text_excerpt):
@@ -248,7 +246,6 @@ def classify_and_summarize_with_gemini(text_content, model_name_from_config, fil
 
     return classification, final_summary, error_occurred
 
-
 # --- Helper: call_llm function for PPT Builder ---
 def call_llm_for_ppt_builder(prompt_text, max_output_tokens=8192, req_id="PPT_LLM_Call"):
     gemini_model_name = current_app.config.get('GEMINI_MODEL_NAME')
@@ -343,51 +340,103 @@ def define_summarization_routes(app_shell):
         context["summary"] = summary_text
         return render_template("summarization/templates/summarization_content.html", **context)
 
+    # NEW ROUTE FOR DOWNLOADING GENERATED PPTX
+    @app_shell.route("/download/ppt/<file_id>/<filename>", methods=["GET"])
+    def download_generated_ppt(file_id, filename):
+        """
+        Serves a generated PowerPoint file from GCS to the user.
+        This endpoint is hit by the browser's direct GET request, not HTMX.
+        """
+        log_extra_ppt = {'extra_data': {'request_id': file_id, 'feature': 'ppt_download'}}
+        # Construct the GCS path for the output file
+        gcs_path = f"{file_id}/output/{filename}" 
+
+        if not current_app.config.get('GCS_AVAILABLE'):
+            logging.error(f"[{file_id}] GCS not available for download.", extra=log_extra_ppt)
+            flash("Download service currently unavailable (Cloud Storage not configured).", "error")
+            return redirect(url_for('home')) # Redirect to a safe page if GCS is down
+
+        try:
+            blob = current_app.gcs_bucket.blob(gcs_path)
+            if not blob.exists():
+                logging.warning(f"[{file_id}] Attempted to download non-existent PPTX: {gcs_path}", extra=log_extra_ppt)
+                flash("The presentation file was not found or has expired. Please try generating it again.", "error")
+                return redirect(url_for('display_feature', feature_name='summarization')) # Redirect to the summarization feature
+
+            # Read blob content into a BytesIO buffer
+            buffer = io.BytesIO()
+            blob.download_to_file(buffer)
+            buffer.seek(0) # Rewind the buffer to the beginning before sending
+
+            logging.info(f"[{file_id}] Successfully serving PPTX: {gcs_path}", extra=log_extra_ppt)
+            
+            # Use send_file to stream the content to the browser, triggering download
+            return send_file(
+                buffer,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            )
+        except GCSNotFound:
+            logging.error(f"[{file_id}] GCSNotFound when downloading {gcs_path}", exc_info=True, extra=log_extra_ppt)
+            flash("The presentation file was not found or has expired. Please try generating it again.", "error")
+            return redirect(url_for('display_feature', feature_name='summarization'))
+        except Exception as e:
+            logging.error(f"[{file_id}] Error serving generated PPTX from GCS ({gcs_path}): {e}", exc_info=True, extra=log_extra_ppt)
+            flash("An unexpected error occurred while preparing your download.", "error")
+            return redirect(url_for('display_feature', feature_name='summarization'))
+
+
     @app_shell.route("/process/summarization/create_ppt", methods=["POST"])
     def process_create_ppt():
         g.request_id = uuid.uuid4().hex
         g.start_time = time.time()
         log_extra_ppt = {'extra_data': {'request_id': g.request_id, 'feature': 'ppt_builder_shell'}}
         
-        if not PPT_BUILDER_MODULES_LOADED:
-            logging.critical(f"[{g.request_id}] PPT Builder modules not loaded. Cannot process PPT request.", extra=log_extra_ppt)
-            return jsonify({"error": "Server error: PowerPoint generation components are missing."}), 500
-
-        if not current_app.config.get('GEMINI_CONFIGURED') or not current_app.config.get('GCS_AVAILABLE'):
-            err_msg = "AI service or Cloud Storage is unavailable for PowerPoint generation."
-            logging.error(f"[{g.request_id}] {err_msg}", extra=log_extra_ppt)
-            return jsonify({"error": err_msg}), 503
-
-        max_concurrent = current_app.config.get('PPT_MAX_CONCURRENT_REQUESTS', DEFAULT_PPT_MAX_CONCURRENT_REQUESTS)
-        # Ensure semaphore is used correctly
-        current_sem = ppt_processing_semaphore 
-        
-        logging.info(f"[{g.request_id}] PPT Request: Attempting to acquire slot (max: {max_concurrent}, current_val: {current_sem._value if hasattr(current_sem, '_value') else 'N/A'})...", extra=log_extra_ppt)
-        if not current_sem.acquire(blocking=True, timeout=5): # Use timeout for acquire
-            logging.warning(f"[{g.request_id}] PPT Request: Failed to acquire slot (server busy/timeout).", extra=log_extra_ppt)
-            return jsonify({"error": "Server is very busy, please try again in a moment."}), 503
-        logging.info(f"[{g.request_id}] PPT Request: Slot acquired.", extra=log_extra_ppt)
-
-        g.gcs_cleanup_needed_ppt_local = False # For tracking GCS uploads for this request
-
-        def cleanup_ppt_resources_final(response_obj):
+        # This function will run *after* the request is completed,
+        # ensuring semaphore release and cleanup of *input* files.
+        # Output files will be cleaned by GCS lifecycle policies.
+        @after_this_request
+        def release_semaphore_and_cleanup_uploads(response):
             req_id_clean = getattr(g, 'request_id', 'PPT_CLEAN_FALLBACK')
             start_time_clean = getattr(g, 'start_time', time.time())
             
-            if getattr(g, 'gcs_cleanup_needed_ppt_local', False) and current_app.gcs_bucket:
+            # Only clean up the 'uploads/' folder for this request_id
+            if current_app.gcs_bucket: # Ensure bucket is available
                 upload_prefix_to_clean = f"{req_id_clean}/uploads/"
                 try:
                     blobs_to_delete = list(current_app.storage_client.list_blobs(current_app.gcs_bucket, prefix=upload_prefix_to_clean))
                     if blobs_to_delete:
                         current_app.gcs_bucket.delete_blobs(blobs=blobs_to_delete)
-                        logging.info(f"[{req_id_clean}] PPT GCS Uploads Cleanup for '{upload_prefix_to_clean}' done ({len(blobs_to_delete)} blobs).")
+                        logging.info(f"[{req_id_clean}] PPT GCS Input Uploads Cleanup for '{upload_prefix_to_clean}' done ({len(blobs_to_delete)} blobs).")
                 except Exception as e_clean_final:
-                    logging.error(f"[{req_id_clean}] PPT GCS Cleanup error for '{upload_prefix_to_clean}': {e_clean_final}", exc_info=True)
+                    logging.error(f"[{req_id_clean}] PPT GCS Input Uploads Cleanup error for '{upload_prefix_to_clean}': {e_clean_final}", exc_info=True)
             
-            current_sem.release() # Release semaphore
+            ppt_processing_semaphore.release() # Release semaphore
             logging.info(f"[{req_id_clean}] PPT Request: Slot released. Total duration: {int((time.time() - start_time_clean) * 1000)}ms")
-            return response_obj
+            return response
+
+        if not PPT_BUILDER_MODULES_LOADED:
+            logging.critical(f"[{g.request_id}] PPT Builder modules not loaded. Cannot process PPT request.", extra=log_extra_ppt)
+            context = {"ppt_error_message": "Server error: PowerPoint generation components are missing.", "hx_target_is_ppt_status_result": True}
+            return render_template("summarization/templates/summarization_content.html", **context), 500
+
+        if not current_app.config.get('GEMINI_CONFIGURED') or not current_app.config.get('GCS_AVAILABLE'):
+            err_msg = "AI service or Cloud Storage is unavailable for PowerPoint generation. Please check configuration."
+            logging.error(f"[{g.request_id}] {err_msg}", extra=log_extra_ppt)
+            context = {"ppt_error_message": err_msg, "hx_target_is_ppt_status_result": True}
+            return render_template("summarization/templates/summarization_content.html", **context), 503
+
+        max_concurrent = current_app.config.get('PPT_MAX_CONCURRENT_REQUESTS', DEFAULT_PPT_MAX_CONCURRENT_REQUESTS)
+        current_sem = ppt_processing_semaphore 
         
+        logging.info(f"[{g.request_id}] PPT Request: Attempting to acquire slot (max: {max_concurrent}, current_val: {current_sem._value if hasattr(current_sem, '_value') else 'N/A'})...", extra=log_extra_ppt)
+        if not current_sem.acquire(blocking=True, timeout=10): # Added timeout for acquire
+            logging.warning(f"[{g.request_id}] PPT Request: Failed to acquire slot (server busy/timeout).", extra=log_extra_ppt)
+            context = {"ppt_error_message": "Server is very busy, please try again in a moment.", "hx_target_is_ppt_status_result": True}
+            return render_template("summarization/templates/summarization_content.html", **context), 503
+        logging.info(f"[{g.request_id}] PPT Request: Slot acquired.", extra=log_extra_ppt)
+
         try:
             input_type = request.form.get('inputType')
             template_style = request.form.get('template', current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME', 'professional')).lower()
@@ -401,7 +450,8 @@ def define_summarization_routes(app_shell):
             if input_type == 'url':
                 source_url = request.form.get('sourceUrl', '').strip()
                 if not source_url or not ppt_is_safe_url(source_url):
-                    return cleanup_ppt_resources_final(jsonify({"error": "Invalid or unsafe URL."})), 400
+                    context = {"ppt_error_message": "Invalid or unsafe URL.", "hx_target_is_ppt_status_result": True}
+                    return render_template("summarization/templates/summarization_content.html", **context), 400
                 try:
                     text, trunc = ppt_fetch_and_extract_url_content(source_url)
                     if trunc: any_source_truncated = True
@@ -414,11 +464,11 @@ def define_summarization_routes(app_shell):
                     )
                     all_slides_data[source_url] = slide_result_list
                 except Exception as e_url_proc:
-                    logging.error(f"[{g.request_id}] URL processing error for PPT: {e_url_proc}", exc_info=True)
-                    all_slides_data[source_url] = f"ERROR: Failed to process URL: {str(e_url_proc)}"
+                    logging.error(f"[{g.request_id}] URL processing error for PPT: {e_url_proc}", exc_info=True, extra=log_extra_ppt)
+                    context = {"ppt_error_message": f"Failed to process URL: {str(e_url_proc)}", "hx_target_is_ppt_status_result": True}
+                    return render_template("summarization/templates/summarization_content.html", **context), 500
             
             elif input_type == 'file':
-                g.gcs_cleanup_needed_ppt_local = True
                 uploaded_files = request.files.getlist('file')
                 
                 max_files_config = current_app.config.get('PPT_MAX_FILES', 5)
@@ -427,31 +477,37 @@ def define_summarization_routes(app_shell):
                 allowed_ext_set_config = set(ext.strip().lower() for ext in allowed_ext_str_config.replace('.', '').split(','))
 
                 if not uploaded_files or all(f.filename == '' for f in uploaded_files):
-                    return cleanup_ppt_resources_final(jsonify({"error": "No files selected."})), 400
+                    context = {"ppt_error_message": "No files selected for presentation generation.", "hx_target_is_ppt_status_result": True}
+                    return render_template("summarization/templates/summarization_content.html", **context), 400
                 if len(uploaded_files) > max_files_config:
-                    return cleanup_ppt_resources_final(jsonify({"error": f"Too many files. Max: {max_files_config}."})), 400
+                    context = {"ppt_error_message": f"Too many files. Maximum allowed: {max_files_config}.", "hx_target_is_ppt_status_result": True}
+                    return render_template("summarization/templates/summarization_content.html", **context), 400
 
                 valid_files_for_processing = []
                 for f_obj in uploaded_files:
                     filename_check = secure_filename(f_obj.filename)
                     f_obj.seek(0, os.SEEK_END); file_size = f_obj.tell(); f_obj.seek(0)
-                    if ppt_allowed_file_util(filename_check, allowed_ext_set_config) and file_size <= max_file_size_config: # Pass allowed_ext_set_config
+                    if ppt_allowed_file_util(filename_check, allowed_ext_set_config) and file_size <= max_file_size_config:
                         valid_files_for_processing.append(f_obj)
                     else:
                         logging.warning(f"[{g.request_id}] Ignored file for PPT: {filename_check} (size: {file_size}, type_valid: {ppt_allowed_file_util(filename_check, allowed_ext_set_config)})", extra=log_extra_ppt)
                 
                 if not valid_files_for_processing:
-                    return cleanup_ppt_resources_final(jsonify({"error": "No valid files provided (check type/size). Allowed: " + allowed_ext_str_config})), 400
+                    context = {"ppt_error_message": "No valid files provided (check type/size). Allowed: " + allowed_ext_str_config, "hx_target_is_ppt_status_result": True}
+                    return render_template("summarization/templates/summarization_content.html", **context), 400
                 
                 total_to_process = len(valid_files_for_processing)
                 for idx, file_to_process in enumerate(valid_files_for_processing):
                     original_fname = secure_filename(file_to_process.filename)
-                    gcs_upload_path = f"{g.request_id}/uploads/{original_fname}"
+                    # Upload input file to GCS for processing by extract_text_from_blob
+                    gcs_input_upload_path = f"{g.request_id}/uploads/{original_fname}" # Path for input files
                     try:
-                        blob = current_app.gcs_bucket.blob(gcs_upload_path)
+                        blob = current_app.gcs_bucket.blob(gcs_input_upload_path)
                         file_to_process.seek(0)
                         blob.upload_from_file(file_to_process, content_type=file_to_process.content_type)
-                        text, trunc = ppt_extract_text_from_blob(blob, original_fname)
+                        logging.info(f"[{g.request_id}] Input file uploaded to GCS: gs://{current_app.gcs_bucket.name}/{gcs_input_upload_path}", extra=log_extra_ppt)
+                        
+                        text, trunc = ppt_extract_text_from_blob(blob, original_fname) # Use the GCS blob directly
                         if trunc: any_source_truncated = True
                         slide_result_list = ppt_generate_slides_from_text(
                             text=text, source_identifier=original_fname,
@@ -462,15 +518,18 @@ def define_summarization_routes(app_shell):
                         )
                         all_slides_data[original_fname] = slide_result_list
                     except Exception as e_file_proc:
-                        logging.error(f"[{g.request_id}] File processing error for PPT ('{original_fname}'): {e_file_proc}", exc_info=True)
-                        all_slides_data[original_fname] = f"ERROR: Failed to process file '{original_fname}': {str(e_file_proc)}"
+                        logging.error(f"[{g.request_id}] File processing error for PPT ('{original_fname}'): {e_file_proc}", exc_info=True, extra=log_extra_ppt)
+                        context = {"ppt_error_message": f"Failed to process file '{original_fname}': {str(e_file_proc)}", "hx_target_is_ppt_status_result": True}
+                        return render_template("summarization/templates/summarization_content.html", **context), 500
             else:
-                return cleanup_ppt_resources_final(jsonify({"error": "Invalid input type."})), 400
+                context = {"ppt_error_message": "Invalid input type selected.", "hx_target_is_ppt_status_result": True}
+                return render_template("summarization/templates/summarization_content.html", **context), 400
 
             successful_sources = {k: v for k, v in all_slides_data.items() if isinstance(v, list) and v}
             if not successful_sources:
                  first_err = next((v for v in all_slides_data.values() if isinstance(v, str) and v.startswith("ERROR:")), "Processing failed for all input sources.")
-                 return cleanup_ppt_resources_final(jsonify({"error": f"PPT Generation Failed: {first_err.replace('ERROR: ', '')}"})), 500
+                 context = {"ppt_error_message": f"PPT Generation Failed: {first_err.replace('ERROR: ', '')}", "hx_target_is_ppt_status_result": True}
+                 return render_template("summarization/templates/summarization_content.html", **context), 500
             
             pptx_buffer = ppt_create_presentation(
                 all_slides_data=all_slides_data, template_name=template_style,
@@ -488,12 +547,34 @@ def define_summarization_routes(app_shell):
             lang_sfx = f"_{language.lower().replace(' (simplified)', '_simplified')}" if language and language.lower() != 'english' else ""
             download_filename = f"{safe_name}_presentation{lang_sfx}_{time.strftime('%Y%m%d_%H%M')}.pptx"
 
-            response_file = send_file(
-                pptx_buffer, as_attachment=True, download_name=download_filename,
-                mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation'
-            )
-            return cleanup_ppt_resources_final(response_file)
+            # --- NEW: Upload the generated PPTX to GCS for later download ---
+            output_gcs_path = f"{g.request_id}/output/{download_filename}"
+            try:
+                blob_output = current_app.gcs_bucket.blob(output_gcs_path)
+                pptx_buffer.seek(0) # Ensure buffer is at the beginning
+                blob_output.upload_from_file(pptx_buffer, content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+                logging.info(f"[{g.request_id}] Generated PPTX uploaded to GCS: gs://{current_app.gcs_bucket.name}/{output_gcs_path}", extra=log_extra_ppt)
+            except Exception as e_gcs_upload:
+                logging.error(f"[{g.request_id}] Error uploading generated PPTX to GCS: {e_gcs_upload}", exc_info=True, extra=log_extra_ppt)
+                context = {"ppt_error_message": "Failed to store generated presentation (Cloud Storage error).", "hx_target_is_ppt_status_result": True}
+                return render_template("summarization/templates/summarization_content.html", **context), 500
+
+            # Construct the download URL pointing to our new Flask route
+            download_url_for_frontend = url_for('download_generated_ppt', file_id=g.request_id, filename=download_filename)
+
+            # --- RENDER TEMPLATE FOR HTMX SWAP INSTEAD OF send_file ---
+            context = {
+                "ppt_success_message": "Presentation generated successfully! Click the button below to download.",
+                "ppt_download_url": download_url_for_frontend,
+                "hx_target_is_ppt_status_result": True # This is key for the frontend template to show the download link
+            }
+            return render_template("summarization/templates/summarization_content.html", **context)
 
         except Exception as e_critical_ppt:
+            error_message = "An unexpected internal error occurred during PowerPoint generation."
             logging.exception(f"[{g.request_id}] Critical error in PPT generation: {e_critical_ppt}", extra=log_extra_ppt)
-            return cleanup_ppt_resources_final(jsonify({"error": "An unexpected internal error occurred during PowerPoint generation."})), 500
+            context = {
+                "ppt_error_message": error_message,
+                "hx_target_is_ppt_status_result": True
+            }
+            return render_template("summarization/templates/summarization_content.html", **context), 500
