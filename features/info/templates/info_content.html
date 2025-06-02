@@ -1,26 +1,233 @@
 <!-- features/info/templates/info_content.html -->
-<div class="info-feature-container feature-container"> {# Keep feature-container for base styles #}
-    <h1><i class="fas fa-info-circle"></i> Innovation Zone Information</h1> {# Added icon #}
-    <p class="feature-description">
-        <!-- Essential details about this application, its terms of use, and the team behind it. -->
-    </p>
+<style>
+    /* Scoped styles for the Info Feature container */
+    .info-feature-container {
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+        font-family: Arial, sans-serif; /* Basic font, adjust to your app's font */
+        color: #333;
+    }
 
-    <div class="feature-tabs"> {# CHANGED from info-tabs #}
-        <button class="tab-link active" data-target-tab="legal-notice-tab"> {# CHANGED from info-tab-link #}
+    .info-feature-container h1 {
+        font-size: 1.8em;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+    }
+    .info-feature-container h1 .fas { /* Style for icon in H1 */
+        margin-right: 10px;
+        color: #3498db;
+    }
+
+    .info-feature-container h2 {
+        font-size: 1.5em;
+        color: #34495e;
+        margin-top: 25px;
+        margin-bottom: 15px;
+    }
+
+    .info-feature-container h3 {
+        font-size: 1.3em;
+        color: #34495e;
+    }
+
+    .info-feature-container h4 {
+        font-size: 1.1em;
+        color: #7f8c8d;
+        margin-top: 15px;
+        margin-bottom: 8px;
+    }
+
+    /* Tab Styling */
+    .info-feature-container .feature-tabs {
+        display: flex;
+        border-bottom: 1px solid #ccc;
+        margin-bottom: 20px;
+    }
+
+    .info-feature-container .tab-link {
+        padding: 10px 20px;
+        cursor: pointer;
+        border: none;
+        background-color: transparent;
+        font-size: 1em;
+        margin-right: 5px;
+        border-bottom: 3px solid transparent; /* For active state */
+        transition: all 0.3s ease;
+        color: #555;
+    }
+    .info-feature-container .tab-link .fas { /* Style for icons in tabs */
+        margin-right: 8px;
+    }
+
+    .info-feature-container .tab-link:hover {
+        color: #3498db;
+        background-color: #ecf0f1;
+    }
+
+    .info-feature-container .tab-link.active {
+        color: #3498db;
+        font-weight: bold;
+        border-bottom: 3px solid #3498db;
+    }
+
+    /* Tab Content - JS handles display, but good to set initial state */
+    .info-feature-container .feature-tab-content {
+        display: none; /* Hidden by default, JS will show the active one */
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-top: none; /* If tabs have a bottom border */
+        background-color: #fff;
+        border-radius: 0 0 5px 5px;
+    }
+
+    .info-feature-container .feature-tab-content.active-content {
+        display: block; /* JS adds this class to show content */
+    }
+
+    /* Legal Notice Specifics */
+    .info-feature-container .legal-text-container {
+        line-height: 1.6;
+    }
+    .info-feature-container .legal-text-container ul {
+        list-style-type: disc;
+        padding-left: 20px;
+    }
+    .info-feature-container .legal-text-container ul li {
+        margin-bottom: 10px;
+    }
+
+    /* About Me Section Specifics */
+    .info-feature-container .about-me-layout {
+        display: flex;
+        flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        gap: 30px; /* Space between columns */
+        margin-top: 10px;
+    }
+
+    .info-feature-container .profile-card {
+        flex: 0 0 280px; /* Profile card takes a fixed width */
+        text-align: center;
+        padding: 15px;
+        background-color: #fdfdfd;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .info-feature-container .profile-picture {
+        width: 150px; /* Fixed width */
+        height: 150px; /* Fixed height for consistent circle */
+        object-fit: cover; /* Ensures image covers the area without distortion */
+        border-radius: 50%;
+        margin-bottom: 15px;
+        border: 3px solid #3498db;
+    }
+
+    .info-feature-container .profile-name {
+        margin-top: 0;
+        margin-bottom: 5px;
+        font-size: 1.4em;
+        color: #2c3e50;
+    }
+
+    .info-feature-container .profile-title {
+        font-size: 0.95em;
+        color: #555;
+        margin-bottom: 15px; /* Increased margin to give space for the link below */
+        line-height: 1.4;
+    }
+
+    .info-feature-container .bio-details {
+        flex: 1; /* Bio details take up the remaining space */
+        min-width: 300px; /* Ensure it has some minimum width before wrapping */
+        line-height: 1.6;
+    }
+
+    .info-feature-container .bio-details ul {
+        padding-left: 20px;
+        list-style-type: disc;
+    }
+    .info-feature-container .bio-details ul li {
+        margin-bottom: 8px;
+    }
+
+    /* Styling for the LinkedIn Link */
+    .info-feature-container .connect-link {
+        display: inline-block; /* Allows margin and padding */
+        margin-top: 10px; /* Added margin-top to space from title */
+        padding: 8px 12px;
+        background-color: #0077b5; /* LinkedIn Blue */
+        color: #fff !important; /* Important to override default link colors if needed */
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.95em;
+        transition: background-color 0.3s ease;
+    }
+    .info-feature-container .connect-link:hover {
+        background-color: #005582; /* Darker LinkedIn Blue on hover */
+        color: #fff !important;
+    }
+    .info-feature-container .connect-link .fab.fa-linkedin { /* For Font Awesome 5 'fab' */
+        margin-right: 8px;
+        font-size: 1.1em; /* Slightly larger icon */
+    }
+     .info-feature-container .connect-link .fa-brands.fa-linkedin { /* For Font Awesome 6 'fa-brands' */
+        margin-right: 8px;
+        font-size: 1.1em; /* Slightly larger icon */
+    }
+
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .info-feature-container .about-me-layout {
+            flex-direction: column; /* Stack elements vertically on smaller screens */
+            align-items: center; /* Center items when stacked */
+        }
+        .info-feature-container .profile-card {
+            flex-basis: auto; /* Allow it to take full width needed */
+            width: 90%;
+            max-width: 350px; /* Max width for profile card on small screens */
+            margin-bottom: 20px;
+        }
+        .info-feature-container .bio-details {
+            width: 100%;
+        }
+        .info-feature-container .tab-link {
+            padding: 10px 12px; /* Slightly smaller padding for tabs */
+            font-size: 0.9em;
+        }
+        .info-feature-container h1 {
+            font-size: 1.6em;
+        }
+         .info-feature-container h2 {
+            font-size: 1.3em;
+        }
+    }
+</style>
+
+<div class="info-feature-container feature-container">
+    <h1><i class="fas fa-info-circle"></i> Innovation Zone Information</h1>
+
+    <div class="feature-tabs">
+        <button class="tab-link active" data-target-tab="legal-notice-tab">
             <i class="fas fa-gavel"></i> Legal Notice
         </button>
-        <button class="tab-link" data-target-tab="about-me-tab"> {# CHANGED from info-tab-link #}
+        <button class="tab-link" data-target-tab="about-me-tab">
             <i class="fas fa-user-circle"></i> Meet Paul O'Hagan
         </button>
     </div>
 
-    <div id="legal-notice-tab" class="feature-tab-content active-content"> {# CHANGED from info-tab-content #}
+    <!-- Legal Notice Tab Content -->
+    <div id="legal-notice-tab" class="feature-tab-content active-content">
         <h2>Legal Notice & Terms of Service</h2>
         <div class="legal-text-container">
             <p><strong>Last Updated:</strong> May 26, 2025</p>
             <br>
             <ul>
-                <li><strong>No Warranty:</strong> This service is provided "as is" without any warranties, express or implied.<br>Your use of this service is solely at your own risk.</li>
+                <li><strong>No Warranty:</strong> This service is provided "as is" without any warranties, express or implied. Your use of this service is solely at your own risk.</li>
                 <li><strong>Data Handling:</strong> Your data is processed solely for the purpose of using the AI Agent. Your data is not intentionally stored longer than necessary for processing.</li>
                 <li><strong>AI Training:</strong> Your data will not be used to train AI models.</li>
                 <li><strong>Limitation of Liability:</strong> By using this service, you agree that the creator provides no guarantees and assumes no liability for any outcomes, errors, or issues resulting from its use.</li>
@@ -28,30 +235,43 @@
         </div>
     </div>
 
-    <div id="about-me-tab" class="feature-tab-content"> {# CHANGED from info-tab-content #}
+    <!-- About Me Tab Content -->
+    <div id="about-me-tab" class="feature-tab-content">
         <h2>About Paul</h2>
         <div class="about-me-content">
-            <div class="profile-section">
-                <!-- Consider adding your actual image path or keeping placeholder -->
-                <img src="{{ url_for('static', filename='images/profile_placeholder.png') }}" alt="Profile Picture Paul O'Hagan" class="profile-picture">
-                <p class="profile-title">AI Patent Holder, Author and Product Manager</p>
-            </div>
-            <div class="bio-section">
-                <h4>Our Mission</h4>
-                <p>Our mission is to showcase the "art of the possible" with custom Generative AI solutions, demonstrating practical applications that can enhance productivity and unlock new capabilities for businesses and individuals alike. We believe in responsible AI development and aim to provide tools that are both powerful and trustworthy.</p>
-                <h4>Background</h4>
-                <p>Paul O'Hagan has extensive experience in leading AI product development, with a focus on leveraging cutting-edge technologies to solve real-world problems. His work spans across various domains, emphasizing innovation and user-centric design. This AI Agents playground is a testament to his passion for exploring and sharing the potential of Generative AI.</p>
-                <h4>Expertise Includes:</h4>
-                <ul>
-                    <li>Generative AI Application Development</li>
-                    <li>AI Product Strategy & Management</li>
-                    <li>Natural Language Processing (NLP)</li>
-                    <li>Intelligent Automation Solutions</li>
-                    <li>Cloud-Based AI Service Integration</li>
-                </ul>
-                <h4>Connect With Us</h4>
-                <p>We are always eager to hear from our users, discuss potential collaborations, or answer any questions you might have. Feel free to reach out.</p>
-                <!-- Add actual contact links or info if desired -->
+            <div class="about-me-layout">
+                <div class="profile-card">
+                    <img src="{{ url_for('static', filename='images/profile_placeholder.png') }}" alt="Profile Picture Paul O'Hagan" class="profile-picture">
+                    <h3 class="profile-name">Paul O'Hagan</h3>
+                    <p class="profile-title">AI Patent Holder, Author and Product Manager</p>
+                    <!-- LinkedIn Link MOVED Here -->
+                    <a href="https://www.linkedin.com/in/paul-ohagan-pm-leader" class="connect-link" target="_blank" rel="noopener noreferrer">
+                        <i class="fab fa-linkedin"></i>
+                        Connect on LinkedIn
+                    </a>
+                    <!-- End LinkedIn Link -->
+                </div>
+
+                <div class="bio-details">
+                    <h4>Our Mission</h4>
+                    <p>Our mission is to showcase the "art of the possible" with custom Generative AI solutions, demonstrating practical applications that can enhance productivity and unlock new capabilities for businesses and individuals alike. We believe in responsible AI development and aim to provide tools that are both powerful and trustworthy.</p>
+
+                    <h4>Background</h4>
+                    <p>Paul O'Hagan has extensive experience in leading AI product development, with a focus on leveraging cutting-edge technologies to solve real-world problems. His work spans across various domains, emphasizing innovation and user-centric design. This AI Agents playground is a testament to his passion for exploring and sharing the potential of Generative AI.</p>
+
+                    <h4>Expertise Includes:</h4>
+                    <ul>
+                        <li>Generative AI Application Development</li>
+                        <li>AI Product Strategy & Management</li>
+                        <li>Natural Language Processing (NLP)</li>
+                        <li>Intelligent Automation Solutions</li>
+                        <li>Cloud-Based AI Service Integration</li>
+                    </ul>
+
+                    <h4>Connect With Us</h4>
+                    <p>We are always eager to hear from our users, discuss potential collaborations, or answer any questions you might have. Feel free to reach out.</p>
+                    {# LinkedIn link was previously here, now moved to profile-card #}
+                </div>
             </div>
         </div>
     </div>
@@ -59,22 +279,34 @@
 
 <script>
 (function() {
+    // Script assumes it's placed after the HTML elements it targets, or wrapped in DOMContentLoaded
     const infoFeatureContainer = document.querySelector('.info-feature-container');
-    if (!infoFeatureContainer) { return; }
+    if (!infoFeatureContainer) { 
+        // console.error('Info feature container not found for script initialization.');
+        return; 
+    }
 
     // Tab Switching Logic for Info Feature
-    const tabLinksInfo = infoFeatureContainer.querySelectorAll('.feature-tabs .tab-link'); // Use generic class
-    const tabContentsInfo = infoFeatureContainer.querySelectorAll('.feature-tab-content'); // Use generic class
+    const tabLinksInfo = infoFeatureContainer.querySelectorAll('.feature-tabs .tab-link');
+    const tabContentsInfo = infoFeatureContainer.querySelectorAll('.feature-tab-content');
 
     function openInfoFeatureTab(targetTabId) {
-        tabContentsInfo.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
+        tabContentsInfo.forEach(tc => { 
+            tc.style.display = 'none'; // Directly hide
+            tc.classList.remove('active-content'); 
+        });
         tabLinksInfo.forEach(tl => tl.classList.remove('active'));
         
         const currentTabContent = infoFeatureContainer.querySelector('#' + targetTabId);
         const currentTabLink = infoFeatureContainer.querySelector(`.feature-tabs .tab-link[data-target-tab="${targetTabId}"]`);
         
-        if (currentTabContent) { currentTabContent.style.display = 'block'; currentTabContent.classList.add('active-content'); }
-        if (currentTabLink) { currentTabLink.classList.add('active'); }
+        if (currentTabContent) { 
+            currentTabContent.style.display = 'block'; // Directly show
+            currentTabContent.classList.add('active-content'); 
+        }
+        if (currentTabLink) { 
+            currentTabLink.classList.add('active'); 
+        }
     }
 
     tabLinksInfo.forEach(link => {
@@ -85,16 +317,13 @@
         });
     });
 
-    // Open the first tab by default if it exists
-    if (tabLinksInfo.length > 0 && tabLinksInfo[0].dataset.targetTab) {
+    // Ensure the default active tab is displayed on load based on HTML classes
+    const initiallyActiveTabLink = infoFeatureContainer.querySelector('.feature-tabs .tab-link.active');
+    if (initiallyActiveTabLink && initiallyActiveTabLink.dataset.targetTab) {
+        openInfoFeatureTab(initiallyActiveTabLink.dataset.targetTab);
+    } else if (tabLinksInfo.length > 0 && tabLinksInfo[0].dataset.targetTab) {
+        // Fallback: if no tab is marked active in HTML, activate the first one
         openInfoFeatureTab(tabLinksInfo[0].dataset.targetTab);
-    } else if (infoFeatureContainer.querySelector('.feature-tab-content')) { // Fallback
-        const firstTabContentInfo = infoFeatureContainer.querySelector('.feature-tab-content');
-        firstTabContentInfo.classList.add('active-content');
-        firstTabContentInfo.style.display = 'block';
-        if(infoFeatureContainer.querySelector('.feature-tabs .tab-link')) {
-             infoFeatureContainer.querySelector('.feature-tabs .tab-link').classList.add('active');
-        }
     }
 })();
 </script>
