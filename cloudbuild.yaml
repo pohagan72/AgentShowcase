@@ -1,0 +1,60 @@
+steps:
+# Step 1: Build the container image
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/pauls-ai-agents/cloud-run-source-deploy/agentshowcase/pauls-ai-agents:${COMMIT_SHA}', '.']
+
+# Step 2: Deploy container image to Cloud Run
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+    - 'run'
+    - 'deploy'
+    - 'pauls-ai-agents'  # Service name
+    - '--image=us-central1-docker.pkg.dev/pauls-ai-agents/cloud-run-source-deploy/agentshowcase/pauls-ai-agents:${COMMIT_SHA}' # Image path
+    - '--region=us-central1' # Region
+    - '--platform=managed'
+    - '--allow-unauthenticated' # Ingress
+
+    # --- Core Deployment Settings ---
+    - '--concurrency=5'
+    - '--min-instances=1'
+    - '--max-instances=100' # Default, adjust if needed
+    - '--cpu=2'
+    - '--memory=4Gi'
+    - '--execution-environment=gen2'
+    - '--port=8080' # Your application's container port
+    - '--timeout=300s' # Request timeout for individual requests
+    - '--startup-cpu-boost' # Enable extra CPU during instance startup
+    - '--no-cpu-throttling' # Ensures CPU is always available for your min-instance
+
+    # --- Service Account ---
+    # Using the default Compute Engine SA for now.
+    # For enhanced security, create a dedicated SA with least privilege and specify it here:
+    # - '--service-account=your-dedicated-sa@pauls-ai-agents.iam.gserviceaccount.com'
+    # If you do this, ensure the DEDICATED SA has Secret Manager Secret Accessor role on the secret,
+    # and permissions for GCS, etc.
+
+    # --- Startup Probe ---
+    # More responsive startup probe settings. Adjust these based on your app's typical cold start time.
+    # This example assumes your app should be ready within ~30-60 seconds.
+    - '--startup-probe-tcp=8080'            # Check TCP port 8080
+    - '--set-startup-probe-period=10s'      # How often to probe (e.g., every 10 seconds)
+    - '--set-startup-probe-timeout=5s'       # Timeout for each individual probe attempt (e.g., 5 seconds)
+    - '--set-startup-probe-failure-threshold=6' # How many consecutive failures before marking unhealthy (e.g., 6 failures * 5s timeout + 10s period between some = ~1 minute)
+    # - '--no-startup-probe-initial-delay' # Start probing immediately after container starts
+
+    # --- Environment Variables ---
+    # Set non-sensitive environment variables directly
+    - '--update-env-vars=GEMINI_MODEL=gemini-2.0-flash,GOOGLE_CLOUD_PROJECT=pauls-ai-agents,GCS_BUCKET_NAME=temp-paul-ai-agents'
+
+    # Securely reference the GOOGLE_API_KEY from Secret Manager
+    # This makes an environment variable named GOOGLE_API_KEY available to your application,
+    # with its value fetched from the 'latest' version of the 'cloud-run-google-api-key' secret.
+    - '--set-secrets=GOOGLE_API_KEY=cloud-run-google-api-key:latest'
+
+# This section tells Cloud Build to push the built image to Artifact Registry
+images:
+- 'us-central1-docker.pkg.dev/pauls-ai-agents/cloud-run-source-deploy/agentshowcase/pauls-ai-agents:${COMMIT_SHA}'
+
+# Optional: Timeout for the entire Cloud Build job (defaults to 60 minutes)
+# timeout: '1800s' # e.g., 30 minutes
