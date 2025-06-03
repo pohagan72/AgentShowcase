@@ -34,7 +34,7 @@
         color: #34495e;
     }
 
-    .info-feature-container h4 {
+    .info-feature-container h4 { /* Global H4 style */
         font-size: 1.1em;
         color: #7f8c8d;
         margin-top: 15px;
@@ -145,80 +145,127 @@
         min-width: 300px; /* Ensure it has some minimum width before wrapping */
         line-height: 1.6;
     }
+    .info-feature-container .bio-details p { /* Add some bottom margin to paragraphs for better spacing */
+        margin-bottom: 15px;
+    }
+    .info-feature-container .bio-details p:last-child { /* Remove bottom margin from the very last paragraph in bio-details */
+        margin-bottom: 0;
+    }
+
+
+    .info-feature-container .bio-details .genai-development-highlight {
+        background-color: #e9f5fd; /* Light blue background */
+        border-left: 4px solid #3498db; /* Blue left border - matches theme */
+        padding: 12px 15px;
+        margin-top: 15px;
+        margin-bottom: 20px; /* Increased bottom margin for separation */
+        border-radius: 4px;
+    }
+    .info-feature-container .bio-details .genai-development-highlight p {
+        margin-bottom: 0; /* Remove default p margin if inside this div */
+        color: #2c3e50; /* Slightly darker text for readability on light bg */
+    }
+
+
+    .info-feature-container .bio-details h4 { /* Specific H4 styling within bio-details */
+        margin-top: 25px; /* More space above section headings */
+        margin-bottom: 10px;
+        color: #34495e; /* Match H2/H3 color for consistency */
+    }
+
 
     .info-feature-container .bio-details ul {
         padding-left: 20px;
         list-style-type: disc;
+        margin-bottom: 15px; /* Add margin below ULs too */
     }
     .info-feature-container .bio-details ul li {
-        margin-bottom: 8px;
+        margin-bottom: 10px; /* Increased margin for list items */
+    }
+    .info-feature-container .bio-details ul li p { 
+        margin-top: 5px;
+        margin-bottom: 5px; /* Reduce P margin within LI if desired, or keep from global P */
+    }
+    .info-feature-container .bio-details ul li strong { 
+        display: block; 
+        margin-bottom: 3px;
+        color: #2c3e50; /* Make patent titles a bit darker */
     }
 
-    /* Styling for the Connect Links (LinkedIn, Email, WhatsApp) */
+
+    /* Styling for the Connect Links (LinkedIn, Email, WhatsApp, GitHub) */
     .info-feature-container .connect-link {
-        display: block; /* Changed to block for them to stack nicely */
-        width: calc(100% - 24px); /* Adjust width considering padding */
-        margin: 10px auto 0; /* Center block and add top margin */
-        padding: 10px 12px; /* Slightly adjusted padding */
+        display: block; 
+        width: calc(100% - 24px); 
+        margin: 10px auto 0; 
+        padding: 10px 12px; 
         color: #fff !important;
         text-decoration: none;
         border-radius: 4px;
         font-size: 0.95em;
         transition: background-color 0.3s ease;
-        box-sizing: border-box; /* Include padding in width calculation */
+        box-sizing: border-box; 
     }
 
     /* Generic Icon styling within connect links */
     .info-feature-container .connect-link .fab,
     .info-feature-container .connect-link .fas,
-    .info-feature-container .connect-link .fa-brands, /* For Font Awesome 6 */
-    .info-feature-container .connect-link .fa-solid {   /* For Font Awesome 6 */
+    .info-feature-container .connect-link .fa-brands, 
+    .info-feature-container .connect-link .fa-solid {   
         margin-right: 8px;
-        font-size: 1.1em; /* Slightly larger icon */
+        font-size: 1.1em; 
     }
 
     /* LinkedIn Specific */
-    .info-feature-container .linkedin-link { /* Added specific class for linkedin */
-        background-color: #0077b5; /* LinkedIn Blue */
+    .info-feature-container .linkedin-link {
+        background-color: #0077b5; 
     }
     .info-feature-container .linkedin-link:hover {
-        background-color: #005582; /* Darker LinkedIn Blue on hover */
+        background-color: #005582; 
+    }
+
+    /* GitHub Specific */
+    .info-feature-container .github-link {
+        background-color: #333; 
+    }
+    .info-feature-container .github-link:hover {
+        background-color: #1a1a1a; 
     }
 
     /* Styling for Email Link */
     .info-feature-container .email-link {
-        background-color: #6c757d; /* Neutral Gray */
+        background-color: #6c757d; 
     }
     .info-feature-container .email-link:hover {
-        background-color: #5a6268; /* Darker Gray */
+        background-color: #5a6268; 
     }
 
     /* Styling for WhatsApp Link */
     .info-feature-container .whatsapp-link {
-        background-color: #25D366; /* WhatsApp Green */
+        background-color: #25D366; 
     }
     .info-feature-container .whatsapp-link:hover {
-        background-color: #1DA851; /* Darker WhatsApp Green */
+        background-color: #1DA851; 
     }
 
 
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .info-feature-container .about-me-layout {
-            flex-direction: column; /* Stack elements vertically on smaller screens */
-            align-items: center; /* Center items when stacked */
+            flex-direction: column; 
+            align-items: center; 
         }
         .info-feature-container .profile-card {
-            flex-basis: auto; /* Allow it to take full width needed */
+            flex-basis: auto; 
             width: 90%;
-            max-width: 350px; /* Max width for profile card on small screens */
+            max-width: 350px; 
             margin-bottom: 20px;
         }
         .info-feature-container .bio-details {
             width: 100%;
         }
         .info-feature-container .tab-link {
-            padding: 10px 12px; /* Slightly smaller padding for tabs */
+            padding: 10px 12px; 
             font-size: 0.9em;
         }
         .info-feature-container h1 {
@@ -268,49 +315,57 @@
                     <p class="profile-title">AI Author, Inventor & Builder of High-Performance Product Teams</p>
                     
                     <a href="https://www.linkedin.com/in/paul-ohagan-pm-leader" class="connect-link linkedin-link" target="_blank" rel="noopener noreferrer">
-                        <i class="fab fa-linkedin"></i> <!-- Assumes Font Awesome 5. For FA6, use fa-brands fa-linkedin -->
+                        <i class="fab fa-linkedin"></i> 
                         Connect on LinkedIn
                     </a>
+                    <a href="https://github.com/pohagan72" class="connect-link github-link" target="_blank" rel="noopener noreferrer">
+                        <i class="fab fa-github"></i> 
+                        View on GitHub
+                    </a>
                     <a href="mailto:paulohagan@hotmail.com" class="connect-link email-link" target="_blank" rel="noopener noreferrer">
-                        <i class="fas fa-envelope"></i> <!-- Assumes Font Awesome 5. For FA6, use fa-solid fa-envelope -->
+                        <i class="fas fa-envelope"></i> 
                         Email Paul
                     </a>
                     <a href="https://wa.me/16472852630" class="connect-link whatsapp-link" target="_blank" rel="noopener noreferrer">
-                        <i class="fab fa-whatsapp"></i> <!-- Assumes Font Awesome 5. For FA6, use fa-brands fa-whatsapp -->
+                        <i class="fab fa-whatsapp"></i> 
                         Chat on WhatsApp
                     </a>
                 </div>
 
                 <div class="bio-details">
-                    <p>Paul O'Hagan is a seasoned business and technology leader with two decades of expertise at the forefront of AI innovation, product management, and sales leadership. He excels in building multifaceted business cases, bringing transformative AI-integrated products to market, and cultivating high-performance, cross-functional teams. Paul's journey is marked by a relentless pursuit of the "art of the possible," translating cutting-edge technology into tangible business value.</p>
+                    <p>Welcome to my passion project of building and deploying advanced AI Agents and services.</p>
+                    <p>I’ve been in the analytics and AI industry for over 20 years, always trying my best to be at the forefront of innovation, product management, and sales leadership. Everything about this site and the work I do is in pursuit of the "art of the possible" where innovation meets practical application.</p>
+                    
+                    <div class="genai-development-highlight">
+                        <p>This site and all the AI Agents and services available through it have been developed by GenAI. Tens of thousands of lines of Python written by GenAI through prompts that sometimes exceeded 50 pages. But text, like this, was written by me but checked for grammar and completeness using different models.</p>
+                    </div>
 
-                    <h4>A Legacy of Impact & Innovation</h4>
-                    <p>Throughout his career, Paul has consistently driven revenue growth and competitive differentiation. At <strong>OpenText</strong>, he spearheaded the launch of new cloud services like Secure Mail and Secure MFT, achieving nearly 100% revenue growth for the Information Exchange Suite in just two years and earning the Field Leadership Award. He also led global product management for AI, Analytics, and Cyber Security portfolios, delivering $50M in annual revenue and launching the cloud-native AI product, Risk Guard.
-                    <br>Earlier, at <strong>IBM</strong>, Paul was instrumental in defining and bringing to market the solution now known as "IBM Watson Content Analytics," contributing to over $10M in new license revenue and supporting the architecture design for the groundbreaking IBM Watson Jeopardy project. His expertise spans diverse sectors including MLOps, Data Management, Business Intelligence, RPA, Content Management, and Cyber Security, consistently delivering successful SaaS and on-premise solutions.</p>
+                    <p>While I used Google Gemini to build most of this, I’ve also used ChatGPT, Claude and Llama for various detail tasks. And special acknowledgement to LMArena.ai where I set up models (many I’d never heard of before) to argue against each other and decide which had the right approach to particularly challenging problems when they cropped up.</p>
 
-                    <h4>Core Expertise</h4>
+                    <h4>Author</h4>
+                    <p>
+                        <em>AI Product Management: A Guide to Building and Selling AI-Powered Products</em>, ISBN: 1738136507.
+                        <a href="https://www.amazon.ca/AI-Product-Management-Building-AI-Powered/dp/1738136507" target="_blank" rel="noopener noreferrer">View on Amazon</a>.
+                    </p>
+
+                    <h4>Patents</h4>
                     <ul>
-                        <li>Artificial Intelligence (AI) & Generative AI Strategy</li>
-                        <li>AI-First Product Management & New Venture Launch</li>
-                        <li>Building & Leading High-Performance, Cross-Functional Teams</li>
-                        <li>SaaS & Cloud Product Development (AWS, Azure, GCP)</li>
-                        <li>Executive-Level Strategic Communications & Presentations</li>
-                        <li>MLOps, Data Management, BI, RPA & Intelligent Automation</li>
-                        <li>Cyber Security Product Strategy</li>
-                        <li>Strategic Partnerships & API Integration Ecosystems</li>
-                        <li>Go-to-Market Strategy & Sales Enablement</li>
+                        <li>
+                            <strong>System and method for cloud-based replication of data</strong> (12,111,844 · Issued Oct 8, 2024)
+                            <p>This patent is in the area of replicating data using virtual tables in a cloud. It assumes no knowledge of source or target schema and guarantees delivery of data.
+                            <a href="https://patents.justia.com/patent/12111844" target="_blank" rel="noopener noreferrer">View Patent</a>.</p>
+                        </li>
+                        <li>
+                            <strong>Composite Extraction Systems and Methods for Artificial Intelligence Platform</strong> (Application US17/508,820 · Granted Nov 12, 2024)
+                            <p>The basis of Agentic AI, this invention in Composite AI is about enabling multiple AI models to learn from each other and extract or identify better understanding from unstructured text. Synchronizing and integrating different ML models and techniques into a single pipeline.
+                            <a href="https://patents.google.com/patent/US20230131066A1/en" target="_blank" rel="noopener noreferrer">View Patent</a>.</p>
+                        </li>
+                        <li>
+                            <strong>System and method for controlling the printing of documents, and performing analytics regarding documents printed, in a distributed enterprise environment</strong> (10,659,624 · Issued May 19, 2020)
+                            <p>This patent identifies and prevents exfiltration of data using AI and NLP through a printer.
+                            <a href="https://patents.justia.com/patent/10659624" target="_blank" rel="noopener noreferrer">View Patent</a>.</p>
+                        </li>
                     </ul>
-
-                    <h4>Author, Inventor, Thought Leader</h4>
-                    <p>Paul's contributions to the field extend beyond product leadership. He is an <strong>AI patent holder</strong> with inventions in cloud-based data replication and AI-driven data security (preventing data exfiltration via printers using AI/NLP).
-                    <br>As an <strong>author</strong>, his book, <em>"AI Product Management: A Guide to Building and Selling AI-Powered Products,"</em> equips product managers with strategies for navigating the AI landscape.
-                    <br>He actively shares his insights through articles on Agentic AI, GenAI ethics, LLM security, and the future of AI in enterprise, establishing himself as a prominent voice in the AI community.</p>
-
-                    <h4>Pioneering the AI-Native Future</h4>
-                    <p>Driven by a passion to "reinvent himself as an AI Native Product Manager," Paul is currently immersed in exploring and building practical Generative AI applications. His recent projects, often shared publicly via LinkedIn and GitHub, showcase the power of AI in areas like automated PowerPoint creation from documents, multi-lingual content translation, and sophisticated email analysis. This hands-on approach, combined with his strategic vision for an "AI Oriented Architecture," demonstrates his commitment to shaping the future of how AI is adopted and utilized in the enterprise. Paul also dedicates time to mentoring the next generation of AI talent, including advising Cornell University Master of Engineering projects on GenAI solutions.</p>
-
-                    <h4>Connect & Collaborate</h4>
-                    <p>Paul is passionate about connecting with fellow innovators, discussing the future of AI, and exploring potential collaborations. Engage with his work and join the conversation on building the next generation of intelligent solutions.</p>
                 </div>
             </div>
         </div>
