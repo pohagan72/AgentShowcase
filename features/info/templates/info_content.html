@@ -154,29 +154,51 @@
         margin-bottom: 8px;
     }
 
-    /* Styling for the LinkedIn Link */
+    /* Styling for the Connect Links (LinkedIn, Email, WhatsApp) */
     .info-feature-container .connect-link {
-        display: inline-block; /* Allows margin and padding */
-        margin-top: 10px; /* Added margin-top to space from title */
-        padding: 8px 12px;
-        background-color: #0077b5; /* LinkedIn Blue */
-        color: #fff !important; /* Important to override default link colors if needed */
+        display: block; /* Changed to block for them to stack nicely */
+        width: calc(100% - 24px); /* Adjust width considering padding */
+        margin: 10px auto 0; /* Center block and add top margin */
+        padding: 10px 12px; /* Slightly adjusted padding */
+        color: #fff !important;
         text-decoration: none;
         border-radius: 4px;
         font-size: 0.95em;
         transition: background-color 0.3s ease;
+        box-sizing: border-box; /* Include padding in width calculation */
     }
-    .info-feature-container .connect-link:hover {
+
+    /* Generic Icon styling within connect links */
+    .info-feature-container .connect-link .fab,
+    .info-feature-container .connect-link .fas,
+    .info-feature-container .connect-link .fa-brands, /* For Font Awesome 6 */
+    .info-feature-container .connect-link .fa-solid {   /* For Font Awesome 6 */
+        margin-right: 8px;
+        font-size: 1.1em; /* Slightly larger icon */
+    }
+
+    /* LinkedIn Specific */
+    .info-feature-container .linkedin-link { /* Added specific class for linkedin */
+        background-color: #0077b5; /* LinkedIn Blue */
+    }
+    .info-feature-container .linkedin-link:hover {
         background-color: #005582; /* Darker LinkedIn Blue on hover */
-        color: #fff !important;
     }
-    .info-feature-container .connect-link .fab.fa-linkedin { /* For Font Awesome 5 'fab' */
-        margin-right: 8px;
-        font-size: 1.1em; /* Slightly larger icon */
+
+    /* Styling for Email Link */
+    .info-feature-container .email-link {
+        background-color: #6c757d; /* Neutral Gray */
     }
-     .info-feature-container .connect-link .fa-brands.fa-linkedin { /* For Font Awesome 6 'fa-brands' */
-        margin-right: 8px;
-        font-size: 1.1em; /* Slightly larger icon */
+    .info-feature-container .email-link:hover {
+        background-color: #5a6268; /* Darker Gray */
+    }
+
+    /* Styling for WhatsApp Link */
+    .info-feature-container .whatsapp-link {
+        background-color: #25D366; /* WhatsApp Green */
+    }
+    .info-feature-container .whatsapp-link:hover {
+        background-color: #1DA851; /* Darker WhatsApp Green */
     }
 
 
@@ -241,36 +263,54 @@
         <div class="about-me-content">
             <div class="about-me-layout">
                 <div class="profile-card">
-                    <img src="{{ url_for('static', filename='images/profile_placeholder.png') }}" alt="Profile Picture Paul O'Hagan" class="profile-picture">
+                    <img src="{{ url_for('static', filename='images/paulohagan-profile-pic.jpeg') }}" alt="Profile Picture Paul O'Hagan" class="profile-picture">
                     <h3 class="profile-name">Paul O'Hagan</h3>
-                    <p class="profile-title">AI Patent Holder, Author and Product Manager</p>
-                    <!-- LinkedIn Link MOVED Here -->
-                    <a href="https://www.linkedin.com/in/paul-ohagan-pm-leader" class="connect-link" target="_blank" rel="noopener noreferrer">
-                        <i class="fab fa-linkedin"></i>
+                    <p class="profile-title">AI Author, Inventor & Builder of High-Performance Product Teams</p>
+                    
+                    <a href="https://www.linkedin.com/in/paul-ohagan-pm-leader" class="connect-link linkedin-link" target="_blank" rel="noopener noreferrer">
+                        <i class="fab fa-linkedin"></i> <!-- Assumes Font Awesome 5. For FA6, use fa-brands fa-linkedin -->
                         Connect on LinkedIn
                     </a>
-                    <!-- End LinkedIn Link -->
+                    <a href="mailto:paulohagan@hotmail.com" class="connect-link email-link" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-envelope"></i> <!-- Assumes Font Awesome 5. For FA6, use fa-solid fa-envelope -->
+                        Email Paul
+                    </a>
+                    <a href="https://wa.me/16472852630" class="connect-link whatsapp-link" target="_blank" rel="noopener noreferrer">
+                        <i class="fab fa-whatsapp"></i> <!-- Assumes Font Awesome 5. For FA6, use fa-brands fa-whatsapp -->
+                        Chat on WhatsApp
+                    </a>
                 </div>
 
                 <div class="bio-details">
-                    <h4>Our Mission</h4>
-                    <p>Our mission is to showcase the "art of the possible" with custom Generative AI solutions, demonstrating practical applications that can enhance productivity and unlock new capabilities for businesses and individuals alike. We believe in responsible AI development and aim to provide tools that are both powerful and trustworthy.</p>
+                    <p>Paul O'Hagan is a seasoned business and technology leader with two decades of expertise at the forefront of AI innovation, product management, and sales leadership. He excels in building multifaceted business cases, bringing transformative AI-integrated products to market, and cultivating high-performance, cross-functional teams. Paul's journey is marked by a relentless pursuit of the "art of the possible," translating cutting-edge technology into tangible business value.</p>
 
-                    <h4>Background</h4>
-                    <p>Paul O'Hagan has extensive experience in leading AI product development, with a focus on leveraging cutting-edge technologies to solve real-world problems. His work spans across various domains, emphasizing innovation and user-centric design. This AI Agents playground is a testament to his passion for exploring and sharing the potential of Generative AI.</p>
+                    <h4>A Legacy of Impact & Innovation</h4>
+                    <p>Throughout his career, Paul has consistently driven revenue growth and competitive differentiation. At <strong>OpenText</strong>, he spearheaded the launch of new cloud services like Secure Mail and Secure MFT, achieving nearly 100% revenue growth for the Information Exchange Suite in just two years and earning the Field Leadership Award. He also led global product management for AI, Analytics, and Cyber Security portfolios, delivering $50M in annual revenue and launching the cloud-native AI product, Risk Guard.
+                    <br>Earlier, at <strong>IBM</strong>, Paul was instrumental in defining and bringing to market the solution now known as "IBM Watson Content Analytics," contributing to over $10M in new license revenue and supporting the architecture design for the groundbreaking IBM Watson Jeopardy project. His expertise spans diverse sectors including MLOps, Data Management, Business Intelligence, RPA, Content Management, and Cyber Security, consistently delivering successful SaaS and on-premise solutions.</p>
 
-                    <h4>Expertise Includes:</h4>
+                    <h4>Core Expertise</h4>
                     <ul>
-                        <li>Generative AI Application Development</li>
-                        <li>AI Product Strategy & Management</li>
-                        <li>Natural Language Processing (NLP)</li>
-                        <li>Intelligent Automation Solutions</li>
-                        <li>Cloud-Based AI Service Integration</li>
+                        <li>Artificial Intelligence (AI) & Generative AI Strategy</li>
+                        <li>AI-First Product Management & New Venture Launch</li>
+                        <li>Building & Leading High-Performance, Cross-Functional Teams</li>
+                        <li>SaaS & Cloud Product Development (AWS, Azure, GCP)</li>
+                        <li>Executive-Level Strategic Communications & Presentations</li>
+                        <li>MLOps, Data Management, BI, RPA & Intelligent Automation</li>
+                        <li>Cyber Security Product Strategy</li>
+                        <li>Strategic Partnerships & API Integration Ecosystems</li>
+                        <li>Go-to-Market Strategy & Sales Enablement</li>
                     </ul>
 
-                    <h4>Connect With Us</h4>
-                    <p>We are always eager to hear from our users, discuss potential collaborations, or answer any questions you might have. Feel free to reach out.</p>
-                    {# LinkedIn link was previously here, now moved to profile-card #}
+                    <h4>Author, Inventor, Thought Leader</h4>
+                    <p>Paul's contributions to the field extend beyond product leadership. He is an <strong>AI patent holder</strong> with inventions in cloud-based data replication and AI-driven data security (preventing data exfiltration via printers using AI/NLP).
+                    <br>As an <strong>author</strong>, his book, <em>"AI Product Management: A Guide to Building and Selling AI-Powered Products,"</em> equips product managers with strategies for navigating the AI landscape.
+                    <br>He actively shares his insights through articles on Agentic AI, GenAI ethics, LLM security, and the future of AI in enterprise, establishing himself as a prominent voice in the AI community.</p>
+
+                    <h4>Pioneering the AI-Native Future</h4>
+                    <p>Driven by a passion to "reinvent himself as an AI Native Product Manager," Paul is currently immersed in exploring and building practical Generative AI applications. His recent projects, often shared publicly via LinkedIn and GitHub, showcase the power of AI in areas like automated PowerPoint creation from documents, multi-lingual content translation, and sophisticated email analysis. This hands-on approach, combined with his strategic vision for an "AI Oriented Architecture," demonstrates his commitment to shaping the future of how AI is adopted and utilized in the enterprise. Paul also dedicates time to mentoring the next generation of AI talent, including advising Cornell University Master of Engineering projects on GenAI solutions.</p>
+
+                    <h4>Connect & Collaborate</h4>
+                    <p>Paul is passionate about connecting with fellow innovators, discussing the future of AI, and exploring potential collaborations. Engage with his work and join the conversation on building the next generation of intelligent solutions.</p>
                 </div>
             </div>
         </div>
