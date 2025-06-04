@@ -15,19 +15,16 @@ import logging
 # --- End PII Redaction Imports ---
 
 # --- NEW/MODIFIED: Imports for PPT Builder constants to be added to app.config ---
-# Assuming your PPT builder logic files are now in features/summarization/ppt_builder_logic/
-# In app.py
 try:
-    from features.summarization.ppt_builder_logic.file_processor import MAX_FILES as PPT_MAX_FILES, MAX_FILE_SIZE_BYTES as PPT_MAX_FILE_SIZE_BYTES, DEFAULT_ALLOWED_EXTENSIONS_PPT as PPT_ALLOWED_EXTENSIONS # <<< CORRECTED IMPORT NAME
+    from features.summarization.ppt_builder_logic.file_processor import MAX_FILES as PPT_MAX_FILES, MAX_FILE_SIZE_BYTES as PPT_MAX_FILE_SIZE_BYTES, DEFAULT_ALLOWED_EXTENSIONS_PPT as PPT_ALLOWED_EXTENSIONS 
     from features.summarization.ppt_builder_logic.presentation_generator import TEMPLATES as PPT_TEMPLATES, DEFAULT_TEMPLATE_NAME as PPT_DEFAULT_TEMPLATE_NAME
     PPT_BUILDER_CONSTANTS_LOADED = True
 except ImportError as e:
     logging.warning(f"Could not import PPT Builder constants for app.config: {e}. 'Create Executive PowerPoint' tab might have missing options.")
     PPT_BUILDER_CONSTANTS_LOADED = False
-    # Define fallbacks if imports fail
     PPT_MAX_FILES = 5
     PPT_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
-    PPT_ALLOWED_EXTENSIONS = {'docx', 'pdf', 'py'} # Fallback if import fails
+    PPT_ALLOWED_EXTENSIONS = {'docx', 'pdf', 'py'} 
     PPT_TEMPLATES = {'professional': {}, 'creative': {}, 'minimalist': {}}
     PPT_DEFAULT_TEMPLATE_NAME = 'professional'
 # --- END NEW/MODIFIED ---
@@ -40,7 +37,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 app.jinja_loader = ChoiceLoader([
     app.jinja_loader,
-    FileSystemLoader('features')
+    FileSystemLoader('features') # This allows using paths like 'blurring/templates/blurring_content.html'
 ])
 
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this")
@@ -75,7 +72,7 @@ if GCS_BUCKET_NAME and GOOGLE_CLOUD_PROJECT:
     try:
         app.storage_client = storage.Client(project=GOOGLE_CLOUD_PROJECT)
         app.gcs_bucket = app.storage_client.bucket(GCS_BUCKET_NAME)
-        app.gcs_bucket.reload()
+        app.gcs_bucket.reload() # Check if bucket exists and is accessible
         app.config['GCS_AVAILABLE'] = True
         logging.info(f"Global: GCS client initialized (Bucket: gs://{GCS_BUCKET_NAME}).")
     except NotFound:
@@ -95,7 +92,7 @@ try:
     logging.info("Global: Initializing Presidio Analyzer Engine...")
     provider = NlpEngineProvider(nlp_configuration={
         "nlp_engine_name": "spacy",
-        "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}]
+        "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}] # Ensure this model is downloaded: python -m spacy download en_core_web_lg
     })
     app.presidio_analyzer = AnalyzerEngine(nlp_engine=provider.create_engine(), supported_languages=["en"])
     app.config['PRESIDIO_ANALYZER_AVAILABLE'] = True
@@ -110,7 +107,7 @@ FEATURES_DATA = {
     "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"},
     "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"},
     "pii_redaction": {"name": "PII Redaction", "icon": "fas fa-user-shield", "template": "pii_redaction/templates/pii_redaction_content.html"},
-    "blurring": {"name": "Blurring", "icon": "fas fa-eye-slash", "template": "blurring/templates/blurring_content.html"},
+    "blurring": {"name": "Blurring", "icon": "fas fa-eye-slash", "template": "blurring/templates/blurring_content.html"}, # Corrected template path
     "info": {"name": "Information", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"},
 }
 DEFAULT_FEATURE_KEY = "welcome"
@@ -121,21 +118,18 @@ app.config['TRANSLATION_LANGUAGES'] = [
 ]
 app.config['PII_ALLOWED_EXTENSIONS'] = {'docx', 'pptx'}
 
-# --- NEW/MODIFIED: Add PPT Builder constants to app.config ---
 if PPT_BUILDER_CONSTANTS_LOADED:
     app.config['PPT_MAX_FILES'] = PPT_MAX_FILES
     app.config['PPT_MAX_FILE_SIZE_MB'] = int(PPT_MAX_FILE_SIZE_BYTES / (1024*1024))
-    # Create a comma-separated string for display, e.g., ".docx, .pdf, .py"
     app.config['PPT_ALLOWED_EXTENSIONS_STR'] = ', '.join(sorted(list(f".{ext}" for ext in PPT_ALLOWED_EXTENSIONS)))
     app.config['PPT_TEMPLATES'] = list(PPT_TEMPLATES.keys())
     app.config['PPT_DEFAULT_TEMPLATE_NAME'] = PPT_DEFAULT_TEMPLATE_NAME
-else: # Define fallbacks if constants couldn't be loaded
+else: 
     app.config['PPT_MAX_FILES'] = 5
     app.config['PPT_MAX_FILE_SIZE_MB'] = 10
     app.config['PPT_ALLOWED_EXTENSIONS_STR'] = ".docx, .pdf, .py"
     app.config['PPT_TEMPLATES'] = ['professional', 'creative', 'minimalist']
     app.config['PPT_DEFAULT_TEMPLATE_NAME'] = 'professional'
-# --- END NEW/MODIFIED ---
 
 
 # --- Import and Register Feature Routes ---
@@ -143,14 +137,14 @@ from features.transcription.routes import define_transcription_routes
 from features.translation.routes import define_translation_routes
 from features.summarization.routes import define_summarization_routes
 from features.pii_redaction.routes import define_pii_redaction_routes
-from features.blurring.routes import define_blurring_routes
+from features.blurring.routes import define_blurring_routes # <<<--- ADD THIS IMPORT
 from features.info.routes import define_info_routes
 
 define_transcription_routes(app)
 define_translation_routes(app)
 define_summarization_routes(app)
 define_pii_redaction_routes(app)
-define_blurring_routes(app)
+define_blurring_routes(app) # <<<--- ADD THIS CALL
 define_info_routes(app)
 
 
@@ -174,7 +168,8 @@ def index(feature_key):
         current_feature=current_feature_data,
         active_feature_key=feature_key_to_render,
         initial_content_template=initial_content_template_path,
-        DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY
+        DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY,
+        gcs_available=current_app.config.get('GCS_AVAILABLE', False) # Pass gcs_available to layout
     )
 
 
@@ -186,41 +181,38 @@ def get_feature_content(feature_key):
     feature_data = FEATURES_DATA[feature_key]
     template_to_render = feature_data["template"]
     
-    context = {}
+    # Common context items for all features
+    context = {
+        "gcs_available": current_app.config.get('GCS_AVAILABLE', False),
+        "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
+    }
+    
     if feature_key == "translation":
         context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
-        context["gcs_available"] = current_app.config.get('GCS_AVAILABLE', False)
-        context["gemini_configured"] = current_app.config.get('GEMINI_CONFIGURED', False)
     elif feature_key == "summarization":
-        # Context for Text Summary Tab
         context["summary"] = "" 
-        context["hx_target_is_result"] = False # For initial load of text summary tab
-        
-        # --- NEW/MODIFIED: Add context for PPT Builder Tab ---
+        context["hx_target_is_result"] = False 
         context["ppt_max_files"] = current_app.config.get('PPT_MAX_FILES')
         context["ppt_max_file_size_mb"] = current_app.config.get('PPT_MAX_FILE_SIZE_MB')
         context["ppt_allowed_extensions_str"] = current_app.config.get('PPT_ALLOWED_EXTENSIONS_STR')
         context["ppt_templates"] = current_app.config.get('PPT_TEMPLATES')
-        context["ppt_default_template"] = current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME') # Corrected key
-        # For the PPT builder UI, check overall Gemini and GCS availability
+        context["ppt_default_template"] = current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME')
         ppt_services_ready = current_app.config.get('GEMINI_CONFIGURED', False) and current_app.config.get('GCS_AVAILABLE', False)
-        context["ppt_api_key_configured"] = ppt_services_ready # Simplified for template
+        context["ppt_api_key_configured"] = ppt_services_ready 
         context["ppt_config_warning"] = None
         if not ppt_services_ready:
-            if not current_app.config.get('GEMINI_CONFIGURED'):
-                context["ppt_config_warning"] = "Gemini AI service is not configured."
-            elif not current_app.config.get('GCS_AVAILABLE'):
-                 context["ppt_config_warning"] = "Google Cloud Storage is not configured."
-            else: # Should not happen if ppt_services_ready is false
-                 context["ppt_config_warning"] = "Core services for PPT generation are unavailable."
-        # --- END NEW/MODIFIED ---
-
+            if not current_app.config.get('GEMINI_CONFIGURED'): context["ppt_config_warning"] = "Gemini AI service is not configured."
+            elif not current_app.config.get('GCS_AVAILABLE'): context["ppt_config_warning"] = "Google Cloud Storage is not configured."
+            else: context["ppt_config_warning"] = "Core services for PPT generation are unavailable."
     elif feature_key == "pii_redaction":
         context["redacted_file_url"] = None
         context["original_filename"] = None
         context["presidio_available"] = current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False)
-        context["gcs_available"] = current_app.config.get('GCS_AVAILABLE', False)
         context["hx_target_is_result"] = False
+    elif feature_key == "blurring":
+        # No specific extra context needed for initial render of blurring beyond common ones
+        pass
+
 
     return render_template(template_to_render, **context)
 
