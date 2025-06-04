@@ -60,7 +60,7 @@
 
         <!-- Tab Content for Text Summary -->
         <div id="text-summary-tab" class="feature-tab-content active-content">
-            <h2>Generate a Concise Text Summary</h2>
+            <!-- Removed H2: Generate a Concise Text Summary -->
             <div class="feature-explanation" style="margin-top:15px;">
                 <p>This service utilizes a sophisticated two-step GenAI process to deliver contextually relevant text summaries...</p>
                 <ol><li><strong>Document Classification...</strong></li><li><strong>Context-Aware Summarization...</strong></li></ol>
@@ -69,13 +69,9 @@
             <!-- <p class="upload-instructions">Upload a Word, PowerPoint, Excel, or PDF file, or paste text below...</p> -->
             <form id="text-summary-form" hx-post="{{ url_for('process_summarize') }}" hx-target="#text-summarization-result" hx-swap="innerHTML" enctype="multipart/form-data" hx-indicator="#text-summary-form .spinner">
                 <div class="form-group">
-                    <label for="text_to_summarize">Paste Text (or leave blank to upload a file):</label>
-                    <textarea id="text_to_summarize" name="text_to_summarize" rows="8"></textarea>
-                </div>
-                <div class="form-group">
                     <label for="text-summary-file-input" id="text-summary-drop-zone-label" class="drop-zone-style"
                            style="display: block; border: 2px dashed #007bff; padding: 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 10px;">
-                        <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drop .docx, .pptx, .xlsx, or .pdf file here, or click to select.</p>
+                        <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drop .docx, .pptx, .xlsx, or .pdf file here (max 10MB), or click to select.</p>
                         <p id="text-summary-file-name-display" style="margin-top:5px; font-weight: bold; color: #555;">No file selected</p>
                     </label>
                     <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf"
@@ -190,17 +186,59 @@
              if (firstTabId) openSummarizationTab(firstTabId);
         }
 
-        // --- Text Summary Tab File Upload Logic (Remains the same) ---
+        // --- Text Summary Tab File Upload Logic ---
         const textSummaryDropZoneLabel = summarizationFeatureContainer.querySelector('#text-summary-drop-zone-label');
         const textSummaryFileInput = summarizationFeatureContainer.querySelector('#text-summary-file-input');
         const textSummaryFileNameDisplay = summarizationFeatureContainer.querySelector('#text-summary-file-name-display');
         const textSummaryForm = summarizationFeatureContainer.querySelector('#text-summary-form');
+        const TEXT_SUMMARY_MAX_FILE_SIZE_MB = 10;
+        const TEXT_SUMMARY_MAX_FILE_SIZE_BYTES = TEXT_SUMMARY_MAX_FILE_SIZE_MB * 1024 * 1024;
+
         if (textSummaryDropZoneLabel && textSummaryFileInput && textSummaryFileNameDisplay && textSummaryForm) {
             textSummaryDropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); textSummaryDropZoneLabel.classList.add('drag-over'); textSummaryDropZoneLabel.style.borderColor = '#28a745'; });
             textSummaryDropZoneLabel.addEventListener('dragleave', () => { textSummaryDropZoneLabel.classList.remove('drag-over'); textSummaryDropZoneLabel.style.borderColor = '#007bff'; });
-            textSummaryDropZoneLabel.addEventListener('drop', (e) => { e.preventDefault(); textSummaryDropZoneLabel.classList.remove('drag-over'); textSummaryDropZoneLabel.style.borderColor = '#007bff'; const files = e.dataTransfer.files; if (files.length > 0) { textSummaryFileInput.files = files; const event = new Event('change', { bubbles: true }); textSummaryFileInput.dispatchEvent(event); } });
-            textSummaryFileInput.addEventListener('change', () => { if (textSummaryFileInput.files.length > 0) { textSummaryFileNameDisplay.textContent = textSummaryFileInput.files[0].name; textSummaryDropZoneLabel.classList.add('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#28a745'; } else { textSummaryFileNameDisplay.textContent = 'No file selected'; textSummaryDropZoneLabel.classList.remove('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#007bff'; } });
-            textSummaryForm.addEventListener('submit', function(event) { const textToSummarizeInput = summarizationFeatureContainer.querySelector('#text_to_summarize'); if (textSummaryFileInput.files.length === 0 && (!textToSummarizeInput || textToSummarizeInput.value.trim() === '')) { alert('Please upload a file or paste text to summarize.'); event.preventDefault(); } });
+            
+            function handleTextSummaryFileChange() {
+                if (textSummaryFileInput.files.length > 0) {
+                    const file = textSummaryFileInput.files[0];
+                    if (file.size > TEXT_SUMMARY_MAX_FILE_SIZE_BYTES) {
+                        alert(`File "${file.name}" is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is ${TEXT_SUMMARY_MAX_FILE_SIZE_MB}MB.`);
+                        textSummaryFileInput.value = ''; // Clear the selected file
+                        textSummaryFileNameDisplay.textContent = 'No file selected';
+                        textSummaryDropZoneLabel.classList.remove('file-selected');
+                        textSummaryDropZoneLabel.style.borderColor = '#007bff';
+                        return;
+                    }
+                    textSummaryFileNameDisplay.textContent = file.name;
+                    textSummaryDropZoneLabel.classList.add('file-selected');
+                    textSummaryDropZoneLabel.style.borderColor = '#28a745';
+                } else {
+                    textSummaryFileNameDisplay.textContent = 'No file selected';
+                    textSummaryDropZoneLabel.classList.remove('file-selected');
+                    textSummaryDropZoneLabel.style.borderColor = '#007bff';
+                }
+            }
+
+            textSummaryDropZoneLabel.addEventListener('drop', (e) => { 
+                e.preventDefault(); 
+                textSummaryDropZoneLabel.classList.remove('drag-over'); 
+                textSummaryDropZoneLabel.style.borderColor = '#007bff'; 
+                const files = e.dataTransfer.files; 
+                if (files.length > 0) { 
+                    textSummaryFileInput.files = files; 
+                    handleTextSummaryFileChange(); // Call common handler
+                } 
+            });
+            textSummaryFileInput.addEventListener('change', handleTextSummaryFileChange); // Call common handler
+            
+            textSummaryForm.addEventListener('submit', function(event) { 
+                if (textSummaryFileInput.files.length === 0) { 
+                    alert('Please upload a file to summarize.'); 
+                    event.preventDefault(); 
+                } 
+                // Size check is implicitly handled by the 'change' event clearing the input if too large.
+                // If a file is present, it should be within the size limit.
+            });
         }
 
         // --- SIMPLIFIED PPT Builder Specific JavaScript ---
@@ -213,6 +251,13 @@
 
             // This variable comes from the Flask backend and controls the button's initial disabled state in HTML
             const pptApiKeyIsConfigured = {{ ppt_api_key_configured|default(false)|tojson }};
+            // PPT Constants from backend (or default if not available)
+            const PPT_MAX_FILES = {{ ppt_max_files|default(5) }};
+            const PPT_MAX_FILE_SIZE_MB = {{ ppt_max_file_size_mb|default(10) }};
+            const PPT_MAX_FILE_SIZE = PPT_MAX_FILE_SIZE_MB * 1024 * 1024;
+            const PPT_ALLOWED_EXTENSIONS_STR = "{{ ppt_allowed_extensions_str|default('.docx,.pdf,.py') }}";
+            const PPT_ALLOWED_EXTENSIONS = PPT_ALLOWED_EXTENSIONS_STR.replace(/\./g, '').split(',').map(ext => ext.trim().toLowerCase());
+
 
             // --- Core PPT Functions ---
 
@@ -347,6 +392,23 @@
                  displayPptFileInfo([]); // Update display to "No files selected"
                  updatePptConvertButtonState(); // Update button state
             }
+            
+            function clearPptStatus() {
+                const statusDiv = summarizationFeatureContainer.querySelector('#ppt-builder-status');
+                if (statusDiv) {
+                    statusDiv.innerHTML = '<p><i>PowerPoint generation status and download link will appear here.</i></p>';
+                    statusDiv.className = ''; // Clear any error/success classes
+                }
+            }
+
+            function showPptStatus(message, type = 'info') { // type can be 'info', 'error', 'success'
+                const statusDiv = summarizationFeatureContainer.querySelector('#ppt-builder-status');
+                if (statusDiv) {
+                    statusDiv.innerHTML = `<p>${message}</p>`;
+                    statusDiv.className = `ppt-builder-${type}`; // e.g., ppt-builder-error
+                }
+            }
+
 
             // --- Event Listeners and Initializations ---
 
