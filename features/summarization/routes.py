@@ -8,7 +8,7 @@ import re
 import logging
 import time
 import threading
-from urllib.parse import urlparse # <--- ADDED THIS IMPORT
+from urllib.parse import urlparse
 
 from werkzeug.utils import secure_filename
 import google.generativeai as genai
@@ -165,16 +165,28 @@ def build_expert_text_summary_prompt(text_to_summarize, classification):
     expert_focus = "Focus on its main topic, key arguments, and conclusions." # Default
     if classification == "Resume/CV": expert_focus = "Focus on the candidate's key skills, experiences, and quantifiable achievements relevant to a potential employer."
     elif classification == "Patent": expert_focus = "Focus on the core invention, its novelty, the problem it solves, and the essence of its main claims."
-    elif classification == "Financial Report (Annual/10-K/10-Q)": expert_focus = "Focus on key financial highlights (like revenue, net income), major trends, and any stated outlook."
+    elif classification == "Financial Report (Annual/10-K/10-Q)": expert_focus = "Focus on key financial highlights (like revenue, net income), major trends, and any stated outlook or significant risk factors mentioned."
     # (You would add more elif blocks here for other document types from CLASSIFICATION_CATEGORIES_TEXT_SUMMARY)
     else: expert_focus = f"Given this is a '{classification}', focus on extracting its primary purpose and most critical information."
 
     prompt = f"""SYSTEM: You are an expert summarization AI. The document has been identified as a '{classification}'.
 INSTRUCTIONS:
-1. Based on it being a '{classification}', {expert_focus}
-2. Generate a concise text summary, approximately 3-6 sentences long, that captures the essence of the document.
-3. Ensure the summary is coherent, accurate, and directly reflects the content provided.
-4. Output ONLY the summary. Do not include any preambles like "Here is the summary:", conversational phrases, or quotation marks around the summary.
+1. Analyze the document thoroughly based on its classification as '{classification}'. {expert_focus}
+2. Generate a structured and detailed summary. The summary should be comprehensive yet concise.
+3. Structure your output using the following markdown-like format:
+   **Overall Summary:**
+   [Provide a 1-2 paragraph overview of the document's main purpose and scope.]
+
+   **Key Highlights:**
+   - [Highlight 1: Briefly describe a key finding, argument, data point, or section. Use 1-2 sentences. Be specific.]
+   - [Highlight 2: ...]
+   - [Provide 3-5 key highlights as bullet points. If the document is short, 2-3 highlights are acceptable.]
+
+   **Concluding Remarks:** (If applicable to the document type, otherwise omit this section)
+   [Provide a 1-paragraph conclusion, final takeaway, or implications if relevant.]
+
+4. Ensure the summary is coherent, accurate, and directly reflects the content provided.
+5. Output ONLY the structured summary in the markdown-like format specified. Do not include any preambles like "Here is the summary:", conversational phrases, or quotation marks around the entire response. Make sure to use newlines appropriately for readability and for the markdown structure to be clear.
 
 TEXT TO SUMMARIZE:
 ---
@@ -294,7 +306,9 @@ def define_summarization_routes(app_shell):
     def process_summarize():
         g.request_id = uuid.uuid4().hex 
         logging.info(f"Received text summarization request {g.request_id}")
-        context = {"summary": "", "hx_target_is_text_summary_result": True}
+        # Initialize classification_used in context for initial state or errors before classification
+        context = {"summary": "", "classification_used": None, "hx_target_is_text_summary_result": True}
+
 
         if not current_app.config.get('GEMINI_CONFIGURED'):
             flash("Gemini API not configured. Summarization service unavailable.", "error")
@@ -307,20 +321,18 @@ def define_summarization_routes(app_shell):
         if file_input and file_input.filename:
             filename_for_context = secure_filename(file_input.filename)
             
-            # --- Check file size ---
             file_input.seek(0, os.SEEK_END)
             file_size = file_input.tell()
-            file_input.seek(0) # Reset stream position
+            file_input.seek(0) 
 
             if file_size > TEXT_SUMMARY_MAX_FILE_SIZE_BYTES:
                 flash(f"File '{filename_for_context}' ({file_size/1024/1024:.2f}MB) is too large. Maximum allowed size is {TEXT_SUMMARY_MAX_FILE_SIZE_MB}MB.", "error")
                 return render_template("summarization/templates/summarization_content.html", **context)
-            # --- End file size check ---
 
             file_ext = os.path.splitext(filename_for_context)[1].lower()
             logging.info(f"[{g.request_id}] Text Summary: Processing file '{filename_for_context}' (Size: {file_size} bytes)")
             try:
-                file_stream = io.BytesIO(file_input.read()) # Read after size check
+                file_stream = io.BytesIO(file_input.read()) 
                 if file_ext == ".docx": text_content_from_file = read_text_from_docx(file_stream)
                 elif file_ext == ".pptx": text_content_from_file = read_text_from_pptx(file_stream)
                 elif file_ext == ".xlsx": text_content_from_file = read_text_from_excel(file_stream)
@@ -340,23 +352,25 @@ def define_summarization_routes(app_shell):
         content_to_process = text_content_from_file if text_content_from_file and text_content_from_file.strip() else request.form.get("text_to_summarize", "").strip()
         
         if not content_to_process:
-            # This message might now be less common if a file is required and successfully read.
-            # It could still trigger if file upload failed silently client-side or if an empty file was uploaded and no text extracted.
             flash("Please upload a file to summarize, or ensure the uploaded file contains extractable text and is not empty.", "warning")
             return render_template("summarization/templates/summarization_content.html", **context)
         
-        if len(content_to_process) > MAX_CONTENT_LENGTH_TEXT_SUMMARY: # This is a check on TEXT content length, not file size.
+        if len(content_to_process) > MAX_CONTENT_LENGTH_TEXT_SUMMARY: 
              flash(f"Extracted text for summary (length: {len(content_to_process):,}) exceeds internal processing limit of {MAX_CONTENT_LENGTH_TEXT_SUMMARY:,} characters.", "error")
              return render_template("summarization/templates/summarization_content.html", **context)
 
         model_name = current_app.config.get('GEMINI_MODEL_NAME')
-        _classification, summary_text, _error = classify_and_summarize_with_gemini(
+        classification_used, summary_text, error_occurred = classify_and_summarize_with_gemini(
             content_to_process, model_name, filename_for_context
         )
         context["summary"] = summary_text
+        # Ensure classification_used is passed, even if an error occurred before or during summarization
+        # If an error occurred in classify_and_summarize_with_gemini, classification_used might be its default "Other" or "N/A"
+        context["classification_used"] = classification_used if not error_occurred and summary_text and not summary_text.startswith("(") else None
+
         return render_template("summarization/templates/summarization_content.html", **context)
 
-    # NEW ROUTE FOR DOWNLOADING GENERATED PPTX
+        # NEW ROUTE FOR DOWNLOADING GENERATED PPTX
     @app_shell.route("/download/ppt/<file_id>/<filename>", methods=["GET"])
     def download_generated_ppt(file_id, filename):
         """
@@ -408,16 +422,12 @@ def define_summarization_routes(app_shell):
         g.start_time = time.time()
         log_extra_ppt = {'extra_data': {'request_id': g.request_id, 'feature': 'ppt_builder_shell'}}
         
-        # This function will run *after* the request is completed,
-        # ensuring semaphore release and cleanup of *input* files.
-        # Output files will be cleaned by GCS lifecycle policies.
         @after_this_request
         def release_semaphore_and_cleanup_uploads(response):
             req_id_clean = getattr(g, 'request_id', 'PPT_CLEAN_FALLBACK')
             start_time_clean = getattr(g, 'start_time', time.time())
             
-            # Only clean up the 'uploads/' folder for this request_id
-            if current_app.gcs_bucket: # Ensure bucket is available
+            if current_app.gcs_bucket: 
                 upload_prefix_to_clean = f"{req_id_clean}/uploads/"
                 try:
                     blobs_to_delete = list(current_app.storage_client.list_blobs(current_app.gcs_bucket, prefix=upload_prefix_to_clean))
@@ -427,7 +437,7 @@ def define_summarization_routes(app_shell):
                 except Exception as e_clean_final:
                     logging.error(f"[{req_id_clean}] PPT GCS Input Uploads Cleanup error for '{upload_prefix_to_clean}': {e_clean_final}", exc_info=True)
             
-            ppt_processing_semaphore.release() # Release semaphore
+            ppt_processing_semaphore.release() 
             logging.info(f"[{req_id_clean}] PPT Request: Slot released. Total duration: {int((time.time() - start_time_clean) * 1000)}ms")
             return response
 
@@ -446,7 +456,7 @@ def define_summarization_routes(app_shell):
         current_sem = ppt_processing_semaphore 
         
         logging.info(f"[{g.request_id}] PPT Request: Attempting to acquire slot (max: {max_concurrent}, current_val: {current_sem._value if hasattr(current_sem, '_value') else 'N/A'})...", extra=log_extra_ppt)
-        if not current_sem.acquire(blocking=True, timeout=10): # Added timeout for acquire
+        if not current_sem.acquire(blocking=True, timeout=10): 
             logging.warning(f"[{g.request_id}] PPT Request: Failed to acquire slot (server busy/timeout).", extra=log_extra_ppt)
             context = {"ppt_error_message": "Server is very busy, please try again in a moment.", "hx_target_is_ppt_status_result": True}
             return render_template("summarization/templates/summarization_content.html", **context), 503
@@ -487,7 +497,6 @@ def define_summarization_routes(app_shell):
                 uploaded_files = request.files.getlist('file')
                 
                 max_files_config = current_app.config.get('PPT_MAX_FILES', 5)
-                # Use the app config for PPT max file size, which defaults to 10MB if not set.
                 max_file_size_config_ppt = current_app.config.get('PPT_MAX_FILE_SIZE_MB', 10) * 1024 * 1024 
                 allowed_ext_str_config = current_app.config.get('PPT_ALLOWED_EXTENSIONS_STR', '.docx,.pdf,.py')
                 allowed_ext_set_config = set(ext.strip().lower() for ext in allowed_ext_str_config.replace('.', '').split(','))
@@ -503,7 +512,7 @@ def define_summarization_routes(app_shell):
                 for f_obj in uploaded_files:
                     filename_check = secure_filename(f_obj.filename)
                     f_obj.seek(0, os.SEEK_END); file_size = f_obj.tell(); f_obj.seek(0)
-                    if ppt_allowed_file_util(filename_check, allowed_ext_set_config) and file_size <= max_file_size_config_ppt: # Check against PPT specific limit
+                    if ppt_allowed_file_util(filename_check, allowed_ext_set_config) and file_size <= max_file_size_config_ppt: 
                         valid_files_for_processing.append(f_obj)
                     else:
                         logging.warning(f"[{g.request_id}] Ignored file for PPT: {filename_check} (size: {file_size}, type_valid: {ppt_allowed_file_util(filename_check, allowed_ext_set_config)}, size_valid: {file_size <= max_file_size_config_ppt})", extra=log_extra_ppt)
@@ -515,15 +524,14 @@ def define_summarization_routes(app_shell):
                 total_to_process = len(valid_files_for_processing)
                 for idx, file_to_process in enumerate(valid_files_for_processing):
                     original_fname = secure_filename(file_to_process.filename)
-                    # Upload input file to GCS for processing by extract_text_from_blob
-                    gcs_input_upload_path = f"{g.request_id}/uploads/{original_fname}" # Path for input files
+                    gcs_input_upload_path = f"{g.request_id}/uploads/{original_fname}" 
                     try:
                         blob = current_app.gcs_bucket.blob(gcs_input_upload_path)
                         file_to_process.seek(0)
                         blob.upload_from_file(file_to_process, content_type=file_to_process.content_type)
                         logging.info(f"[{g.request_id}] Input file uploaded to GCS: gs://{current_app.gcs_bucket.name}/{gcs_input_upload_path}", extra=log_extra_ppt)
                         
-                        text, trunc = ppt_extract_text_from_blob(blob, original_fname) # Use the GCS blob directly
+                        text, trunc = ppt_extract_text_from_blob(blob, original_fname) 
                         if trunc: any_source_truncated = True
                         slide_result_list = ppt_generate_slides_from_text(
                             text=text, source_identifier=original_fname,
@@ -563,11 +571,10 @@ def define_summarization_routes(app_shell):
             lang_sfx = f"_{language.lower().replace(' (simplified)', '_simplified')}" if language and language.lower() != 'english' else ""
             download_filename = f"{safe_name}_presentation{lang_sfx}_{time.strftime('%Y%m%d_%H%M')}.pptx"
 
-            # --- NEW: Upload the generated PPTX to GCS for later download ---
             output_gcs_path = f"{g.request_id}/output/{download_filename}"
             try:
                 blob_output = current_app.gcs_bucket.blob(output_gcs_path)
-                pptx_buffer.seek(0) # Ensure buffer is at the beginning
+                pptx_buffer.seek(0) 
                 blob_output.upload_from_file(pptx_buffer, content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
                 logging.info(f"[{g.request_id}] Generated PPTX uploaded to GCS: gs://{current_app.gcs_bucket.name}/{output_gcs_path}", extra=log_extra_ppt)
             except Exception as e_gcs_upload:
@@ -575,14 +582,12 @@ def define_summarization_routes(app_shell):
                 context = {"ppt_error_message": "Failed to store generated presentation (Cloud Storage error).", "hx_target_is_ppt_status_result": True}
                 return render_template("summarization/templates/summarization_content.html", **context), 500
 
-            # Construct the download URL pointing to our new Flask route
             download_url_for_frontend = url_for('download_generated_ppt', file_id=g.request_id, filename=download_filename)
 
-            # --- RENDER TEMPLATE FOR HTMX SWAP INSTEAD OF send_file ---
             context = {
                 "ppt_success_message": "Presentation generated successfully! Click the button below to download.",
                 "ppt_download_url": download_url_for_frontend,
-                "hx_target_is_ppt_status_result": True # This is key for the frontend template to show the download link
+                "hx_target_is_ppt_status_result": True 
             }
             return render_template("summarization/templates/summarization_content.html", **context)
 
