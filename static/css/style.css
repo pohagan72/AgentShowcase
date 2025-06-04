@@ -246,11 +246,11 @@ body {
     font-size: 1.8em;
     color: var(--text-color-primary);
     margin-top: 0;
-    margin-bottom: calc(var(--spacing-unit) / 2); /* Adjusted from 0.75 for tab layout */
+    margin-bottom: calc(var(--spacing-unit) / 2); 
     padding-bottom: calc(var(--spacing-unit) / 4);
     border-bottom: 1px solid var(--border-color);
 }
-/* Generic H2 for section headings WITHIN a feature (e.g., inside a tab) */
+/* Generic H2 for section headings WITHIN a feature (e.g., inside a tab OR a top-level section on a page) */
 .feature-container h2 {
     font-size: 1.4em;
     color: var(--text-color-primary);
@@ -260,7 +260,7 @@ body {
     border-bottom: 1px dotted var(--border-color);
 }
 
-/* --- Enhanced Summary Display Box --- */
+/* --- Enhanced Summary Display Box (for Summarization feature) --- */
 .summary-display-box {
     background-color: #f8f9fa;
     border: 1px solid var(--border-color);
@@ -293,7 +293,7 @@ body {
 .summary-display-box li { margin-bottom: calc(var(--spacing-unit) / 4); }
 .summary-display-box strong { font-weight: 600; color: var(--text-color-primary); }
 
-/* --- Model Used Info Box --- */
+/* --- Model Used Info Box (for Summarization feature) --- */
 .model-used-info {
     margin-top: calc(var(--spacing-unit) * 0.75);
     padding: calc(var(--spacing-unit) / 1.8) calc(var(--spacing-unit) / 1.5); 
@@ -326,7 +326,7 @@ body {
     border-radius: 4px;
     min-height: 100px; 
 }
-.feature-container .processing-result h2 { /* For "Summary:" heading INSIDE result area */
+.feature-container .processing-result h2 { /* For "Summary:" heading INSIDE result area of Summarization */
     border-bottom: none;
     margin-top: 0;
     font-size: 1.2em;
@@ -361,81 +361,57 @@ body {
     color: var(--secondary-color);
     transition: color 0.2s;
 }
-.feature-tabs .tab-link:hover {
-    color: var(--text-color-primary);
-}
-.feature-tabs .tab-link:hover i {
-    color: var(--text-color-primary);
-}
+.feature-tabs .tab-link:hover { color: var(--text-color-primary); }
+.feature-tabs .tab-link:hover i { color: var(--text-color-primary); }
 .feature-tabs .tab-link.active {
     color: var(--primary-color);
     border-bottom-color: var(--primary-color);
     font-weight: 600;
 }
-.feature-tabs .tab-link.active i {
-    color: var(--primary-color);
-}
+.feature-tabs .tab-link.active i { color: var(--primary-color); }
 .feature-tab-content {
     display: none; /* Hidden by default */
     animation: fadeIn 0.5s;
-    padding: var(--spacing-unit) calc(var(--spacing-unit) / 4); /* Padding for tab content */
+    padding: var(--spacing-unit) calc(var(--spacing-unit) / 4); 
 }
-.feature-tab-content.active-content {
-    display: block; /* Shown when active */
-}
+.feature-tab-content.active-content { display: block; }
 
 /* --- Generic File Drop Zone & Display --- */
 .drop-zone-style {
-    display: block;
-    border: 2px dashed var(--primary-color);
-    padding: var(--spacing-unit);
-    text-align: center;
-    cursor: pointer;
-    background-color: #f8f9fa;
-    border-radius: 5px;
-    margin-bottom: var(--spacing-unit);
+    display: block; border: 2px dashed var(--primary-color); padding: var(--spacing-unit);
+    text-align: center; cursor: pointer; background-color: #f8f9fa;
+    border-radius: 5px; margin-bottom: var(--spacing-unit);
     transition: border-color 0.3s ease, background-color 0.3s ease;
 }
-.drop-zone-style.drag-over { border-color: #28a745; background-color: #e9f5ee; }
-.drop-zone-style.file-selected { border-color: #17a2b8; background-color: #e7f6f8; }
+.drop-zone-style.drag-over { border-color: #28a745 !important; background-color: #e9f5ee; } 
+.drop-zone-style.file-selected { border-color: #17a2b8; }
 .drop-zone-style p { margin: calc(var(--spacing-unit) / 4) 0; color: #495057; }
-.drop-zone-style .file-name-display {
-    font-weight: bold;
-    color: #333;
-    margin-top: calc(var(--spacing-unit) / 4);
-    font-size: 0.95em;
-}
+/* .drop-zone-style .file-name-display is no longer directly used by Blurring JS */
+/* The p#blur-file-name-display will inherit from .drop-zone-style p */
 .disabled-drop-zone {
-    cursor: not-allowed !important;
-    border-color: #ced4da !important;
-    background-color: #e9ecef !important;
-    color: #6c757d !important;
+    cursor: not-allowed !important; border-color: #ced4da !important;
+    background-color: #e9ecef !important; color: #6c757d !important;
 }
 .disabled-drop-zone p { color: #6c757d !important; }
 
-/* --- Feature Specific Container Styles (Tiles) --- */
-/* This section is for the specific styling of feature pages that use these unique classes as their main wrapper */
-/* These were your original styles for these specific feature containers */
+/* --- Feature Specific Container Wrappers (e.g., for max-width on certain feature pages) --- */
 .translation-feature-container,
-.pii-redaction-tile-container.feature-container,
-.summarization-tile-container.feature-container { /* Retain this for summarization page's overall wrapper */
-    max-width: 800px; /* This is also the default for .feature-container */
-    margin-left: auto;
-    margin-right: auto;
+.pii-redaction-tile-container.feature-container, 
+.summarization-tile-container.feature-container, 
+.blurring-feature-container { 
     background-color: var(--surface-color);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border-radius: 8px;
-    margin-top: var(--spacing-unit);
+    margin-top: var(--spacing-unit); 
     margin-bottom: calc(var(--spacing-unit) * 1.5);
 }
-.translation-feature-container { max-width: 700px; } /* Specific override */
-.pii-redaction-tile-container.feature-container { max-width: 700px; } /* Specific override */
+.translation-feature-container { max-width: 700px; } 
+.pii-redaction-tile-container.feature-container { max-width: 700px; } 
 
 
-/* --- Explanation Box within features --- */
-/* This ensures that .feature-explanation inside any .feature-container (like summarization's tabs) gets styled */
+/* --- Explanation Box within features (General) --- */
 .feature-container .feature-explanation {
-    margin-top: var(--spacing-unit); /* Original spacing for explanation inside a tab */
+    margin-top: var(--spacing-unit); 
     margin-bottom: var(--spacing-unit);
     padding: var(--spacing-unit);
     border: 1px solid var(--border-color);
@@ -450,9 +426,8 @@ body {
     margin-top: var(--spacing-unit); margin-bottom: calc(var(--spacing-unit) / 3);
     font-weight: 600;
 }
-.upload-instructions { /* Original style, kept for other features if used */
-    margin-bottom: var(--spacing-unit);
-    font-style: italic;
+.upload-instructions { 
+    margin-bottom: var(--spacing-unit); font-style: italic;
     color: var(--text-color-secondary);
 }
 
@@ -567,4 +542,175 @@ body {
 .translation-feature-container #translation-file-input {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+}
+
+/* --- Blurring Feature Specific Layout & Styles (NEW ADDITIONS) --- */
+
+.blurring-feature-container .blurring-controls {
+    margin-bottom: 1.5rem;
+}
+
+.blurring-feature-container .blur-input-area {
+    display: flex;
+    flex-direction: row; 
+    gap: var(--spacing-unit, 1rem); 
+    align-items: stretch; 
+    margin-bottom: 1rem; 
+}
+
+.blurring-feature-container .drop-zone-group {
+    flex: 3; 
+    display: flex; 
+    flex-direction: column;
+}
+.blurring-feature-container .drop-zone-group .drop-zone-style {
+    flex-grow: 1; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center; 
+}
+
+
+.blurring-feature-container .blur-slider-group {
+    flex: 1; 
+    display: flex;
+    flex-direction: column;
+    align-items: center; 
+    padding: 0 var(--spacing-unit); 
+    border: 1px solid var(--border-color); 
+    border-radius: 5px;
+    justify-content: center; 
+}
+
+.blurring-feature-container .blur-slider-label {
+    margin-bottom: 0.5rem;
+    font-weight: 500; 
+}
+
+.blurring-feature-container .vertical-slider-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 150px; 
+    justify-content: space-between; 
+    width: 100%; 
+}
+
+.blurring-feature-container .vertical-slider,
+.blurring-feature-container input[type=range].vertical-slider {
+    -webkit-appearance: slider-vertical; 
+    appearance: slider-vertical; 
+    writing-mode: bt-lr; 
+    width: 8px; 
+    height: 100px; 
+    padding: 0 5px; 
+    margin: 0.5rem auto; 
+}
+.blurring-feature-container input[type=range].vertical-slider { /* More specific for better cross-browser */
+    writing-mode: vertical-lr; 
+    -webkit-appearance: slider-vertical;
+    width: 20px; 
+    height: 120px; 
+    padding: 0;
+}
+
+.blurring-feature-container .blur-slider-value-display {
+    margin-top: 0.5rem;
+    font-size: 0.9em;
+    color: var(--text-color-secondary);
+}
+
+/* Responsive: Stack dropzone and slider on smaller screens */
+@media (max-width: 767px) {
+    .blurring-feature-container .blur-input-area {
+        flex-direction: column;
+    }
+    .blurring-feature-container .blur-slider-group {
+        margin-top: 1rem;
+        border: none; 
+        padding: 0;
+        align-items: stretch; 
+    }
+    .blurring-feature-container .vertical-slider-container {
+        flex-direction: row; 
+        height: auto;
+        width: 100%;
+        justify-content: space-around; 
+    }
+    .blurring-feature-container input[type=range].vertical-slider {
+        writing-mode: horizontal-tb; 
+        -webkit-appearance: auto; 
+        appearance: auto;
+        width: auto; 
+        flex-grow: 1; 
+        height: auto; 
+        margin: 0 0.5rem; 
+    }
+    .blurring-feature-container .blur-slider-label {
+        text-align: left; 
+        width: 100%;
+    }
+}
+
+/* Styling for the image results grid specifically in the Blurring feature */
+.blurring-feature-container .blurring-image-results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: var(--spacing-unit); 
+    margin-top: 1rem; 
+}
+
+.blurring-feature-container .blurring-image-results-grid .image-result-container {
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: calc(var(--spacing-unit) / 2);
+    background-color: #f8f9fa; 
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.blurring-feature-container .blurring-image-results-grid .image-result-container h4 {
+    font-size: 1.1em;
+    margin-top: 0; 
+    margin-bottom: calc(var(--spacing-unit) / 2);
+    color: var(--text-color-primary);
+    font-weight: 500; 
+}
+
+.blurring-feature-container .blurring-image-results-grid .result-image {
+    max-width: 100%;
+    height: auto;
+    max-height: 400px; 
+    object-fit: contain; 
+    border-radius: 4px;
+    border: 1px solid #ddd; 
+    margin-bottom: calc(var(--spacing-unit) / 2);
+    background-color: #fff; 
+}
+
+@media (max-width: 768px) { /* Responsive for Blurring feature's image grid */
+    .blurring-feature-container .blurring-image-results-grid {
+        grid-template-columns: 1fr; 
+    }
+}
+
+/* Styling for the "No file selected" text specifically within Blurring drop zone label */
+.blurring-feature-container #blur-drop-zone-label .no-file-text {
+    color: var(--text-color-secondary); 
+    font-size: 0.9em; 
+    font-weight: normal; 
+}
+
+/* Generic styles for the "Remove file" link - can be used by any feature */
+.remove-file-link {
+    color: #dc3545; 
+    cursor: pointer;
+    margin-left: 10px;
+    font-weight: normal; 
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.remove-file-link:hover {
+    text-decoration: underline;
 }

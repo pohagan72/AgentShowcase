@@ -1,218 +1,144 @@
-<!-- features/blurring/templates/blurring_content.html -->
-<div class="blurring-feature-container feature-container"> {# Keep feature-container for base styles #}
-    <h1><i class="fas fa-eye-slash"></i> Advanced Face Blurring</h1> {# Added icon #}
-    <p class="feature-description">
-        Protect privacy with our state-of-the-art face blurring technology.
-        Currently, only image face blurring is available. Video blurring is coming soon!
+{# features/blurring/templates/blurring_content.html #}
+<div class="feature-container blurring-feature-container">
+    <h1><i class="fas fa-eye-slash"></i> AI Agent for Facial Blurring</h1>
+    <p class="feature-description" style="margin-bottom: 2rem;">
+        The AI Agent for facial blurring uses a Convolutional Neural Network to identify what is most likely a human face in an image, and then applies an opaque graphical overlay. While the code to implement this AI Agent was developed with GenAI, it is not a GenAI application.
     </p>
 
-    <div class="feature-tabs">
-        {# Uncomment the following button to re-enable the video blurring tab #}
-        {#
-        <button class="tab-link" data-target-tab="video-blur-tab">
-            <i class="fas fa-video"></i> Blur Video Faces
-        </button>
-        #}
-        <button class="tab-link active" data-target-tab="image-blur-tab">
-            <i class="fas fa-image"></i> Blur Image Faces
-        </button>
+    {% if not gcs_available %}
+        <div class="message-item category-error" role="alert">
+            <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+            <strong>Configuration Issue:</strong> Google Cloud Storage is not available. Image processing is disabled.
+        </div>
+    {% endif %}
+
+    <div class="blurring-controls">
+        <form id="blur-upload-form" 
+              hx-post="{{ url_for('process_blur_image_route') }}"
+              hx-target="#blurring-results-area"
+              hx-swap="innerHTML"
+              hx-encoding="multipart/form-data"
+              hx-indicator="#blur-start-button .spinner">
+            
+            <div class="blur-input-area"> 
+                <div class="form-group drop-zone-group">
+                    <label for="blur-file-input" id="blur-drop-zone-label" class="drop-zone-style">
+                        {# === STRICTLY FOLLOW SUMMARIZATION PATTERN === #}
+                        <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drag & drop your image (JPG, PNG, WEBP) here, or click to select.</p>
+                        <p id="blur-file-name-display" style="margin-top:5px; color: #555; font-weight: normal;">No file selected</p> 
+                        {# === END OF STRICT PATTERN === #}
+                    </label>
+                    <input type="file" id="blur-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required
+                           {% if not gcs_available %}disabled{% endif %}>
+                </div>
+
+                <div class="form-group blur-slider-group">
+                    <label for="blur_strength_slider" class="blur-slider-label">Blur Strength:</label>
+                    <div class="vertical-slider-container">
+                        <span>Heavy</span>
+                        <input type="range" id="blur_strength_slider" name="blur_strength" class="form-range vertical-slider" 
+                               orient="vertical"
+                               min="1" max="3" step="1" value="2" 
+                               {% if not gcs_available %}disabled{% endif %}>
+                        <span>Light</span>
+                    </div>
+                    <div id="blur-strength-value" class="blur-slider-value-display">Medium</div>
+                </div>
+            </div>
+
+            <button type="submit" id="blur-start-button" class="submit-button" {% if not gcs_available %}disabled{% endif %}>
+                <i class="fas fa-cogs"></i> Blur Image
+                <span class="htmx-indicator spinner"></span>
+            </button>
+        </form>
     </div>
 
-    {# Video Blurring Tab Content (Commented Out with Jinja2 comments) #}
-    {# Uncomment the following div to re-enable the video blurring functionality #}
-    {#
-    <div id="video-blur-tab" class="feature-tab-content">
-        <h2>Process Video Files</h2>
-        <p>Upload your video (MP4, MOV, AVI). Our system will automatically detect and blur faces.</p>
-        <form hx-post="{{ url_for('process_blur_video_action') }}" hx-target="#video-blur-result" hx-swap="innerHTML" hx-encoding="multipart/form-data" class="blur-form">
-            <div class="drop-zone" id="video-drop-zone">
-                <span class="drop-zone-prompt"><i class="fas fa-cloud-upload-alt drop-zone-icon"></i> <span class="drop-zone-text">Drag & drop your video here, or <span class="browse-button-link">click to select file</span></span></span>
-                <input type="file" name="video_file" class="drop-zone-input" accept="video/*">
-            </div>
-            <div class="file-name-display" id="video-file-info"></div>
-            <button type="submit" class="submit-button"><i class="fas fa-cogs"></i> Start Video Processing <span class="htmx-indicator spinner"></span></button>
-        </form>
-        <div id="video-blur-result" class="processing-result"></div>
-    </div>
-    #}
-
-    <!-- Image Blurring Tab Content (Active) -->
-    <div id="image-blur-tab" class="feature-tab-content active-content">
-        <h2>Process Image Files</h2>
-        <p>Upload your image (JPG, PNG, WEBP). Faces will be detected and blurred effectively.</p>
-        <form hx-post="{{ url_for('process_blur_image_action') }}" hx-target="#image-blur-result" hx-swap="innerHTML" hx-encoding="multipart/form-data" class="blur-form">
-            {# NEW: Adopted the 'drop-zone-style' from summarization #}
-            <div class="form-group">
-                <label for="image-file-input" id="image-drop-zone-label" class="drop-zone-style"
-                       style="display: block; border: 2px dashed #007bff; padding: 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 10px;">
-                    <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drag & drop your image here, or click to select.</p>
-                    <p id="image-file-name-display" style="margin-top:5px; font-weight: bold; color: #555;">No file selected</p>
-                </label>
-                <input type="file" id="image-file-input" name="image_file" accept="image/*"
-                       style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">
-            </div>
-            {# The original file-name-display and drop-zone divs are replaced by the new structure above #}
-            <button type="submit" class="submit-button"><i class="fas fa-cogs"></i> Start Image Processing <span class="htmx-indicator spinner"></span></button>
-        </form>
-        <div id="image-blur-result" class="processing-result"></div>
+    <div id="blurring-results-area" class="processing-result" style="margin-top: 2rem; min-height: 150px;">
+        <p><i>Processed images will appear here.</i></p>
     </div>
 </div>
 
 <script>
-(function() {
+document.addEventListener('DOMContentLoaded', function() {
     const blurringFeatureContainer = document.querySelector('.blurring-feature-container');
-    if (!blurringFeatureContainer) { return; }
+    if (!blurringFeatureContainer) return;
 
-    // Tab Switching Logic for Blurring Feature
-    const tabLinksBlur = blurringFeatureContainer.querySelectorAll('.feature-tabs .tab-link');
-    const tabContentsBlur = blurringFeatureContainer.querySelectorAll('.feature-tab-content');
+    const dropZoneLabel = blurringFeatureContainer.querySelector('#blur-drop-zone-label');
+    const fileInput = blurringFeatureContainer.querySelector('#blur-file-input');
+    const fileNameDisplay = blurringFeatureContainer.querySelector('#blur-file-name-display'); // Targets the second <p>
+    const blurStrengthSlider = blurringFeatureContainer.querySelector('#blur_strength_slider');
+    const blurStrengthValueDisplay = blurringFeatureContainer.querySelector('#blur-strength-value');
 
-    function openBlurringFeatureTab(targetTabId) {
-        tabContentsBlur.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
-        tabLinksBlur.forEach(tl => tl.classList.remove('active'));
-        
-        const currentTabContent = blurringFeatureContainer.querySelector('#' + targetTabId);
-        const currentTabLink = blurringFeatureContainer.querySelector(`.feature-tabs .tab-link[data-target-tab="${targetTabId}"]`);
-        
-        if (currentTabContent) { currentTabContent.style.display = 'block'; currentTabContent.classList.add('active-content'); }
-        if (currentTabLink) { currentTabLink.classList.add('active'); }
+    if (blurStrengthSlider && blurStrengthValueDisplay) {
+        const strengthLabels = { '1': 'Light', '2': 'Medium', '3': 'Heavy' };
+        function updateBlurDisplay() {
+            blurStrengthValueDisplay.textContent = strengthLabels[blurStrengthSlider.value] || 'Medium';
+        }
+        updateBlurDisplay();
+        blurStrengthSlider.addEventListener('input', updateBlurDisplay);
     }
-
-    tabLinksBlur.forEach(link => {
-        link.addEventListener('click', function(event) {
-            event.preventDefault();
-            const targetTabId = this.dataset.targetTab;
-            if (targetTabId) { openBlurringFeatureTab(targetTabId); }
-        });
-    });
     
-    // Open the first *visible* tab by default
-    // Since the video tab button is commented out in HTML, tabLinksBlur[0] will now correctly refer to the image tab.
-    if (tabLinksBlur.length > 0 && tabLinksBlur[0].dataset.targetTab) {
-        openBlurringFeatureTab(tabLinksBlur[0].dataset.targetTab);
-    } else if (blurringFeatureContainer.querySelector('.feature-tab-content')) { // Fallback if no data-target-tab
-        // If no data-target-tab, just ensure the first content area is shown
-        blurringFeatureContainer.querySelector('.feature-tab-content').classList.add('active-content');
-        blurringFeatureContainer.querySelector('.feature-tab-content').style.display = 'block';
-        if(blurringFeatureContainer.querySelector('.feature-tabs .tab-link')) {
-             blurringFeatureContainer.querySelector('.feature-tabs .tab-link').classList.add('active');
-        }
-    }
-
-    // Drag and Drop Zone Logic for the new structure
-    function setupDropZone(labelId, fileInputId, fileNameDisplayId) {
-        const dropZoneLabel = blurringFeatureContainer.querySelector('#' + labelId);
-        const fileInput = blurringFeatureContainer.querySelector('#' + fileInputId);
-        const fileNameDisplay = blurringFeatureContainer.querySelector('#' + fileNameDisplayId);
-
-        if (!dropZoneLabel || !fileInput || !fileNameDisplay) { 
-            // console.warn(`Drop zone elements not found for labelId: ${labelId}`);
-            return; 
-        }
-
-        // Clicks on the label will automatically trigger the file input due to 'for' attribute
-        
-        fileInput.addEventListener('change', () => { 
-            if (fileInput.files.length > 0) { 
-                handleFileDisplay(fileInput.files[0], fileNameDisplay, dropZoneLabel, fileInput); 
-            } else {
-                clearFileDisplay(fileNameDisplay, dropZoneLabel, fileInput);
-            }
-        });
-        
-        // Drag and Drop event listeners for the label
-        dropZoneLabel.addEventListener('dragover', (e) => { 
-            e.preventDefault(); 
-            dropZoneLabel.classList.add('drag-over'); 
-            dropZoneLabel.style.borderColor = '#28a745'; // Green border for drag-over 
+    if (dropZoneLabel && fileInput && fileNameDisplay) {
+        dropZoneLabel.addEventListener('click', (e) => {
+            // If a remove link is ever added INSIDE fileNameDisplay, this would prevent dialog opening.
+            if (e.target.classList && e.target.classList.contains('remove-file-link')) return;
+            fileInput.click();
         });
 
-        dropZoneLabel.addEventListener('dragleave', () => { 
-            dropZoneLabel.classList.remove('drag-over'); 
-            // Reset to default border color if no file is selected, or to file-selected color if one was already there
-            const isFileSelected = fileInput.files && fileInput.files.length > 0;
-            dropZoneLabel.style.borderColor = isFileSelected ? '#17a2b8' : '#007bff'; 
-        });
-
+        dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); if (fileInput.disabled) return; dropZoneLabel.classList.add('drag-over');});
+        dropZoneLabel.addEventListener('dragleave', () => { if (fileInput.disabled) return; dropZoneLabel.classList.remove('drag-over');});
         dropZoneLabel.addEventListener('drop', (e) => {
-            e.preventDefault(); 
+            e.preventDefault(); if (fileInput.disabled) return;
             dropZoneLabel.classList.remove('drag-over');
-            // Reset to default border color
-            dropZoneLabel.style.borderColor = '#007bff'; 
-
-            if (e.dataTransfer.files.length > 0) { 
-                // IMPORTANT: Clear the file input first before assigning new files
-                // This ensures the 'change' event is reliably fired even if the same file is dropped again
-                fileInput.value = ''; // Clear previous selection
-                fileInput.files = e.dataTransfer.files; 
-                // Manually dispatch the 'change' event on the file input
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
                 const event = new Event('change', { bubbles: true });
                 fileInput.dispatchEvent(event);
             }
         });
-    }
 
-    function handleFileDisplay(file, fileNameDisplayEl, dropZoneLabelEl, fileInputEl) {
-        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2); 
-        let fileTypeValid = true;
-        const acceptedTypesRaw = fileInputEl.accept; // e.g. "image/*"
-        
-        if (acceptedTypesRaw && acceptedTypesRaw !== "*/*") {
-            const acceptedTypes = acceptedTypesRaw.split(',').map(t => t.trim().toLowerCase());
-            const fileTypeLower = file.type.toLowerCase(); // e.g. "image/jpeg"
-            const fileNameLower = file.name.toLowerCase();
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+                const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+                const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 
-            fileTypeValid = acceptedTypes.some(acceptedType => {
-                if (acceptedType.startsWith('.')) { // Handles extensions like .webp
-                    return fileNameLower.endsWith(acceptedType);
+                if (allowedTypes.includes(file.type) || validExtensions.includes(fileExt)) {
+                    // Update the text of the second paragraph to show filename and size.
+                    // Add Remove link.
+                    fileNameDisplay.innerHTML = `<strong>${file.name}</strong> (${(file.size / 1024 / 1024).toFixed(2)} MB) <span class="remove-file-link" style="cursor:pointer; color:red; margin-left:5px;">× Remove</span>`;
+                    fileNameDisplay.style.fontWeight = 'bold'; // Make filename part bold
+                    fileNameDisplay.style.color = '#333';     // Darker color for selected file text
+
+                    const removeLink = fileNameDisplay.querySelector('.remove-file-link');
+                    if (removeLink) {
+                        removeLink.addEventListener('click', function(e_remove) {
+                            e_remove.stopPropagation(); 
+                            fileInput.value = ''; 
+                            const changeEvent = new Event('change', { bubbles: true });
+                            fileInput.dispatchEvent(changeEvent);
+                        });
+                    }
+                    dropZoneLabel.classList.add('file-selected'); 
+                } else {
+                    alert('Invalid file type. Please upload a JPG, PNG, or WEBP image.');
+                    fileInput.value = ''; 
+                    // Manually trigger change to reset display
+                    const changeEvent = new Event('change', { bubbles: true });
+                    fileInput.dispatchEvent(changeEvent);
                 }
-                if (acceptedType.endsWith('/*')) { // Handles wildcards like image/*
-                    return fileTypeLower.startsWith(acceptedType.slice(0, -2));
-                }
-                return fileTypeLower === acceptedType; // Exact MIME type match
-            });
-        }
-
-        if (!fileTypeValid) {
-            fileNameDisplayEl.innerHTML = `<p style="color: red;"><i class="fas fa-exclamation-triangle"></i> Invalid file type. Accepted: ${acceptedTypesRaw}</p>`; 
-            fileInputEl.value = ''; // Clear the invalid file
-            dropZoneLabelEl.classList.remove('file-selected'); 
-            dropZoneLabelEl.style.borderColor = '#dc3545'; // Error color
-            return;
-        }
-        
-        // Display file info and a remove button
-        fileNameDisplayEl.innerHTML = `Selected: <strong>${file.name}</strong> (${fileSizeMB} MB) <button type="button" class="remove-file-btn" style="margin-left:10px; background:none; border:none; color:red; cursor:pointer; font-size:0.9em;">× Remove</button>`;
-        dropZoneLabelEl.classList.add('file-selected'); // Optional: style drop zone differently when file is selected
-        dropZoneLabelEl.style.borderColor = '#17a2b8'; // Blue-green for selected
-
-        const removeBtn = fileNameDisplayEl.querySelector('.remove-file-btn');
-        if(removeBtn) {
-            removeBtn.addEventListener('click', () => { 
-                clearFileDisplay(fileNameDisplayEl, dropZoneLabelEl, fileInputEl); 
-            });
-        }
+            } else {
+                // No file is selected, or selection was cleared
+                fileNameDisplay.textContent = 'No file selected';
+                fileNameDisplay.style.fontWeight = 'normal'; // Reset to default non-bold
+                fileNameDisplay.style.color = '#555';       // Reset to default placeholder color
+                dropZoneLabel.classList.remove('file-selected');
+            }
+        });
     }
+});
 
-    function clearFileDisplay(fileNameDisplayEl, dropZoneLabelEl, fileInputEl) {
-        if (fileInputEl) fileInputEl.value = ''; // Clear the file input
-        if (fileNameDisplayEl) fileNameDisplayEl.innerHTML = '<p style="margin-top:5px; font-weight: bold; color: #555;">No file selected</p>'; // Reset to default message
-        if (dropZoneLabelEl) {
-            dropZoneLabelEl.classList.remove('file-selected'); // Reset drop zone appearance
-            dropZoneLabelEl.style.borderColor = '#007bff'; // Reset border color to default
-        }
-    }
-
-    // Call setup for image blurring with the new element IDs
-    setupDropZone('image-drop-zone-label', 'image-file-input', 'image-file-name-display');
-
-    // Initial state setup: Ensure the image tab is active on load
-    document.addEventListener('DOMContentLoaded', function() {
-        const imageTabLink = blurringFeatureContainer.querySelector('.tab-link[data-target-tab="image-blur-tab"]');
-        if (imageTabLink) {
-            openBlurringFeatureTab('image-blur-tab');
-        }
-    });
-
-})();
+window.addEventListener('dragover', (e) => { e.preventDefault(); });
+window.addEventListener('drop', (e) => { e.preventDefault(); });
 </script>
