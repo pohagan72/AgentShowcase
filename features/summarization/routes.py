@@ -50,9 +50,9 @@ except ImportError as e:
     ppt_translate = type('DummyTranslate', (), {'translate_slide_data': dummy_ppt_func})()
 
 # --- Constants for Text Summarization ---
-MAX_CONTENT_LENGTH_TEXT_SUMMARY = 1000000
+# MAX_CONTENT_LENGTH_TEXT_SUMMARY = 1000000 # REMOVED - File size limit is the primary control now
 MAX_CLASSIFICATION_EXCERPT_TEXT_SUMMARY = 15000 # Max chars for classifying text summary input
-TEXT_SUMMARY_MAX_FILE_SIZE_MB = 10 # New constant for file size limit
+TEXT_SUMMARY_MAX_FILE_SIZE_MB = 10 
 TEXT_SUMMARY_MAX_FILE_SIZE_BYTES = TEXT_SUMMARY_MAX_FILE_SIZE_MB * 1024 * 1024
 
 CLASSIFICATION_CATEGORIES_TEXT_SUMMARY = [
@@ -306,7 +306,6 @@ def define_summarization_routes(app_shell):
     def process_summarize():
         g.request_id = uuid.uuid4().hex 
         logging.info(f"Received text summarization request {g.request_id}")
-        # Initialize classification_used in context for initial state or errors before classification
         context = {"summary": "", "classification_used": None, "hx_target_is_text_summary_result": True}
 
 
@@ -355,22 +354,21 @@ def define_summarization_routes(app_shell):
             flash("Please upload a file to summarize, or ensure the uploaded file contains extractable text and is not empty.", "warning")
             return render_template("summarization/templates/summarization_content.html", **context)
         
-        if len(content_to_process) > MAX_CONTENT_LENGTH_TEXT_SUMMARY: 
-             flash(f"Extracted text for summary (length: {len(content_to_process):,}) exceeds internal processing limit of {MAX_CONTENT_LENGTH_TEXT_SUMMARY:,} characters.", "error")
-             return render_template("summarization/templates/summarization_content.html", **context)
+        # REMOVED: Extracted text length check - file size limit is primary
+        # if len(content_to_process) > MAX_CONTENT_LENGTH_TEXT_SUMMARY: 
+        #      flash(f"Extracted text for summary (length: {len(content_to_process):,}) exceeds internal processing limit of {MAX_CONTENT_LENGTH_TEXT_SUMMARY:,} characters.", "error")
+        #      return render_template("summarization/templates/summarization_content.html", **context)
 
         model_name = current_app.config.get('GEMINI_MODEL_NAME')
         classification_used, summary_text, error_occurred = classify_and_summarize_with_gemini(
             content_to_process, model_name, filename_for_context
         )
         context["summary"] = summary_text
-        # Ensure classification_used is passed, even if an error occurred before or during summarization
-        # If an error occurred in classify_and_summarize_with_gemini, classification_used might be its default "Other" or "N/A"
         context["classification_used"] = classification_used if not error_occurred and summary_text and not summary_text.startswith("(") else None
 
         return render_template("summarization/templates/summarization_content.html", **context)
 
-        # NEW ROUTE FOR DOWNLOADING GENERATED PPTX
+    # NEW ROUTE FOR DOWNLOADING GENERATED PPTX
     @app_shell.route("/download/ppt/<file_id>/<filename>", methods=["GET"])
     def download_generated_ppt(file_id, filename):
         """
