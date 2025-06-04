@@ -66,7 +66,7 @@
                 <ol><li><strong>Document Classification...</strong></li><li><strong>Context-Aware Summarization...</strong></li></ol>
                 <p>This intelligent, type-specific approach has 20+ custom AI prompts...</p>
             </div>
-            <p class="upload-instructions">Upload a Word, PowerPoint, Excel, or PDF file, or paste text below...</p>
+            <!-- <p class="upload-instructions">Upload a Word, PowerPoint, Excel, or PDF file, or paste text below...</p> -->
             <form id="text-summary-form" hx-post="{{ url_for('process_summarize') }}" hx-target="#text-summarization-result" hx-swap="innerHTML" enctype="multipart/form-data" hx-indicator="#text-summary-form .spinner">
                 <div class="form-group">
                     <label for="text_to_summarize">Paste Text (or leave blank to upload a file):</label>
