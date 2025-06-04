@@ -273,6 +273,96 @@ body, html {
     border-bottom: 1px dotted var(--border-color);
 }
 
+/* --- Enhanced Summary Display Box --- */
+.summary-display-box {
+    background-color: #f8f9fa; /* A light background */
+    border: 1px solid var(--border-color);
+    padding: var(--spacing-unit);
+    border-radius: 5px;
+    line-height: 1.6; /* Improved readability */
+    color: var(--text-color-primary);
+    margin-top: calc(var(--spacing-unit) / 2); /* Space above the box */
+}
+
+.summary-display-box h4 { /* For headings like "Overall Summary:", "Key Highlights:" */
+    font-size: 1.15em;   /* Slightly larger than paragraph text */
+    color: var(--text-color-primary);
+    font-weight: 600;    /* Bolder */
+    margin-top: var(--spacing-unit);
+    margin-bottom: calc(var(--spacing-unit) / 2);
+    padding-bottom: calc(var(--spacing-unit) / 4);
+    border-bottom: 1px dotted #ccc; /* Subtle separator */
+}
+/* Remove top margin for the very first heading in the box */
+.summary-display-box h4:first-child {
+    margin-top: 0;
+}
+
+.summary-display-box p {
+    margin-bottom: calc(var(--spacing-unit) / 2); /* Space between paragraphs */
+    color: var(--text-color-secondary); /* Slightly softer text color for paragraphs */
+}
+.summary-display-box p:last-child {
+    margin-bottom: 0;
+}
+
+.summary-display-box ul {
+    list-style-type: disc; /* Standard bullets */
+    list-style-position: outside;
+    padding-left: calc(var(--spacing-unit) * 1.5); /* Indent list items */
+    margin-top: calc(var(--spacing-unit) / 4);
+    margin-bottom: calc(var(--spacing-unit) / 2);
+    color: var(--text-color-secondary);
+}
+
+.summary-display-box li {
+    margin-bottom: calc(var(--spacing-unit) / 4); /* Space between list items */
+}
+
+.summary-display-box strong { /* For bolded text from markdown */
+    font-weight: 600;
+    color: var(--text-color-primary);
+}
+
+/* --- Model Used Info Box --- */
+.model-used-info {
+    margin-top: calc(var(--spacing-unit) * 0.75);
+    padding: calc(var(--spacing-unit) / 1.8) calc(var(--spacing-unit) / 1.5); /* Slightly more padding */
+    background-color: #f0f9ff; /* A lighter, more subtle blue */
+    border: 1px solid #e0f2fe;   /* Lighter border */
+    border-left: 5px solid var(--primary-color); /* Prominent accent left border */
+    border-radius: 6px;
+    font-size: 0.92em; /* Slightly larger for better readability */
+    color: #0c4a6e; /* A deeper, more professional blue text */
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Subtle shadow for depth */
+    transition: all 0.3s ease-in-out; /* Smooth transition for any future hover effects */
+}
+
+.model-used-info:hover { /* Optional: subtle hover effect */
+    background-color: #e0f2fe;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.07);
+}
+
+.model-used-info i.fa-microchip { /* Specific icon styling */
+    margin-right: calc(var(--spacing-unit) / 1.5);
+    font-size: 1.5em; /* Larger icon */
+    color: var(--primary-color);
+    opacity: 0.85;
+}
+
+.model-used-info strong {
+    font-weight: 600;
+    color: var(--primary-color-dark); /* Use a darker shade of primary for emphasis */
+}
+
+/* Ensure the processing result container has enough space if summary is long */
+.feature-container .processing-result {
+    /* existing styles */
+    min-height: 100px; /* Or adjust as needed */
+}
+
 /* --- Generic Tab Styling --- */
 .feature-tabs {
     border-bottom: 2px solid var(--border-color);
