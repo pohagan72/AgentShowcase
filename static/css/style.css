@@ -15,6 +15,7 @@
     --spacing-unit: 1rem;               /* Base spacing unit */
 }
 
+
 /* --- Basic Resets and Box Sizing --- */
 *, *::before, *::after {
     box-sizing: border-box;
@@ -22,19 +23,27 @@
     padding: 0;
 }
 
-body, html {
+html {
+    height: 100%; /* Ensure html takes full viewport height */
     font-family: var(--font-family);
     font-size: var(--font-size-base);
+}
+
+body {
+    min-height: 100%; /* Ensure body can grow at least to full viewport height */
     background-color: var(--background-color);
     color: var(--text-color-primary);
-    height: 100%;
-    overflow: hidden; /* Prevent body scrollbar */
+    margin: 0;
+    display: flex; /* Use flexbox for the body to manage .app-container */
+    flex-direction: column; /* Stack children vertically */
 }
 
 /* --- App Container (Main Layout) --- */
 .app-container {
     display: flex;
-    height: 100vh; /* Full viewport height */
+    flex: 1; /* Make .app-container take all available vertical space in body */
+    /* No explicit height: 100vh; here. Let flex: 1 handle it. */
+    /* overflow: hidden; /* REMOVE this if present, let content-area handle its own scroll */
 }
 
 /* --- Sidebar --- */
@@ -45,8 +54,9 @@ body, html {
     box-shadow: 3px 0 15px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
-    overflow-y: auto; /* Sidebar can scroll internally */
+    overflow-y: auto; /* Sidebar scrolls its own content if it's too long */
     padding: var(--spacing-unit) 0;
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
 }
 
 .sidebar-header {
@@ -118,10 +128,11 @@ body, html {
 
 /* --- Content Area --- */
 .content-area {
-    flex-grow: 1;
+    flex-grow: 1; /* Allow content-area to take remaining width */
     padding: calc(var(--spacing-unit) * 1.5) calc(var(--spacing-unit) * 2);
     background-color: var(--surface-color);
-    overflow-y: auto; /* Main scrolling area */
+    overflow-y: auto; /* THIS is the primary scrolling area for content */
+    /* min-height: 0; is not strictly needed here if .app-container uses flex:1 correctly */
 }
 
 /* --- Global HTMX Indicator & Spinner --- */
