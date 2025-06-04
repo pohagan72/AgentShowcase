@@ -52,6 +52,9 @@ except ImportError as e:
 # --- Constants for Text Summarization ---
 MAX_CONTENT_LENGTH_TEXT_SUMMARY = 1000000
 MAX_CLASSIFICATION_EXCERPT_TEXT_SUMMARY = 15000 # Max chars for classifying text summary input
+TEXT_SUMMARY_MAX_FILE_SIZE_MB = 10 # New constant for file size limit
+TEXT_SUMMARY_MAX_FILE_SIZE_BYTES = TEXT_SUMMARY_MAX_FILE_SIZE_MB * 1024 * 1024
+
 CLASSIFICATION_CATEGORIES_TEXT_SUMMARY = [
     "Resume/CV", "Patent", "Terms of Service (ToS)", "Service Level Agreement (SLA)",
     "Contract/Agreement", "Privacy Policy", "Informational Guide/Manual",
@@ -303,10 +306,21 @@ def define_summarization_routes(app_shell):
 
         if file_input and file_input.filename:
             filename_for_context = secure_filename(file_input.filename)
+            
+            # --- Check file size ---
+            file_input.seek(0, os.SEEK_END)
+            file_size = file_input.tell()
+            file_input.seek(0) # Reset stream position
+
+            if file_size > TEXT_SUMMARY_MAX_FILE_SIZE_BYTES:
+                flash(f"File '{filename_for_context}' ({file_size/1024/1024:.2f}MB) is too large. Maximum allowed size is {TEXT_SUMMARY_MAX_FILE_SIZE_MB}MB.", "error")
+                return render_template("summarization/templates/summarization_content.html", **context)
+            # --- End file size check ---
+
             file_ext = os.path.splitext(filename_for_context)[1].lower()
-            logging.info(f"[{g.request_id}] Text Summary: Processing file '{filename_for_context}'")
+            logging.info(f"[{g.request_id}] Text Summary: Processing file '{filename_for_context}' (Size: {file_size} bytes)")
             try:
-                file_stream = io.BytesIO(file_input.read())
+                file_stream = io.BytesIO(file_input.read()) # Read after size check
                 if file_ext == ".docx": text_content_from_file = read_text_from_docx(file_stream)
                 elif file_ext == ".pptx": text_content_from_file = read_text_from_pptx(file_stream)
                 elif file_ext == ".xlsx": text_content_from_file = read_text_from_excel(file_stream)
@@ -326,11 +340,13 @@ def define_summarization_routes(app_shell):
         content_to_process = text_content_from_file if text_content_from_file and text_content_from_file.strip() else request.form.get("text_to_summarize", "").strip()
         
         if not content_to_process:
-            flash("No content (from file or pasted text) provided for text summary.", "warning")
+            # This message might now be less common if a file is required and successfully read.
+            # It could still trigger if file upload failed silently client-side or if an empty file was uploaded and no text extracted.
+            flash("Please upload a file to summarize, or ensure the uploaded file contains extractable text and is not empty.", "warning")
             return render_template("summarization/templates/summarization_content.html", **context)
         
-        if len(content_to_process) > MAX_CONTENT_LENGTH_TEXT_SUMMARY:
-             flash(f"Text for summary (length: {len(content_to_process):,}) exceeds limit of {MAX_CONTENT_LENGTH_TEXT_SUMMARY:,}.", "error")
+        if len(content_to_process) > MAX_CONTENT_LENGTH_TEXT_SUMMARY: # This is a check on TEXT content length, not file size.
+             flash(f"Extracted text for summary (length: {len(content_to_process):,}) exceeds internal processing limit of {MAX_CONTENT_LENGTH_TEXT_SUMMARY:,} characters.", "error")
              return render_template("summarization/templates/summarization_content.html", **context)
 
         model_name = current_app.config.get('GEMINI_MODEL_NAME')
@@ -385,7 +401,6 @@ def define_summarization_routes(app_shell):
             logging.error(f"[{file_id}] Error serving generated PPTX from GCS ({gcs_path}): {e}", exc_info=True, extra=log_extra_ppt)
             flash("An unexpected error occurred while preparing your download.", "error")
             return redirect(url_for('display_feature', feature_name='summarization'))
-
 
     @app_shell.route("/process/summarization/create_ppt", methods=["POST"])
     def process_create_ppt():
@@ -472,7 +487,8 @@ def define_summarization_routes(app_shell):
                 uploaded_files = request.files.getlist('file')
                 
                 max_files_config = current_app.config.get('PPT_MAX_FILES', 5)
-                max_file_size_config = current_app.config.get('PPT_MAX_FILE_SIZE_MB', 10) * 1024 * 1024
+                # Use the app config for PPT max file size, which defaults to 10MB if not set.
+                max_file_size_config_ppt = current_app.config.get('PPT_MAX_FILE_SIZE_MB', 10) * 1024 * 1024 
                 allowed_ext_str_config = current_app.config.get('PPT_ALLOWED_EXTENSIONS_STR', '.docx,.pdf,.py')
                 allowed_ext_set_config = set(ext.strip().lower() for ext in allowed_ext_str_config.replace('.', '').split(','))
 
@@ -487,13 +503,13 @@ def define_summarization_routes(app_shell):
                 for f_obj in uploaded_files:
                     filename_check = secure_filename(f_obj.filename)
                     f_obj.seek(0, os.SEEK_END); file_size = f_obj.tell(); f_obj.seek(0)
-                    if ppt_allowed_file_util(filename_check, allowed_ext_set_config) and file_size <= max_file_size_config:
+                    if ppt_allowed_file_util(filename_check, allowed_ext_set_config) and file_size <= max_file_size_config_ppt: # Check against PPT specific limit
                         valid_files_for_processing.append(f_obj)
                     else:
-                        logging.warning(f"[{g.request_id}] Ignored file for PPT: {filename_check} (size: {file_size}, type_valid: {ppt_allowed_file_util(filename_check, allowed_ext_set_config)})", extra=log_extra_ppt)
+                        logging.warning(f"[{g.request_id}] Ignored file for PPT: {filename_check} (size: {file_size}, type_valid: {ppt_allowed_file_util(filename_check, allowed_ext_set_config)}, size_valid: {file_size <= max_file_size_config_ppt})", extra=log_extra_ppt)
                 
                 if not valid_files_for_processing:
-                    context = {"ppt_error_message": "No valid files provided (check type/size). Allowed: " + allowed_ext_str_config, "hx_target_is_ppt_status_result": True}
+                    context = {"ppt_error_message": f"No valid files provided (check type/size). Allowed: {allowed_ext_str_config}, Max Size: {current_app.config.get('PPT_MAX_FILE_SIZE_MB', 10)}MB", "hx_target_is_ppt_status_result": True}
                     return render_template("summarization/templates/summarization_content.html", **context), 400
                 
                 total_to_process = len(valid_files_for_processing)
