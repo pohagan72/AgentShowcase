@@ -35,14 +35,14 @@
                 <div class="form-group blur-slider-group">
                     <label for="blur_strength_slider" class="blur-slider-label">Blur Strength:</label>
                     <div class="vertical-slider-container">
-                        <span>Heavy</span>
+                        <span>Light</span>
                         <input type="range" id="blur_strength_slider" name="blur_strength" class="form-range vertical-slider" 
                                orient="vertical"
                                min="1" max="3" step="1" value="2" 
                                {% if not gcs_available %}disabled{% endif %}>
-                        <span>Light</span>
+                        <span>Heavy</span>
                     </div>
-                    <div id="blur-strength-value" class="blur-slider-value-display">Medium</div>
+                    <!-- The "Medium" text display div has been removed -->
                 </div>
             </div>
 
@@ -59,32 +59,20 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     const blurringFeatureContainer = document.querySelector('.blurring-feature-container');
     if (!blurringFeatureContainer) return;
 
     const dropZoneLabel = blurringFeatureContainer.querySelector('#blur-drop-zone-label');
     const fileInput = blurringFeatureContainer.querySelector('#blur-file-input');
-    const fileNameDisplay = blurringFeatureContainer.querySelector('#blur-file-name-display'); // Targets the second <p>
-    const blurStrengthSlider = blurringFeatureContainer.querySelector('#blur_strength_slider');
-    const blurStrengthValueDisplay = blurringFeatureContainer.querySelector('#blur-strength-value');
+    const fileNameDisplay = blurringFeatureContainer.querySelector('#blur-file-name-display');
 
-    if (blurStrengthSlider && blurStrengthValueDisplay) {
-        const strengthLabels = { '1': 'Light', '2': 'Medium', '3': 'Heavy' };
-        function updateBlurDisplay() {
-            blurStrengthValueDisplay.textContent = strengthLabels[blurStrengthSlider.value] || 'Medium';
-        }
-        updateBlurDisplay();
-        blurStrengthSlider.addEventListener('input', updateBlurDisplay);
-    }
+    // The JavaScript for the blur strength text display has been removed as the element is gone.
     
     if (dropZoneLabel && fileInput && fileNameDisplay) {
-        dropZoneLabel.addEventListener('click', (e) => {
-            // If a remove link is ever added INSIDE fileNameDisplay, this would prevent dialog opening.
-            if (e.target.classList && e.target.classList.contains('remove-file-link')) return;
-            fileInput.click();
-        });
-
+        // The redundant click listener on the label has been removed to prevent a double-prompt.
+        // The browser's native behavior for a <label for="..."> is sufficient and correct.
+        
         dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); if (fileInput.disabled) return; dropZoneLabel.classList.add('drag-over');});
         dropZoneLabel.addEventListener('dragleave', () => { if (fileInput.disabled) return; dropZoneLabel.classList.remove('drag-over');});
         dropZoneLabel.addEventListener('drop', (e) => {
@@ -105,11 +93,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 
                 if (allowedTypes.includes(file.type) || validExtensions.includes(fileExt)) {
-                    // Update the text of the second paragraph to show filename and size.
-                    // Add Remove link.
                     fileNameDisplay.innerHTML = `<strong>${file.name}</strong> (${(file.size / 1024 / 1024).toFixed(2)} MB) <span class="remove-file-link" style="cursor:pointer; color:red; margin-left:5px;">× Remove</span>`;
-                    fileNameDisplay.style.fontWeight = 'bold'; // Make filename part bold
-                    fileNameDisplay.style.color = '#333';     // Darker color for selected file text
+                    fileNameDisplay.style.fontWeight = 'bold';
+                    fileNameDisplay.style.color = '#333';
 
                     const removeLink = fileNameDisplay.querySelector('.remove-file-link');
                     if (removeLink) {
@@ -124,20 +110,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     alert('Invalid file type. Please upload a JPG, PNG, or WEBP image.');
                     fileInput.value = ''; 
-                    // Manually trigger change to reset display
                     const changeEvent = new Event('change', { bubbles: true });
                     fileInput.dispatchEvent(changeEvent);
                 }
             } else {
-                // No file is selected, or selection was cleared
                 fileNameDisplay.textContent = 'No file selected';
-                fileNameDisplay.style.fontWeight = 'normal'; // Reset to default non-bold
-                fileNameDisplay.style.color = '#555';       // Reset to default placeholder color
+                fileNameDisplay.style.fontWeight = 'normal';
+                fileNameDisplay.style.color = '#555';
                 dropZoneLabel.classList.remove('file-selected');
             }
         });
     }
-});
+})();
 
 window.addEventListener('dragover', (e) => { e.preventDefault(); });
 window.addEventListener('drop', (e) => { e.preventDefault(); });

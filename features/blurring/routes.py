@@ -30,7 +30,6 @@ def define_blurring_routes(app_shell):
         if not hasattr(g, 'gcs_urgent_temp_paths_to_clean'):
             g.gcs_urgent_temp_paths_to_clean = []
 
-
         @after_this_request
         def cleanup_gcs_uploads(response):
             # This function will now only clean up paths explicitly added to 'gcs_urgent_temp_paths_to_clean'
@@ -64,12 +63,14 @@ def define_blurring_routes(app_shell):
             logging.warning(f"[{g.request_id}] Invalid file type for blurring: {file.filename}", extra=log_extra)
             return render_template("blurring/templates/_blurring_error_partial.html", error_message="Invalid file type. Please upload a JPG, PNG, or WEBP image.")
 
-
         try:
             blur_selection = int(request.form.get('blur_strength', '2')) 
         except ValueError:
-            blur_selection = 2 
-        blur_strength_map = {1: 35, 2: DEFAULT_BLUR_STRENGTH, 3: 99} 
+            blur_selection = 2
+        # FIX: This mapping is reversed to match the new UI.
+        # Top of slider ("Light") is max value (3), which now maps to the smallest blur size.
+        # Bottom of slider ("Heavy") is min value (1), which now maps to the largest blur size.
+        blur_strength_map = {1: 99, 2: DEFAULT_BLUR_STRENGTH, 3: 35} 
         blur_size = blur_strength_map.get(blur_selection, DEFAULT_BLUR_STRENGTH)
 
         original_filename = secure_filename(file.filename)
