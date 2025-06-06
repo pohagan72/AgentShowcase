@@ -103,7 +103,7 @@ except Exception as e:
 
 FEATURES_DATA = {
     "welcome": {"name": "Welcome", "icon": "fas fa-home", "template": "partials/_welcome_content.html"},
-    "transcription": {"name": "Transcription", "icon": "fas fa-microphone-alt", "template": "transcription/templates/transcription_content.html"},
+    # "transcription": {"name": "Transcription", "icon": "fas fa-microphone-alt", "template": "transcription/templates/transcription_content.html"},
     "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"},
     "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"},
     "pii_redaction": {"name": "PII Redaction", "icon": "fas fa-user-shield", "template": "pii_redaction/templates/pii_redaction_content.html"},
@@ -131,22 +131,20 @@ else:
     app.config['PPT_TEMPLATES'] = ['professional', 'creative', 'minimalist']
     app.config['PPT_DEFAULT_TEMPLATE_NAME'] = 'professional'
 
-
 # --- Import and Register Feature Routes ---
-from features.transcription.routes import define_transcription_routes
+# from features.transcription.routes import define_transcription_routes
 from features.translation.routes import define_translation_routes
 from features.summarization.routes import define_summarization_routes
 from features.pii_redaction.routes import define_pii_redaction_routes
 from features.blurring.routes import define_blurring_routes # <<<--- ADD THIS IMPORT
 from features.info.routes import define_info_routes
 
-define_transcription_routes(app)
+# define_transcription_routes(app)
 define_translation_routes(app)
 define_summarization_routes(app)
 define_pii_redaction_routes(app)
 define_blurring_routes(app) # <<<--- ADD THIS CALL
 define_info_routes(app)
-
 
 @app.route('/')
 def root_redirect():
@@ -171,7 +169,6 @@ def index(feature_key):
         DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY,
         gcs_available=current_app.config.get('GCS_AVAILABLE', False) # Pass gcs_available to layout
     )
-
 
 @app.route('/content/<feature_key>')
 def get_feature_content(feature_key):
@@ -213,9 +210,7 @@ def get_feature_content(feature_key):
         # No specific extra context needed for initial render of blurring beyond common ones
         pass
 
-
     return render_template(template_to_render, **context)
-
 
 if __name__ == '__main__':
     logging.info(f"Starting Flask development server on http://localhost:5001")

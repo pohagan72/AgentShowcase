@@ -1,0 +1,45 @@
+{# features/translation/templates/_translation_results_partial.html #}
+
+{# First, display any flashed messages that occurred during processing #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="translation-messages">
+            {% for category, message in messages %}
+                <div class="message-item category-{{ category|default('info') }}" 
+                     role="alert">
+                    {% if category == 'error' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                    {% elif category == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% elif category == 'warning' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
+{# Then, display the download link for the translated native file, if it was created #}
+{% if file_id %}
+    <div class="translation-download-link" style="margin-bottom: 1.5rem;">
+        <a href="{{ url_for('download_translated_file', file_id=file_id) }}" 
+           class="submit-button">
+           <i class="fas fa-download"></i> Download Translated File
+        </a>
+        <p>
+            Note: Download links are temporary. The file will be removed from storage after a period defined by system policy.
+        </p>
+    </div>
+{% endif %}
+
+{# NEW: Display the translated text in a scrollable, copy-paste friendly Markdown box #}
+{% if translated_markdown %}
+<div class="summary-display-box" style="margin-top: 1rem;">
+    <h4>Translated Text (Markdown)</h4>
+    <pre style="white-space: pre-wrap; word-wrap: break-word; background-color: #fff; padding: 10px; border-radius: 4px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto;"><code>{{ translated_markdown }}</code></pre>
+</div>
+{% endif %}

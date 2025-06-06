@@ -112,73 +112,63 @@ def blob_to_bytesio(blob):
         flash(f"Error accessing temporary file from cloud storage: {e}", "error")
         return None
 
-# --- File Reading Utilities (from standalone, adapted for clarity and stream reset) ---
-def read_text_from_docx(file_stream):
+# --- NEW: Structured File Reading Utilities for Markdown Generation ---
+def read_docx_structured(file_stream):
+    """Reads DOCX and yields each paragraph/cell text as a segment."""
     try:
         file_stream.seek(0)
         doc = Document(file_stream)
-        full_text = [p.text for p in doc.paragraphs if p.text.strip()]
+        for p in doc.paragraphs:
+            if p.text.strip(): yield p.text
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     cell_text = "\n".join([p.text for p in cell.paragraphs if p.text.strip()])
-                    if cell_text: full_text.append(cell_text)
-        file_stream.seek(0)
-        return "\n".join(full_text)
-    except Exception as e:
-        print(f"Error reading DOCX: {e}")
-        flash(f"Error reading DOCX file: {e}", "error")
+                    if cell_text: yield cell_text
+    finally:
         if file_stream: file_stream.seek(0)
-        return ""
 
-def read_text_from_pptx(file_stream):
+def read_pptx_structured(file_stream):
+    """Reads PPTX and yields the combined text of each slide as a segment."""
     try:
         file_stream.seek(0)
         ppt = Presentation(file_stream)
-        full_text = []
         for slide in ppt.slides:
+            slide_texts = []
             for shape in slide.shapes:
                 if shape.has_text_frame:
                     for p in shape.text_frame.paragraphs:
-                        if p.text.strip(): full_text.append(p.text)
+                        if p.text.strip(): slide_texts.append(p.text)
                 if shape.has_table:
                     for row in shape.table.rows:
                         for cell in row.cells:
                             if cell.text_frame and cell.text_frame.text.strip():
-                                full_text.append(cell.text_frame.text)
+                                slide_texts.append(cell.text_frame.text)
                 if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
                     for subshape in shape.shapes:
-                         if subshape.has_text_frame:
-                             for p in subshape.text_frame.paragraphs:
-                                if p.text.strip(): full_text.append(p.text)
-        file_stream.seek(0)
-        return "\n".join(full_text)
-    except Exception as e:
-        print(f"Error reading PPTX: {e}")
-        flash(f"Error reading PPTX file: {e}", "error")
+                        if subshape.has_text_frame:
+                            for p in subshape.text_frame.paragraphs:
+                                if p.text.strip(): slide_texts.append(p.text)
+            if slide_texts:
+                yield "\n".join(slide_texts)
+    finally:
         if file_stream: file_stream.seek(0)
-        return ""
 
-def read_text_from_excel(file_stream):
+def read_excel_structured(file_stream):
+    """Reads Excel and yields each non-empty cell as a segment."""
     try:
         file_stream.seek(0)
-        excel_data = pd.read_excel(file_stream, sheet_name=None) # Read all sheets
-        text_list = []
-        if excel_data: # Check if excel_data is not None (e.g. for empty files)
+        excel_data = pd.read_excel(file_stream, sheet_name=None)
+        if excel_data:
             for sheet_name, df in excel_data.items():
                 for r in range(df.shape[0]):
                     for c in range(df.shape[1]):
-                        cell_value = df.iat[r,c]
+                        cell_value = df.iat[r, c]
                         if pd.notna(cell_value):
                             cell_str = str(cell_value).strip()
-                            if cell_str: text_list.append(cell_str)
-        file_stream.seek(0)
-        return "\n".join(text_list)
-    except Exception as e:
-        print(f"Error reading Excel: {e}")
-        flash(f"Error reading Excel file: {e}", "error")
+                            if cell_str: yield cell_str
+    finally:
         if file_stream: file_stream.seek(0)
-        return ""
 
 # --- File Translation Utilities (from standalone, minor adaptations for style preservation) ---
 def translate_docx_in_memory(file_stream, target_lang, model_name, detected_lang):
@@ -307,41 +297,35 @@ def define_translation_routes(app_shell):
     def process_translate_document():
         g.request_id = uuid.uuid4().hex 
         gcs_temp_paths_to_clean = []
+        render_context = {"file_id": None, "translated_markdown": None}
 
         gcs_available = current_app.config.get('GCS_AVAILABLE', False)
         gemini_configured = current_app.config.get('GEMINI_CONFIGURED', False)
         gcs_bucket = current_app.gcs_bucket
         gemini_model_name = current_app.config.get('GEMINI_MODEL_NAME')
         
-        render_context = {
-            "languages": current_app.config.get('TRANSLATION_LANGUAGES', []),
-            "gcs_available": gcs_available,
-            "gemini_configured": gemini_configured,
-            "file_id": None
-        }
-
         if not gcs_available:
             flash("Google Cloud Storage is not available. Cannot process files.", "error")
-            return render_template("translation/templates/translation_content.html", **render_context)
+            return render_template("translation/templates/_translation_results_partial.html", **render_context)
         if not gemini_configured or not gemini_model_name:
             flash("Google Gemini AI is not configured or model name is missing. Cannot translate.", "error")
-            return render_template("translation/templates/translation_content.html", **render_context)
+            return render_template("translation/templates/_translation_results_partial.html", **render_context)
 
         file = request.files.get("file")
         target_lang = request.form.get("target_language")
 
         if not file or file.filename == "":
             flash("No file selected.", "error")
-            return render_template("translation/templates/translation_content.html", **render_context)
+            return render_template("translation/templates/_translation_results_partial.html", **render_context)
         if not target_lang:
             flash("No target language selected.", "error")
-            return render_template("translation/templates/translation_content.html", **render_context)
+            return render_template("translation/templates/_translation_results_partial.html", **render_context)
 
         safe_filename = secure_filename(file.filename)
         file_extension = os.path.splitext(safe_filename)[1].lower()
         if file_extension not in [".docx", ".pptx", ".xlsx"]:
             flash("Unsupported file type. Only .docx, .pptx, .xlsx are supported.", "error")
-            return render_template("translation/templates/translation_content.html", **render_context)
+            return render_template("translation/templates/_translation_results_partial.html", **render_context)
 
         upload_gcs_path = f"translation_feature/uploads/{g.request_id}/{safe_filename}"
         translated_gcs_path = f"translation_feature/results/{g.request_id}/translated_{safe_filename}"
@@ -354,34 +338,43 @@ def define_translation_routes(app_shell):
             gcs_temp_paths_to_clean.append(upload_gcs_path)
             print(f"[{g.request_id}] Upload complete for {safe_filename}.")
 
-            print(f"[{g.request_id}] Reading content from GCS for language detection and translation...")
+            print(f"[{g.request_id}] Reading content from GCS for translation and Markdown generation...")
             uploaded_file_stream = blob_to_bytesio(upload_blob)
             if not uploaded_file_stream:
-                return render_template("translation/templates/translation_content.html", **render_context)
+                return render_template("translation/templates/_translation_results_partial.html", **render_context)
 
-            file_content_for_detection = ""
+            text_segments = []
             if file_extension == ".docx":
-                file_content_for_detection = read_text_from_docx(uploaded_file_stream)
+                text_segments = list(read_docx_structured(uploaded_file_stream))
             elif file_extension == ".pptx":
-                file_content_for_detection = read_text_from_pptx(uploaded_file_stream)
+                text_segments = list(read_pptx_structured(uploaded_file_stream))
             elif file_extension == ".xlsx":
-                file_content_for_detection = read_text_from_excel(uploaded_file_stream)
+                text_segments = list(read_excel_structured(uploaded_file_stream))
             
-            if uploaded_file_stream: uploaded_file_stream.seek(0)
-
             detected_language_code = None
-            if file_content_for_detection and file_content_for_detection.strip():
-                detected_language_code = detect_language_util(file_content_for_detection)
+            if text_segments:
+                full_text_for_detection = "\n".join(text_segments)
+                detected_language_code = detect_language_util(full_text_for_detection)
                 if detected_language_code:
                     flash(f"Detected source language: {detected_language_code.upper()}", "info")
-                else:
-                    flash("Could not confidently detect source language. Proceeding with translation.", "warning")
             else:
-                flash("No text extracted for language detection or file is empty. Proceeding with translation attempt.", "warning")
-            
-            print(f"[{g.request_id}] Translating content to {target_lang}...")
-            translated_file_stream = None
+                flash("No text extracted for translation.", "warning")
 
+            # --- Translate for Markdown (Segment by Segment) ---
+            translated_segments = [translate_text_util(s, target_lang, gemini_model_name, detected_language_code) for s in text_segments]
+            
+            # --- Format Translated Segments into Markdown ---
+            if translated_segments:
+                if file_extension == ".pptx":
+                    render_context["translated_markdown"] = "\n\n---\n\n".join(
+                        [f"# Slide {i+1}\n\n{text}" for i, text in enumerate(translated_segments)]
+                    )
+                else: # .docx and .xlsx
+                    render_context["translated_markdown"] = "\n\n".join(translated_segments)
+            
+            # --- Translate Native File (In Memory) ---
+            print(f"[{g.request_id}] Translating native file to {target_lang}...")
+            translated_file_stream = None
             if file_extension == ".docx":
                 translated_file_stream = translate_docx_in_memory(uploaded_file_stream, target_lang, gemini_model_name, detected_language_code)
             elif file_extension == ".pptx":
@@ -402,23 +395,19 @@ def define_translation_routes(app_shell):
                     'filename': f"translated_{safe_filename}"
                 }
                 render_context["file_id"] = session_file_id
-                flash("Translation process completed successfully. Click the link below to download.", "success")
+                flash("Translation process completed successfully.", "success")
             else:
-                # Check if a more specific error was already flashed by translation/reading functions
-                # get_flashed_messages consumes messages, so this check is tricky here.
-                # Relying on translation functions to flash specific errors.
-                # If no specific error, and stream is None, it's a general failure.
-                if not get_flashed_messages(category_filter=["error"]): # Check if an error was already flashed
-                    flash("Translation failed. Could not generate translated file.", "error")
-            
-            return render_template("translation/templates/translation_content.html", **render_context)
+                 if not any(cat == 'error' for cat, msg in get_flashed_messages(with_categories=True)):
+                    flash("Translation succeeded for text preview, but failed to generate the downloadable native file.", "warning")
+
+            return render_template("translation/templates/_translation_results_partial.html", **render_context)
 
         except Exception as e:
             print(f"[{g.request_id}] Critical error during translation processing: {e}")
             flash(f"An unexpected critical error occurred: {str(e)}", "error")
             import traceback
             traceback.print_exc()
-            return render_template("translation/templates/translation_content.html", **render_context)
+            return render_template("translation/templates/_translation_results_partial.html", **render_context)
         finally:
             if gcs_bucket and gcs_temp_paths_to_clean:
                 print(f"[{g.request_id}] Cleaning up temporary GCS objects: {gcs_temp_paths_to_clean}")
@@ -463,7 +452,6 @@ def define_translation_routes(app_shell):
             output_stream.seek(0)
             
             print(f"[{request_id_dl}] Successfully downloaded from GCS. Serving file {filename_for_download}.")
-            # session.pop(file_id, None) # Optional: make download link one-time by popping session here
 
             return send_file(
                 output_stream,
