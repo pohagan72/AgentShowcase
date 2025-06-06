@@ -15,7 +15,6 @@
     --spacing-unit: 1rem;               /* Base spacing unit */
 }
 
-
 /* --- Basic Resets and Box Sizing --- */
 *, *::before, *::after {
     box-sizing: border-box;
@@ -408,7 +407,6 @@ body {
 .translation-feature-container { max-width: 700px; } 
 .pii-redaction-tile-container.feature-container { max-width: 700px; } 
 
-
 /* --- Explanation Box within features (General) --- */
 .feature-container .feature-explanation {
     margin-top: var(--spacing-unit); 
@@ -430,7 +428,6 @@ body {
     margin-bottom: var(--spacing-unit); font-style: italic;
     color: var(--text-color-secondary);
 }
-
 
 /* --- Flashed Messages & Common Animation --- */
 .error-message { 
@@ -569,7 +566,6 @@ body {
     flex-direction: column;
     justify-content: center; 
 }
-
 
 .blurring-feature-container .blur-slider-group {
     flex: 1; 
