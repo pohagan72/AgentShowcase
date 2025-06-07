@@ -70,7 +70,47 @@
 
     <!-- Tab Content for Image Analytics -->
     <div id="analytics-tab" class="feature-tab-content">
-        {% include 'multimedia/templates/_image_analytics_placeholder.html' %}
+        <h2><i class="fas fa-chart-bar"></i> GenAI Image Analytics</h2>
+        <p class="feature-description">
+            Upload an image to receive a comprehensive analysis from our vision-enabled AI agent. The agent will describe the scene, extract any text, check for sensitive content, and identify objects.
+        </p>
+
+        {% if not gemini_configured %}
+            <div class="message-item category-error" role="alert">
+                <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                <strong>Configuration Issue:</strong> The GenAI service is not available. Image analysis is disabled.
+            </div>
+        {% endif %}
+
+        <form id="analytics-upload-form"
+              hx-post="{{ url_for('process_multimedia_analyze_image_route') }}"
+              hx-target="#analytics-results-area"
+              hx-swap="innerHTML"
+              hx-encoding="multipart/form-data"
+              hx-indicator="#analytics-start-button .spinner"
+              hx-params="not image_data_url"> {# <<<<<<< FIX: EXCLUDE THE LARGE DATA URL FROM SUBMISSION #}
+            
+            <!-- This hidden input will hold the image data URL for previewing -->
+            <input type="hidden" name="image_data_url" id="analytics-image-data-url">
+
+            <div class="form-group drop-zone-group">
+                <label for="analytics-file-input" id="analytics-drop-zone-label" class="drop-zone-style">
+                    <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drag & drop your image (JPG, PNG, WEBP) here, or click to select.</p>
+                    <p id="analytics-file-name-display" style="margin-top:5px; color: #555; font-weight: normal;">No file selected</p>
+                </label>
+                <input type="file" id="analytics-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required
+                       {% if not gemini_configured %}disabled{% endif %}>
+            </div>
+
+            <button type="submit" id="analytics-start-button" class="submit-button" {% if not gemini_configured %}disabled{% endif %}>
+                <i class="fas fa-search"></i> Analyze Image
+                <span class="htmx-indicator spinner"></span>
+            </button>
+        </form>
+
+        <div id="analytics-results-area" class="processing-result" style="margin-top: 2rem; min-height: 150px;">
+            <p><i>Your image analysis will appear here.</i></p>
+        </div>
     </div>
 </div>
 
@@ -84,31 +124,19 @@
     const tabContents = multimediaFeatureContainer.querySelectorAll('.feature-tab-content');
 
     function openMultimediaTab(targetTabId) {
-        tabContents.forEach(tc => { 
-            tc.style.display = 'none'; 
-            tc.classList.remove('active-content'); 
-        });
+        tabContents.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
         tabLinks.forEach(tl => tl.classList.remove('active'));
-        
         const currentTabContent = multimediaFeatureContainer.querySelector('#' + targetTabId);
         const currentTabLink = multimediaFeatureContainer.querySelector(`.feature-tabs .tab-link[data-target-tab="${targetTabId}"]`);
-        
-        if (currentTabContent) { 
-            currentTabContent.style.display = 'block'; 
-            currentTabContent.classList.add('active-content'); 
-        }
-        if (currentTabLink) { 
-            currentTabLink.classList.add('active'); 
-        }
+        if (currentTabContent) { currentTabContent.style.display = 'block'; currentTabContent.classList.add('active-content'); }
+        if (currentTabLink) { currentTabLink.classList.add('active'); }
     }
 
     tabLinks.forEach(link => {
         link.addEventListener('click', function(event) {
             event.preventDefault();
             const targetTabId = this.dataset.targetTab;
-            if (targetTabId) {
-                openMultimediaTab(targetTabId);
-            }
+            if (targetTabId) { openMultimediaTab(targetTabId); }
         });
     });
 
@@ -118,57 +146,87 @@
         const dropZoneLabel = blurringTabContainer.querySelector('#blur-drop-zone-label');
         const fileInput = blurringTabContainer.querySelector('#blur-file-input');
         const fileNameDisplay = blurringTabContainer.querySelector('#blur-file-name-display');
-
         if (dropZoneLabel && fileInput && fileNameDisplay) {
-            dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); if (fileInput.disabled) return; dropZoneLabel.classList.add('drag-over');});
-            dropZoneLabel.addEventListener('dragleave', () => { if (fileInput.disabled) return; dropZoneLabel.classList.remove('drag-over');});
-            dropZoneLabel.addEventListener('drop', (e) => {
-                e.preventDefault(); if (fileInput.disabled) return;
-                dropZoneLabel.classList.remove('drag-over');
-                if (e.dataTransfer.files.length > 0) {
-                    fileInput.files = e.dataTransfer.files;
-                    const event = new Event('change', { bubbles: true });
-                    fileInput.dispatchEvent(event);
-                }
-            });
+            setupFileDropZone(dropZoneLabel, fileInput, fileNameDisplay);
+        }
+    }
+    
+    // --- Image Analytics Tab Logic ---
+    const analyticsTabContainer = multimediaFeatureContainer.querySelector('#analytics-tab');
+    if (analyticsTabContainer) {
+        const dropZoneLabel = analyticsTabContainer.querySelector('#analytics-drop-zone-label');
+        const fileInput = analyticsTabContainer.querySelector('#analytics-file-input');
+        const fileNameDisplay = analyticsTabContainer.querySelector('#analytics-file-name-display');
+        const resultsArea = analyticsTabContainer.querySelector('#analytics-results-area');
+        const hiddenDataUrlInput = analyticsTabContainer.querySelector('#analytics-image-data-url');
+        
+        if (dropZoneLabel && fileInput && fileNameDisplay && resultsArea && hiddenDataUrlInput) {
+            setupFileDropZone(dropZoneLabel, fileInput, fileNameDisplay, (file) => {
+                // --- UX IMPROVEMENT: Show instant feedback ---
+                resultsArea.innerHTML = `<p><i>Loading preview for ${file.name}...</i></p>`;
 
-            fileInput.addEventListener('change', () => {
-                if (fileInput.files.length > 0) {
-                    const file = fileInput.files[0];
-                    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-                    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-                    const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-
-                    if (allowedTypes.includes(file.type) || validExtensions.includes(fileExt)) {
-                        fileNameDisplay.innerHTML = `<strong>${file.name}</strong> (${(file.size / 1024 / 1024).toFixed(2)} MB) <span class="remove-file-link" style="cursor:pointer; color:red; margin-left:5px;">× Remove</span>`;
-                        fileNameDisplay.style.fontWeight = 'bold';
-                        fileNameDisplay.style.color = '#333';
-
-                        const removeLink = fileNameDisplay.querySelector('.remove-file-link');
-                        if (removeLink) {
-                            removeLink.addEventListener('click', function(e_remove) {
-                                e_remove.stopPropagation(); 
-                                fileInput.value = ''; 
-                                const changeEvent = new Event('change', { bubbles: true });
-                                fileInput.dispatchEvent(changeEvent);
-                            });
-                        }
-                        dropZoneLabel.classList.add('file-selected'); 
-                    } else {
-                        alert('Invalid file type. Please upload a JPG, PNG, or WEBP image.');
-                        fileInput.value = ''; 
-                        const changeEvent = new Event('change', { bubbles: true });
-                        fileInput.dispatchEvent(changeEvent);
-                    }
-                } else {
-                    fileNameDisplay.textContent = 'No file selected';
-                    fileNameDisplay.style.fontWeight = 'normal';
-                    fileNameDisplay.style.color = '#555';
-                    dropZoneLabel.classList.remove('file-selected');
-                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imageDataUrl = e.target.result;
+                    hiddenDataUrlInput.value = imageDataUrl; 
+                    
+                    // Now render the preview grid
+                    resultsArea.innerHTML = `<div class="analytics-results-grid">
+                        <div class="image-preview-container">
+                            <img src="${imageDataUrl}" alt="Image Preview" class="img-fluid result-image">
+                        </div>
+                        <div class="analysis-details-container">
+                            <p><i>Awaiting analysis from AI agent...</i></p>
+                        </div>
+                    </div>`;
+                };
+                reader.readAsDataURL(file);
             });
         }
     }
+    
+    // --- Reusable File Drop Zone Handler ---
+    function setupFileDropZone(dropZoneLabel, fileInput, fileNameDisplay, onFileValid) {
+        dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); if (fileInput.disabled) return; dropZoneLabel.classList.add('drag-over');});
+        dropZoneLabel.addEventListener('dragleave', () => { if (fileInput.disabled) return; dropZoneLabel.classList.remove('drag-over');});
+        dropZoneLabel.addEventListener('drop', (e) => {
+            e.preventDefault(); if (fileInput.disabled) return;
+            dropZoneLabel.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+                const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+                const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+                if (allowedTypes.includes(file.type) || validExtensions.includes(fileExt)) {
+                    fileNameDisplay.innerHTML = `<strong>${file.name}</strong> (${(file.size / 1024 / 1024).toFixed(2)} MB) <span class="remove-file-link" style="cursor:pointer; color:red; margin-left:5px;">× Remove</span>`;
+                    dropZoneLabel.classList.add('file-selected');
+                    fileNameDisplay.querySelector('.remove-file-link')?.addEventListener('click', (e) => {
+                        e.stopPropagation(); fileInput.value = '';
+                        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                    if (typeof onFileValid === 'function') {
+                        onFileValid(file);
+                    }
+                } else {
+                    alert('Invalid file type. Please upload a JPG, PNG, or WEBP image.');
+                    fileInput.value = '';
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            } else {
+                fileNameDisplay.textContent = 'No file selected';
+                dropZoneLabel.classList.remove('file-selected');
+            }
+        });
+    }
+
 })();
 
 window.addEventListener('dragover', (e) => { e.preventDefault(); });
