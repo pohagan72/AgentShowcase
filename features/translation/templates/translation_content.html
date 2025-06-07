@@ -1,10 +1,11 @@
 {# features/translation/templates/translation_content.html #}
 
-<!-- NEW: Isolated styles for this template only -->
+<!-- Isolated styles for this template only -->
 <style>
+    /* --- Existing Styles (Unchanged) --- */
     .translation-feature-container .feature-note {
-        margin-top: 0.75rem;
-        margin-bottom: 1.5rem; /* Increased bottom margin for better spacing */
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
         padding: 0.8rem 1rem;
         background-color: #f0f9ff;
         border: 1px solid #e0f2fe;
@@ -31,9 +32,67 @@
         font-weight: 600;
         color: var(--primary-color-dark, #2563eb);
     }
-    /* Adjust description margin to accommodate the new note box */
     .translation-feature-container .feature-description {
-        margin-bottom: 0.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* --- UPDATED: Styles for a Balanced 3-Column Panel --- */
+    .translation-feature-container .feature-grid {
+        display: grid;
+        /* Default to a single column for mobile */
+        grid-template-columns: 1fr; 
+        
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* On larger screens (laptops and up), switch to 3 columns */
+    @media (min-width: 992px) {
+        .translation-feature-container .feature-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    .translation-feature-container .feature-item {
+        background: #ffffff;
+        padding: 2rem;
+        text-align: center;
+        transition: background-color 0.2s ease-in-out;
+    }
+    
+    /* Vertical dividers for larger screens */
+    @media (min-width: 992px) {
+        .translation-feature-container .feature-item:not(:last-child) {
+            border-right: 1px solid #e5e7eb;
+        }
+    }
+
+    /* Horizontal dividers for smaller screens */
+    @media (max-width: 991.98px) {
+        .translation-feature-container .feature-item:not(:last-child) {
+            border-bottom: 1px solid #e5e7eb;
+        }
+    }
+    
+    .translation-feature-container .feature-item:hover {
+        background-color: #f9fafb;
+    }
+
+    .translation-feature-container .feature-item h3 {
+        margin: 0 0 0.75rem 0;
+        font-family: Georgia, "Times New Roman", Times, serif;
+        font-size: 1.1em;
+        color: #1a2b48;
+        font-weight: 600;
+    }
+    .translation-feature-container .feature-item p {
+        font-family: Georgia, "Times New Roman", Times, serif;
+        color: #5a6a7b;
+        line-height: 1.6;
+        margin: 0;
+        font-size: 0.95em;
     }
 </style>
 
@@ -41,8 +100,25 @@
     <h1><i class="fas fa-language"></i> Native File Translation</h1>
 
     <p class="feature-description">
-        Our <strong>custom AI Agent</strong> orchestrates a sophisticated, multi-step translation workflow. It begins by parsing native Word, PowerPoint, and Excel files, performing a structured linguistic analysis to determine the source language. The agent then <strong>dynamically generates context-aware prompts</strong> for any specified GenAI model, ensuring linguistic nuances and technical terminology are preserved. Finally, it reassembles the translated content into two <strong>high-fidelity formats</strong>: a new file in the original native format, and a clean Markdown version for immediate review and system integration.
+        This <strong>AI Agent</strong> is responsible for a multi-step workflow that delivers high-quality translations in multiple formats.
     </p>
+
+    <!-- The HTML structure is the same, but the CSS will now create a 3-column layout on larger screens -->
+    <div class="feature-grid">
+        <div class="feature-item">
+            <h4>Language Analysis</h4>
+            <p>GenAI auto-determins source language and other lingustic characteristics</p>
+        </div>
+        <div class="feature-item">
+            <h4>Dynamic Prompts</h4>
+            <p>Auto-generates custom prompts to preserve linguistic nuances and custom terms</p>
+        </div>
+        <div class="feature-item">
+            <h4>Dual Output</h4>
+            <p>Reassembles translated content into a new version of the source file and Markdown</p>
+        </div>
+    </div>
+    
     <div class="feature-note">
         <i class="fas fa-server"></i>
         <p>While this demonstration showcases the agent on a single document, the underlying architecture is engineered for <strong>enterprise scale</strong>, capable of processing documents thousands of pages in length.</p>
