@@ -397,7 +397,7 @@ body {
 .translation-feature-container,
 .pii-redaction-tile-container.feature-container, 
 .summarization-tile-container.feature-container, 
-.blurring-feature-container { 
+.multimedia-feature-container { /* RENAMED */
     background-color: var(--surface-color);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border-radius: 8px;
@@ -541,13 +541,13 @@ body {
     overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
 }
 
-/* --- Blurring Feature Specific Layout & Styles (NEW ADDITIONS) --- */
+/* --- Blurring Feature Specific Layout & Styles (NOW SCOPED TO MULTIMEDIA) --- */
 
-.blurring-feature-container .blurring-controls {
+.multimedia-feature-container .blurring-controls { /* CHANGED */
     margin-bottom: 1.5rem;
 }
 
-.blurring-feature-container .blur-input-area {
+.multimedia-feature-container .blur-input-area { /* CHANGED */
     display: flex;
     flex-direction: row; 
     gap: var(--spacing-unit, 1rem); 
@@ -555,19 +555,19 @@ body {
     margin-bottom: 1rem; 
 }
 
-.blurring-feature-container .drop-zone-group {
+.multimedia-feature-container .drop-zone-group { /* CHANGED */
     flex: 3; 
     display: flex; 
     flex-direction: column;
 }
-.blurring-feature-container .drop-zone-group .drop-zone-style {
+.multimedia-feature-container .drop-zone-group .drop-zone-style { /* CHANGED */
     flex-grow: 1; 
     display: flex;
     flex-direction: column;
     justify-content: center; 
 }
 
-.blurring-feature-container .blur-slider-group {
+.multimedia-feature-container .blur-slider-group { /* CHANGED */
     flex: 1; 
     display: flex;
     flex-direction: column;
@@ -578,12 +578,12 @@ body {
     justify-content: center; 
 }
 
-.blurring-feature-container .blur-slider-label {
+.multimedia-feature-container .blur-slider-label { /* CHANGED */
     margin-bottom: 0.5rem;
     font-weight: 500; 
 }
 
-.blurring-feature-container .vertical-slider-container {
+.multimedia-feature-container .vertical-slider-container { /* CHANGED */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -592,8 +592,8 @@ body {
     width: 100%; 
 }
 
-.blurring-feature-container .vertical-slider,
-.blurring-feature-container input[type=range].vertical-slider {
+.multimedia-feature-container .vertical-slider, /* CHANGED */
+.multimedia-feature-container input[type=range].vertical-slider { /* CHANGED */
     -webkit-appearance: slider-vertical; 
     appearance: slider-vertical; 
     writing-mode: bt-lr; 
@@ -602,7 +602,7 @@ body {
     padding: 0 5px; 
     margin: 0.5rem auto; 
 }
-.blurring-feature-container input[type=range].vertical-slider { /* More specific for better cross-browser */
+.multimedia-feature-container input[type=range].vertical-slider { /* More specific for better cross-browser */ /* CHANGED */
     writing-mode: vertical-lr; 
     -webkit-appearance: slider-vertical;
     width: 20px; 
@@ -610,7 +610,7 @@ body {
     padding: 0;
 }
 
-.blurring-feature-container .blur-slider-value-display {
+.multimedia-feature-container .blur-slider-value-display { /* CHANGED */
     margin-top: 0.5rem;
     font-size: 0.9em;
     color: var(--text-color-secondary);
@@ -618,22 +618,22 @@ body {
 
 /* Responsive: Stack dropzone and slider on smaller screens */
 @media (max-width: 767px) {
-    .blurring-feature-container .blur-input-area {
+    .multimedia-feature-container .blur-input-area { /* CHANGED */
         flex-direction: column;
     }
-    .blurring-feature-container .blur-slider-group {
+    .multimedia-feature-container .blur-slider-group { /* CHANGED */
         margin-top: 1rem;
         border: none; 
         padding: 0;
         align-items: stretch; 
     }
-    .blurring-feature-container .vertical-slider-container {
+    .multimedia-feature-container .vertical-slider-container { /* CHANGED */
         flex-direction: row; 
         height: auto;
         width: 100%;
         justify-content: space-around; 
     }
-    .blurring-feature-container input[type=range].vertical-slider {
+    .multimedia-feature-container input[type=range].vertical-slider { /* CHANGED */
         writing-mode: horizontal-tb; 
         -webkit-appearance: auto; 
         appearance: auto;
@@ -642,21 +642,21 @@ body {
         height: auto; 
         margin: 0 0.5rem; 
     }
-    .blurring-feature-container .blur-slider-label {
+    .multimedia-feature-container .blur-slider-label { /* CHANGED */
         text-align: left; 
         width: 100%;
     }
 }
 
 /* Styling for the image results grid specifically in the Blurring feature */
-.blurring-feature-container .blurring-image-results-grid {
+.multimedia-feature-container .blurring-image-results-grid { /* CHANGED */
     display: grid;
     grid-template-columns: 1fr 1fr; 
     gap: var(--spacing-unit); 
     margin-top: 1rem; 
 }
 
-.blurring-feature-container .blurring-image-results-grid .image-result-container {
+.multimedia-feature-container .blurring-image-results-grid .image-result-container { /* CHANGED */
     border: 1px solid var(--border-color);
     border-radius: 5px;
     padding: calc(var(--spacing-unit) / 2);
@@ -666,7 +666,7 @@ body {
     flex-direction: column;
 }
 
-.blurring-feature-container .blurring-image-results-grid .image-result-container h4 {
+.multimedia-feature-container .blurring-image-results-grid .image-result-container h4 { /* CHANGED */
     font-size: 1.1em;
     margin-top: 0; 
     margin-bottom: calc(var(--spacing-unit) / 2);
@@ -674,7 +674,7 @@ body {
     font-weight: 500; 
 }
 
-.blurring-feature-container .blurring-image-results-grid .result-image {
+.multimedia-feature-container .blurring-image-results-grid .result-image { /* CHANGED */
     max-width: 100%;
     height: auto;
     max-height: 400px; 
@@ -686,13 +686,13 @@ body {
 }
 
 @media (max-width: 768px) { /* Responsive for Blurring feature's image grid */
-    .blurring-feature-container .blurring-image-results-grid {
+    .multimedia-feature-container .blurring-image-results-grid { /* CHANGED */
         grid-template-columns: 1fr; 
     }
 }
 
 /* Styling for the "No file selected" text specifically within Blurring drop zone label */
-.blurring-feature-container #blur-drop-zone-label .no-file-text {
+.multimedia-feature-container #blur-drop-zone-label .no-file-text { /* CHANGED */
     color: var(--text-color-secondary); 
     font-size: 0.9em; 
     font-weight: normal; 

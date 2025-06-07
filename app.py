@@ -37,7 +37,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 app.jinja_loader = ChoiceLoader([
     app.jinja_loader,
-    FileSystemLoader('features') # This allows using paths like 'blurring/templates/blurring_content.html'
+    FileSystemLoader('features') # This allows using paths like 'multimedia/templates/multimedia_content.html'
 ])
 
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this")
@@ -107,7 +107,7 @@ FEATURES_DATA = {
     "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"},
     "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"},
     "pii_redaction": {"name": "PII Redaction", "icon": "fas fa-user-shield", "template": "pii_redaction/templates/pii_redaction_content.html"},
-    "blurring": {"name": "Blurring", "icon": "fas fa-eye-slash", "template": "blurring/templates/blurring_content.html"}, # Corrected template path
+    "multimedia": {"name": "Multimedia", "icon": "fas fa-photo-video", "template": "multimedia/templates/multimedia_content.html"}, # CHANGED
     "info": {"name": "Information", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"},
 }
 DEFAULT_FEATURE_KEY = "welcome"
@@ -136,14 +136,14 @@ else:
 from features.translation.routes import define_translation_routes
 from features.summarization.routes import define_summarization_routes
 from features.pii_redaction.routes import define_pii_redaction_routes
-from features.blurring.routes import define_blurring_routes # <<<--- ADD THIS IMPORT
+from features.multimedia.routes import define_multimedia_routes # CHANGED
 from features.info.routes import define_info_routes
 
 # define_transcription_routes(app)
 define_translation_routes(app)
 define_summarization_routes(app)
 define_pii_redaction_routes(app)
-define_blurring_routes(app) # <<<--- ADD THIS CALL
+define_multimedia_routes(app) # CHANGED
 define_info_routes(app)
 
 @app.route('/')
@@ -206,8 +206,8 @@ def get_feature_content(feature_key):
         context["original_filename"] = None
         context["presidio_available"] = current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False)
         context["hx_target_is_result"] = False
-    elif feature_key == "blurring":
-        # No specific extra context needed for initial render of blurring beyond common ones
+    elif feature_key == "multimedia": # CHANGED
+        # No specific extra context needed for initial render of multimedia beyond common ones
         pass
 
     return render_template(template_to_render, **context)
