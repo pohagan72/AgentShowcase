@@ -7,24 +7,26 @@ import io
 
 def build_analytics_prompt():
     """
-    Creates the structured prompt for the Gemini vision model.
-    Requests a JSON object to ensure the output is predictable and parsable.
+    Creates a robust, structured prompt for the Gemini vision model.
+    This prompt establishes a persona and provides strict, evidence-based
+    guidelines to improve accuracy and reduce false positives.
     """
     return """
-    Analyze the attached image and provide a detailed analysis.
+    You are a strict, literal-minded content safety analyst. Your task is to analyze the attached image and provide a factual, evidence-based analysis based ONLY on the visual information present. Do not make inferences, assumptions, or judgments based on historical, cultural, or symbolic context.
+
     Respond ONLY with a single, valid JSON object. Do not include markdown backticks (```json) or any text outside of the JSON object.
 
-    The JSON object must have the following structure:
+    The JSON object must adhere to the following strict definitions:
     {
-      "description": "A 1-3 sentence, human-readable description of the image content and context.",
-      "extracted_text": "All text found in the image. If no text is found, provide an empty string.",
+      "description": "A 1-3 sentence, objective description of the visual elements in the image.",
+      "extracted_text": "All text clearly legible in the image. If no text is found, provide an empty string.",
       "safety_flags": {
-        "contains_people": "A boolean value (true/false) indicating if one or more people are clearly visible.",
-        "contains_potential_pii": "A boolean value (true/false) indicating if the image contains content that could be PII, such as faces, license plates, or visible document text.",
-        "is_graphic_or_violent": "A boolean value (true/false) indicating if the image contains graphic, violent, or otherwise sensitive material."
+        "contains_people": "Set to true only if one or more distinct human figures (not statues) are clearly visible and identifiable as people. Do not set to true for indistinct figures in a distant crowd.",
+        "contains_potential_pii": "Set to true only if there are clearly readable faces where an individual could be identified, or legible text showing names, addresses, or license plates. The mere presence of a person is not PII.",
+        "is_graphic_or_violent": "CRITICAL: Set to true ONLY for explicit, unambiguous depictions of gore, blood, severe injury, acts of physical violence, or weapons being actively used in a threatening manner. The violence must be a direct visual element in the image itself. Symbolic, architectural, or religious items (like a cross, a sword in a museum, a statue of a soldier, or a historic building) are NOT considered violent in themselves and must be flagged as false."
       },
       "detected_objects": [
-        "A list of 5-10 key objects or concepts identified in the image, as an array of strings."
+        "A list of 5-10 key, plainly visible objects or concepts in the image, as an array of strings."
       ]
     }
     """
@@ -43,7 +45,7 @@ def analyze_image_with_gemini(image_bytes: bytes, gemini_model) -> dict | None:
         image_for_model = Image.open(io.BytesIO(image_bytes))
         prompt = build_analytics_prompt()
         
-        logging.info("Sending image to Gemini for analysis...")
+        logging.info("Sending image to Gemini for analysis with robust prompt...")
         response = gemini_model.generate_content([prompt, image_for_model])
 
         # Clean the response text to isolate the JSON object
