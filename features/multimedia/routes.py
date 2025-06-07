@@ -4,27 +4,31 @@ import io
 import uuid
 import time
 import logging
+import json
+import base64
 from flask import (
     Blueprint, render_template, request, flash, current_app, url_for, g, jsonify, send_file, after_this_request
 )
 from werkzeug.utils import secure_filename
 from google.cloud import storage
 from google.cloud.exceptions import NotFound as GCSNotFound
+import google.generativeai as genai
 
-from .blur_utils import allowed_file, blur_image_opencv 
+from .blur_utils import allowed_file, blur_image_opencv
+from .analytics_utils import analyze_image_with_gemini, extract_dominant_colors
 
-# --- UPDATED GCS PATHS ---
+# --- GCS PATHS ---
 MULTIMEDIA_BLUR_UPLOAD_FOLDER_PREFIX = "multimedia_feature/blurring/uploads/"
 MULTIMEDIA_BLUR_RESULTS_FOLDER_PREFIX = "multimedia_feature/blurring/results/"
-DEFAULT_BLUR_STRENGTH = 65 
+DEFAULT_BLUR_STRENGTH = 65
 
-def define_multimedia_routes(app_shell): # RENAMED
+def define_multimedia_routes(app_shell):
     
-    @app_shell.route('/process/multimedia/blur/process_image', methods=['POST']) # RENAMED ROUTE
-    def process_multimedia_blur_image_route(): # RENAMED FUNCTION
+    @app_shell.route('/process/multimedia/blur/process_image', methods=['POST'])
+    def process_multimedia_blur_image_route():
         g.request_id = uuid.uuid4().hex
         req_start_time = time.time()
-        log_extra = {'extra_data': {'request_id': g.request_id, 'feature': 'multimedia-blur'}} # UPDATED
+        log_extra = {'extra_data': {'request_id': g.request_id, 'feature': 'multimedia-blur'}}
         
         if not hasattr(g, 'gcs_urgent_temp_paths_to_clean'):
             g.gcs_urgent_temp_paths_to_clean = []
@@ -111,8 +115,61 @@ def define_multimedia_routes(app_shell): # RENAMED
             logging.error(f"[{g.request_id}] Error during blurring process for {original_filename}: {e}", exc_info=True, extra=log_extra)
             return render_template("multimedia/templates/_blurring_error_partial.html", error_message=f'An unexpected error occurred: {str(e)}')
 
-    @app_shell.route('/serve/multimedia/blur_image/<type>/<r_id>/<path:filename>') # RENAMED ROUTE
-    def serve_multimedia_blur_image(type, r_id, filename): # RENAMED FUNCTION
+
+    @app_shell.route('/process/multimedia/analytics/analyze_image', methods=['POST'])
+    def process_multimedia_analyze_image_route():
+        g.request_id = uuid.uuid4().hex
+        log_extra = {'extra_data': {'request_id': g.request_id, 'feature': 'multimedia-analytics'}}
+
+        if not current_app.config.get('GEMINI_CONFIGURED'):
+            logging.error(f"[{g.request_id}] Gemini not available for analytics feature.", extra=log_extra)
+            return render_template("multimedia/templates/_analytics_results_partial.html", 
+                                   analysis_results={"error": "AI service is not configured. Cannot analyze image."})
+
+        if 'file' not in request.files:
+            return render_template("multimedia/templates/_analytics_results_partial.html",
+                                   analysis_results={"error": "No file part in the request."})
+
+        file = request.files['file']
+        if file.filename == '' or not allowed_file(file.filename):
+            return render_template("multimedia/templates/_analytics_results_partial.html",
+                                   analysis_results={"error": "No valid file selected. Please upload a JPG, PNG, or WEBP image."})
+
+        try:
+            image_bytes = file.read()
+            file_mimetype = file.mimetype
+
+            # Generate the data URL on the backend for the results template preview
+            base64_encoded_data = base64.b64encode(image_bytes).decode('utf-8')
+            image_data_url = f"data:{file_mimetype};base64,{base64_encoded_data}"
+
+            # Initialize the Gemini Model
+            model_name = current_app.config.get('GEMINI_MODEL_NAME', 'gemini-1.5-flash-latest')
+            gemini_model = genai.GenerativeModel(model_name)
+
+            # Perform GenAI Analysis
+            analysis_results = analyze_image_with_gemini(image_bytes, gemini_model)
+            
+            # Perform Dominant Color Extraction
+            dominant_colors = extract_dominant_colors(image_bytes)
+
+            if analysis_results is None:
+                 return render_template("multimedia/templates/_analytics_results_partial.html",
+                                   analysis_results={"error": "Image analysis failed."})
+
+            return render_template("multimedia/templates/_analytics_results_partial.html",
+                                   analysis_results=analysis_results,
+                                   dominant_colors=dominant_colors,
+                                   image_data_url=image_data_url)
+
+        except Exception as e:
+            logging.error(f"[{g.request_id}] Error during analytics process for {file.filename}: {e}", exc_info=True, extra=log_extra)
+            return render_template("multimedia/templates/_analytics_results_partial.html", 
+                                   analysis_results={"error": f'An unexpected error occurred: {str(e)}'})
+
+
+    @app_shell.route('/serve/multimedia/blur_image/<type>/<r_id>/<path:filename>')
+    def serve_multimedia_blur_image(type, r_id, filename):
         log_extra = {'extra_data': {'request_id': r_id, 'feature': 'multimedia_serve', 'type': type, 'filename': filename}}
         if not current_app.config.get('GCS_AVAILABLE'):
             logging.error(f"GCS not available attempt to serve image.", extra=log_extra)

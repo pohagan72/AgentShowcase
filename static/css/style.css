@@ -710,3 +710,135 @@ body {
 .remove-file-link:hover {
     text-decoration: underline;
 }
+
+/* --- Multimedia Analytics Feature Specific Styles --- */
+.analytics-results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr; /* Image gets a bit less space than details */
+    gap: calc(var(--spacing-unit) * 1.5);
+    margin-top: 1rem;
+}
+
+.analytics-results-grid .image-preview-container {
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: calc(var(--spacing-unit) / 2);
+    background-color: #f8f9fa;
+    text-align: center;
+}
+
+.analysis-details-container h4 {
+    font-size: 1.1em;
+    color: var(--text-color-primary);
+    margin-top: var(--spacing-unit);
+    margin-bottom: calc(var(--spacing-unit) / 3);
+    padding-bottom: calc(var(--spacing-unit) / 4);
+    border-bottom: 1px dotted var(--border-color);
+    font-weight: 600;
+}
+.analysis-details-container h4:first-child {
+    margin-top: 0;
+}
+.analysis-details-container h4 i {
+    margin-right: 6px;
+    color: var(--secondary-color);
+}
+
+.analysis-description {
+    font-style: italic;
+    color: var(--text-color-secondary);
+    line-height: 1.6;
+}
+
+.analysis-ocr-text {
+    background-color: #e9ecef;
+    padding: calc(var(--spacing-unit) / 2);
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow-y: auto;
+    color: #495057;
+}
+
+.safety-flags-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin-bottom: 0;
+}
+.safety-flags-list li {
+    margin-bottom: calc(var(--spacing-unit) / 4);
+}
+.safety-flags-list i {
+    margin-right: 8px;
+    font-size: 1.1em;
+}
+.safety-flags-list .category-success { color: #16a34a; }
+.safety-flags-list .category-warning { color: #f97316; }
+.safety-flags-list .category-error { color: #dc2626; }
+.safety-flags-list .category-secondary { color: var(--secondary-color); }
+
+
+.object-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing-unit) / 3);
+}
+.object-tag {
+    background-color: #eff6ff;
+    color: #1e40af;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 500;
+    border: 1px solid #bfdbfe;
+}
+
+.color-palette-container {
+    display: flex;
+    gap: 4px;
+}
+.color-swatch-wrapper {
+    flex-grow: 1;
+}
+.color-swatch {
+    height: 30px;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+.color-swatch:hover {
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+    .analytics-results-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* --- UX FIX: Constrain large image previews in Analytics --- */
+
+/* 1. Define the "box" that the image must fit into. */
+.analytics-results-grid .image-preview-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: 450px; /* Set a maximum height for the container */
+    overflow: hidden; /* Hide any potential overflow just in case */
+}
+
+/* 2. Style the image itself to respect the container's bounds. */
+.analytics-results-grid .result-image {
+    width: 100%;
+    height: 100%;
+    /* 
+       This is the key property. 'contain' scales the image down,
+       maintaining its aspect ratio, until it fits completely inside
+       the container's dimensions without being cropped.
+    */
+    object-fit: contain;
+}

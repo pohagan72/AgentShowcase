@@ -160,6 +160,21 @@ def index(feature_key):
     current_feature_data = FEATURES_DATA[feature_key_to_render]
     initial_content_template_path = current_feature_data["template"]
 
+    # <<< START OF FIX >>>
+    # Build the full context needed by the initial template render.
+    # This mirrors the logic in get_feature_content to prevent context discrepancies.
+    template_context = {
+        "gcs_available": current_app.config.get('GCS_AVAILABLE', False),
+        "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
+        # Add other feature-specific initial context variables here as needed
+    }
+    # Example for another feature:
+    # if feature_key_to_render == "summarization":
+    #     template_context["ppt_api_key_configured"] = current_app.config.get('GEMINI_CONFIGURED', False) and current_app.config.get('GCS_AVAILABLE', False)
+    #     # ... add other summarization vars
+    # <<< END OF FIX >>>
+
+
     return render_template(
         'layout.html',
         features=FEATURES_DATA,
@@ -167,7 +182,7 @@ def index(feature_key):
         active_feature_key=feature_key_to_render,
         initial_content_template=initial_content_template_path,
         DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY,
-        gcs_available=current_app.config.get('GCS_AVAILABLE', False) # Pass gcs_available to layout
+        **template_context # Pass the full context to the template
     )
 
 @app.route('/content/<feature_key>')
