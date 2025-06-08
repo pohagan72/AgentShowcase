@@ -19,6 +19,7 @@ python-docx
 python-dotenv
 python-pptx
 requests
+scikit-learn
 spacy
 stanza
 tensorflow

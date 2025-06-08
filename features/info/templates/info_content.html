@@ -88,6 +88,46 @@
         display: block; /* JS adds this class to show content */
     }
 
+    /* === Copied styles from Multimedia for consistency === */
+    .info-feature-container .feature-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        margin: 1.5rem 0;
+    }
+    @media (min-width: 992px) {
+        .info-feature-container .feature-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    .info-feature-container .feature-item {
+        background: #ffffff;
+        padding: 2rem;
+        text-align: center;
+    }
+    @media (min-width: 992px) {
+        .info-feature-container .feature-item:not(:last-child) { border-right: 1px solid #e5e7eb; }
+    }
+    @media (max-width: 991.98px) {
+        .info-feature-container .feature-item:not(:last-child) { border-bottom: 1px solid #e5e7eb; }
+    }
+    .info-feature-container .feature-item h4 {
+        margin: 0 0 0.75rem 0;
+        font-family: Georgia, "Times New Roman", Times, serif;
+        font-size: 1.1em;
+        color: #1a2b48;
+        font-weight: 600;
+    }
+    .info-feature-container .feature-item p {
+        font-family: Georgia, "Times New Roman", Times, serif;
+        color: #5a6a7b;
+        line-height: 1.6;
+        margin: 0;
+        font-size: 0.95em;
+    }
+    /* === End of copied styles === */
+
     /* Legal Notice Specifics */
     .info-feature-container .legal-text-container {
         line-height: 1.6;
@@ -98,6 +138,30 @@
     }
     .info-feature-container .legal-text-container ul li {
         margin-bottom: 10px;
+    }
+    .info-feature-container .legal-text-container h4 {
+        color: #34495e;
+        font-size: 1.2em;
+        margin-top: 20px;
+    }
+    .info-feature-container details {
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+        margin-top: 1.5rem;
+    }
+    .info-feature-container summary {
+        padding: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        background-color: #f7f7f7;
+        color: #34495e;
+    }
+    .info-feature-container details[open] summary {
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .info-feature-container .full-legal-text {
+        padding: 1rem;
+        background-color: #fff;
     }
 
     /* About Me Section Specifics */
@@ -182,7 +246,6 @@
     .info-feature-container .bio-details ul li {
         margin-bottom: 10px; /* Increased margin for list items */
     }
-    /* Removed specific .bio-details ul li p and .bio-details ul li strong as structure changed */
 
 
     /* Styling for the Connect Links (LinkedIn, Email, WhatsApp, GitHub) */
@@ -273,31 +336,84 @@
     <h1><i class="fas fa-info-circle"></i> Innovation Zone Information</h1>
 
     <div class="feature-tabs">
-        <button class="tab-link active" data-target-tab="legal-notice-tab">
+        <!-- `active` class removed from here -->
+        <button class="tab-link" data-target-tab="legal-notice-tab">
             <i class="fas fa-gavel"></i> Legal Notice
         </button>
-        <button class="tab-link" data-target-tab="about-me-tab">
+        <!-- `active` class added here -->
+        <button class="tab-link active" data-target-tab="about-me-tab">
             <i class="fas fa-user-circle"></i> Meet Paul O'Hagan
         </button>
     </div>
 
     <!-- Legal Notice Tab Content -->
-    <div id="legal-notice-tab" class="feature-tab-content active-content">
-        <h2>Legal Notice & Terms of Service</h2>
-        <div class="legal-text-container">
-            <p><strong>Last Updated:</strong> May 26, 2025</p>
-            <br>
-            <ul>
-                <li><strong>No Warranty:</strong> This service is provided "as is" without any warranties, express or implied. Your use of this service is solely at your own risk.</li>
-                <li><strong>Data Handling:</strong> Your data is processed solely for the purpose of using the AI Agent. Your data is not intentionally stored longer than necessary for processing.</li>
-                <li><strong>AI Training:</strong> Your data will not be used to train AI models.</li>
-                <li><strong>Limitation of Liability:</strong> By using this service, you agree that the creator provides no guarantees and assumes no liability for any outcomes, errors, or issues resulting from its use.</li>
-            </ul>
+    <!-- `active-content` class removed from here -->
+    <div id="legal-notice-tab" class="feature-tab-content">
+        <h2>Platform Governance & Terms of Service</h2>
+        
+        <p style="margin-top: 1rem;">My commitment is to innovation, transparency, and responsible AI. Below are the key principles governing this showcase. For full details, please review the complete terms.</p>
+
+        <div class="feature-grid">
+            <div class="feature-item">
+                <h4>Your Content, Your Ownership</h4>
+                <p>You retain full ownership of your uploaded content and the AI-generated results. We do not claim any rights to your intellectual property.</p>
+            </div>
+            <div class="feature-item">
+                <h4>Privacy & No AI Training</h4>
+                <p>Your data is never used to train our AI models. This service is a demonstration, provided "as is" without warranty, ensuring your privacy is paramount.</p>
+            </div>
+            <div class="feature-item">
+                <h4>Responsible Use</h4>
+                <p>This platform is designed for professional and lawful use. We prohibit the generation of harmful or infringing content to ensure a safe environment.</p>
+            </div>
         </div>
+        
+        <details>
+            <summary>View Full Terms of Service</summary>
+            <div class="full-legal-text">
+                <div class="legal-text-container">
+                    <p><strong>Last Updated:</strong> June 8, 2025</p>
+                    <br>
+                    <p>Welcome to my AI Agent Showcase. By accessing or using this website and its services (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of the terms, you may not access the Service.</p>
+                    <h4>1. Service Provision and "As Is" Disclaimer</h4>
+                    <ul>
+                        <li><strong>No Warranty:</strong> The Service is provided on an "AS IS" and "AS AVAILABLE" basis. It is a technology demonstration and is provided without warranties of any kind, whether express or implied, including, but not limited to, implied warranties of merchantability, fitness for a particular purpose, or non-infringement.</li>
+                        <li><strong>At Your Own Risk:</strong> Your use of the Service is solely at your own risk. The AI-generated outputs may contain errors, inaccuracies, or be incomplete. You should not rely on the outputs for any legal, financial, medical, or other critical decisions.</li>
+                    </ul>
+                    <h4>2. Intellectual Property Rights</h4>
+                    <ul>
+                        <li><strong>The Service:</strong> I, Paul O'Hagan, own all right, title, and interest in and to the Service, including all associated software, code, branding, and intellectual property rights. You may not copy, modify, or reverse engineer any part of the Service.</li>
+                        <li><strong>Your Content:</strong> You retain full ownership of any text, images, or documents you upload to the Service ("Your Content"). You grant me a temporary, non-exclusive, worldwide, royalty-free license to use, process, and transmit Your Content solely for the purpose of providing the Service to you.</li>
+                        <li><strong>Generated Output:</strong> To the extent permitted by law, you are the owner of the AI-generated output created from Your Content. You are free to use this output for any lawful purpose, subject to the disclaimers in these Terms.</li>
+                    </ul>
+                    <h4>3. Data Privacy and AI Model Training</h4>
+                    <ul>
+                        <li><strong>Data Handling:</strong> Your Content is processed for the sole purpose of providing the Service's functionality. It is not intentionally stored longer than necessary to perform the requested operation and is not shared with third parties.</li>
+                        <li><strong>No AI Training:</strong> Your Content and any generated outputs will <strong>not</strong> be used to train or improve any AI models.</li>
+                    </ul>
+                    <h4>4. Acceptable Use</h4>
+                    <p>You agree not to use the Service to:</p>
+                    <ul>
+                        <li>Upload or generate any content that is unlawful, harmful, threatening, abusive, defamatory, obscene, or otherwise objectionable.</li>
+                        <li>Upload or generate any content that infringes upon any third party's intellectual property rights.</li>
+                        <li>Attempt to gain unauthorized access to the Service, its servers, or any related systems or networks.</li>
+                    </ul>
+                    <h4>5. Limitation of Liability</h4>
+                    <p>In no event shall I, Paul O'Hagan, be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from (i) your access to or use of or inability to access or use the Service; (ii) any conduct or content of any third party on the Service; (iii) any content obtained from the Service; and (iv) unauthorized access, use or alteration of your transmissions or content, whether based on warranty, contract, tort (including negligence) or any other legal theory, whether or not I have been informed of the possibility of such damage.</p>
+                    <h4>6. General Terms</h4>
+                    <ul>
+                        <li><strong>Age Requirement:</strong> You must be at least 18 years old to use this Service.</li>
+                        <li><strong>Modification of Terms:</strong> I reserve the right, at my sole discretion, to modify or replace these Terms at any time. I will provide notice of any changes by posting the new Terms on this page.</li>
+                        <li><strong>Governing Law:</strong> These Terms shall be governed and construed in accordance with the laws of Ontario, Canada, without regard to its conflict of law provisions.</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
     </div>
 
     <!-- About Me Tab Content -->
-    <div id="about-me-tab" class="feature-tab-content">
+    <!-- `active-content` class added here -->
+    <div id="about-me-tab" class="feature-tab-content active-content">
         <h2>About Paul</h2>
         <div class="about-me-content">
             <div class="about-me-layout">
@@ -356,7 +472,6 @@
     // Script assumes it's placed after the HTML elements it targets, or wrapped in DOMContentLoaded
     const infoFeatureContainer = document.querySelector('.info-feature-container');
     if (!infoFeatureContainer) { 
-        // console.error('Info feature container not found for script initialization.');
         return; 
     }
 
