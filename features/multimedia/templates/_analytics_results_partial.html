@@ -11,16 +11,14 @@
     <div class="analysis-details-container">
         
         <h4><i class="fas fa-file-alt"></i> AI Description</h4>
-        <p class="analysis-description">{{ analysis_results.description }}</p>
+        <p class="analysis-description">{{ analysis_results.rich_description }}</p>
 
-        <!-- ==================== MODIFIED SECTION START ==================== -->
         <h4><i class="fas fa-spell-check"></i> Extracted Text (OCR)</h4>
         {% if analysis_results.extracted_text %}
             <pre class="analysis-ocr-text">{{ analysis_results.extracted_text }}</pre>
         {% else %}
             <p class="analysis-ocr-text no-text-found" style="font-style: italic; color: #6c757d;">No text was detected in the image.</p>
         {% endif %}
-        <!-- ==================== MODIFIED SECTION END ====================== -->
 
         {# --- CONTENT SAFETY SECTION TEMPORARILY DISABLED FOR DEBUGGING ---
         <h4><i class="fas fa-shield-alt"></i> Content Safety</h4>
