@@ -36,10 +36,13 @@
     </div>
 {% endif %}
 
-{# NEW: Display the translated text in a scrollable, copy-paste friendly Markdown box #}
-{% if translated_markdown %}
+{# Display the RENDERED HTML, not the raw markdown #}
+{% if translated_html %}
 <div class="summary-display-box" style="margin-top: 1rem;">
-    <h4>Translated Text (Markdown)</h4>
-    <pre style="white-space: pre-wrap; word-wrap: break-word; background-color: #fff; padding: 10px; border-radius: 4px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto;"><code>{{ translated_markdown }}</code></pre>
+    <h4>Translated Text</h4>
+    {# This div will render the HTML. The 'safe' filter is CRITICAL. #}
+    <div class="markdown-body" style="background-color: #fff; padding: 1rem; border-radius: 4px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto; text-align: left;">
+        {{ translated_html | safe }}
+    </div>
 </div>
 {% endif %}
