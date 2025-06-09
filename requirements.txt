@@ -5,6 +5,7 @@ google-generativeai
 langdetect
 lxml[html_clean]
 lxml_html_clean
+mistune
 mtcnn
 numpy
 opencv-python-headless

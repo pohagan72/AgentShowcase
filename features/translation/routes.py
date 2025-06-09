@@ -4,6 +4,9 @@ from flask import (
 import os
 import io
 import uuid
+import itertools
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from werkzeug.utils import secure_filename
 from docx import Document
 from pptx import Presentation
@@ -11,6 +14,7 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 import pandas as pd
 import google.generativeai as genai
 from google.cloud.exceptions import NotFound
+import mistune  # <<< ADDED IMPORT
 
 # langdetect: Ensure it's installed. Fallback provided if not.
 try:
@@ -20,38 +24,17 @@ except ImportError:
     def langdetect_detect(text):
         raise LangDetectException("langdetect not installed", "Not installed")
 
-
-# --- Utility Functions (adapted from standalone app, using current_app for config/clients) ---
-
+# --- Utility Functions ---
 def detect_language_util(text):
-    """Detects the language of a given text using langdetect."""
-    if not text or not text.strip():
-        return None
-    try:
-        return langdetect_detect(text[:10000]) # Limit text size for performance
-    except LangDetectException as e:
-        print(f"Language detection error (langdetect): {e}")
-        return None
-    except Exception as e:
-        print(f"Unexpected language detection error: {e}")
-        return None
+    if not text or not text.strip(): return None
+    try: return langdetect_detect(text[:10000])
+    except LangDetectException as e: print(f"Language detection error (langdetect): {e}"); return None
+    except Exception as e: print(f"Unexpected language detection error: {e}"); return None
 
-def translate_text_util(text, target_lang, model_name_from_config, detected_lang=None):
-    """Translate text using Google Gemini API with the precise prompt from standalone app."""
-    if not text or not text.strip():
-        return ""
-
-    if not current_app.config.get('GEMINI_CONFIGURED') or not model_name_from_config:
-        print("Gemini API not configured or model name missing for translation segment.")
-        return text # Return original text for this segment
-
-    if not target_lang:
-        print("Target language is missing for translation segment.")
-        return text # Return original text for this segment
-
+def translate_text_util(text, target_lang, model_name, detected_lang=None):
+    if not text or not text.strip(): return ('success', '', None)
+    if not model_name or not target_lang: return ('error', text, "Model name or target language missing.")
     input_language = detected_lang if detected_lang else "the source language"
-
-    # --- EXACT PROMPT FROM STANDALONE APP ---
     combined_prompt = f"""SYSTEM INSTRUCTIONS (MUST FOLLOW):
 You are an expert translator converting {input_language} to {target_lang}.
 Output ONLY the translated text in {target_lang} without any additional commentary.
@@ -63,12 +46,7 @@ TRANSLATION GUIDELINES:
 4. Maintain technical terminology where appropriate
 
 USER REQUEST:
-Please translate the following text from {input_language} to {target_lang} following these steps:
-
-1. Analyze the text's meaning, context, and cultural references
-2. Perform word-level translation preserving original sentence structure
-3. Review for accuracy and fluency in {target_lang}
-4. Output ONLY the final translation
+Please translate the following text from {input_language} to {target_lang}.
 
 TEXT TO TRANSLATE (delimited by ~~~~):
 ~~~~
@@ -79,86 +57,43 @@ IMPORTANT:
 - DO NOT include the delimiter marks in your output
 - DO NOT add any text beyond the translation
 - DO NOT interpret or summarize the content"""
-
     try:
-        model = genai.GenerativeModel(model_name_from_config)
+        model = genai.GenerativeModel(model_name)
         response = model.generate_content(combined_prompt)
-
-        if response and response.text:
-            return response.text.strip()
+        if response and response.text: return ('success', response.text.strip(), None)
         elif hasattr(response, 'prompt_feedback') and response.prompt_feedback.block_reason:
              block_reason = response.prompt_feedback.block_reason.name
-             error_message = f"Translation of a text segment blocked by AI safety filters ({block_reason}). Original segment returned."
-             print(error_message)
-             flash(error_message, "warning")
-             return text
+             error_message = f"Translation of a text segment blocked by AI safety filters ({block_reason})."
+             print(error_message); return ('blocked', text, error_message)
         else:
-            print(f"Gemini API returned no text for a segment and was not explicitly blocked. Response: {response}")
-            return text
+            err = "Gemini API returned no text and was not explicitly blocked."; print(err); return ('error', text, err)
     except Exception as e:
-        print(f"Google Gemini API error during segment translation: {e}")
-        return text
+        err = f"Google Gemini API error during segment translation: {e}"; print(err); return ('error', text, err)
 
 def blob_to_bytesio(blob):
-    """Downloads blob content into a BytesIO object."""
     if not blob: return None
     try:
-        buffer = io.BytesIO()
-        blob.download_to_file(buffer)
-        buffer.seek(0)
-        return buffer
+        buffer = io.BytesIO(); blob.download_to_file(buffer); buffer.seek(0); return buffer
     except Exception as e:
-        print(f"Error downloading blob {blob.name} to BytesIO: {e}")
-        flash(f"Error accessing temporary file from cloud storage: {e}", "error")
-        return None
+        print(f"Error downloading blob {blob.name} to BytesIO: {e}"); flash(f"Error accessing temporary file: {e}", "error"); return None
 
-# --- NEW: Structured File Reading Utilities for Markdown Generation ---
-def read_docx_structured(file_stream):
-    """Reads DOCX and yields each paragraph/cell text as a segment."""
-    try:
-        file_stream.seek(0)
-        doc = Document(file_stream)
-        for p in doc.paragraphs:
-            if p.text.strip(): yield p.text
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    cell_text = "\n".join([p.text for p in cell.paragraphs if p.text.strip()])
-                    if cell_text: yield cell_text
-    finally:
-        if file_stream: file_stream.seek(0)
-
+# --- File Reading Utilities ---
 def read_pptx_structured(file_stream):
-    """Reads PPTX and yields the combined text of each slide as a segment."""
     try:
-        file_stream.seek(0)
-        ppt = Presentation(file_stream)
+        file_stream.seek(0); ppt = Presentation(file_stream)
         for slide in ppt.slides:
             slide_texts = []
             for shape in slide.shapes:
                 if shape.has_text_frame:
                     for p in shape.text_frame.paragraphs:
-                        if p.text.strip(): slide_texts.append(p.text)
-                if shape.has_table:
-                    for row in shape.table.rows:
-                        for cell in row.cells:
-                            if cell.text_frame and cell.text_frame.text.strip():
-                                slide_texts.append(cell.text_frame.text)
-                if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-                    for subshape in shape.shapes:
-                        if subshape.has_text_frame:
-                            for p in subshape.text_frame.paragraphs:
-                                if p.text.strip(): slide_texts.append(p.text)
-            if slide_texts:
-                yield "\n".join(slide_texts)
+                        if p.text.strip(): slide_texts.append(p.text.strip())
+            if slide_texts: yield "\n".join(slide_texts)
     finally:
         if file_stream: file_stream.seek(0)
 
 def read_excel_structured(file_stream):
-    """Reads Excel and yields each non-empty cell as a segment."""
     try:
-        file_stream.seek(0)
-        excel_data = pd.read_excel(file_stream, sheet_name=None)
+        file_stream.seek(0); excel_data = pd.read_excel(file_stream, sheet_name=None)
         if excel_data:
             for sheet_name, df in excel_data.items():
                 for r in range(df.shape[0]):
@@ -170,251 +105,196 @@ def read_excel_structured(file_stream):
     finally:
         if file_stream: file_stream.seek(0)
 
-# --- File Translation Utilities (from standalone, minor adaptations for style preservation) ---
-def translate_docx_in_memory(file_stream, target_lang, model_name, detected_lang):
+# --- File Writing Utilities ---
+def translate_pptx_from_map(file_stream, translation_map):
     try:
-        file_stream.seek(0)
-        doc = Document(file_stream)
-        # Translate paragraphs
-        for paragraph in doc.paragraphs:
-            if paragraph.text.strip():
-                translated = translate_text_util(paragraph.text, target_lang, model_name, detected_lang)
-                original_runs = list(paragraph.runs)
-                paragraph.clear()
-                if translated.strip():
-                    new_run = paragraph.add_run(translated)
-                    if original_runs: # Attempt to copy basic style from first original run
-                        try:
-                            if original_runs[0].font.name: new_run.font.name = original_runs[0].font.name
-                            if original_runs[0].font.size: new_run.font.size = original_runs[0].font.size
-                            new_run.bold = original_runs[0].bold
-                            new_run.italic = original_runs[0].italic
-                            new_run.underline = original_runs[0].underline
-                        except Exception: pass # Ignore style copy errors silently
-        # Translate table cells
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        if paragraph.text.strip():
-                            translated = translate_text_util(paragraph.text, target_lang, model_name, detected_lang)
-                            original_runs = list(paragraph.runs)
-                            paragraph.clear()
-                            if translated.strip():
-                                new_run = paragraph.add_run(translated)
-                                if original_runs:
-                                    try:
-                                        if original_runs[0].font.name: new_run.font.name = original_runs[0].font.name
-                                        if original_runs[0].font.size: new_run.font.size = original_runs[0].font.size
-                                        new_run.bold = original_runs[0].bold
-                                        new_run.italic = original_runs[0].italic
-                                        new_run.underline = original_runs[0].underline
-                                    except Exception: pass
-        output = io.BytesIO()
-        doc.save(output)
-        output.seek(0)
-        return output
-    except Exception as e:
-        print(f"Error translating DOCX: {e}")
-        flash(f"Error during DOCX translation process: {e}", "error")
-        return None
-
-def translate_pptx_in_memory(file_stream, target_lang, model_name, detected_lang):
-    try:
-        file_stream.seek(0)
-        ppt = Presentation(file_stream)
+        file_stream.seek(0); ppt = Presentation(file_stream)
         for slide in ppt.slides:
             for shape in slide.shapes:
-                if shape.has_text_frame:
-                    for paragraph in shape.text_frame.paragraphs:
-                        if paragraph.text.strip():
-                            translated = translate_text_util(paragraph.text, target_lang, model_name, detected_lang)
-                            if translated is not None and translated.strip():
-                                paragraph.clear()
-                                new_run = paragraph.add_run()
-                                new_run.text = translated
-                if shape.has_table:
-                    for row in shape.table.rows:
-                        for cell in row.cells:
-                            if cell.text_frame:
-                                for paragraph in cell.text_frame.paragraphs:
-                                    if paragraph.text.strip():
-                                        translated = translate_text_util(paragraph.text, target_lang, model_name, detected_lang)
-                                        if translated is not None and translated.strip():
-                                            paragraph.clear()
-                                            new_run = paragraph.add_run()
-                                            new_run.text = translated
-                if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-                    for subshape in shape.shapes:
-                        if subshape.has_text_frame:
-                             for paragraph in subshape.text_frame.paragraphs:
-                                if paragraph.text.strip():
-                                    translated = translate_text_util(paragraph.text, target_lang, model_name, detected_lang)
-                                    if translated is not None and translated.strip():
-                                        paragraph.clear()
-                                        new_run = paragraph.add_run()
-                                        new_run.text = translated
-        output = io.BytesIO()
-        ppt.save(output)
-        output.seek(0)
-        return output
+                if hasattr(shape, 'text_frame') and shape.text_frame:
+                    for para in shape.text_frame.paragraphs:
+                        original_text = para.text.strip()
+                        if original_text and original_text in translation_map:
+                            translated_text = translation_map.get(original_text, original_text); para.clear(); new_run = para.add_run(); new_run.text = translated_text
+        output = io.BytesIO(); ppt.save(output); output.seek(0); return output
     except Exception as e:
-        print(f"Error translating PPTX: {e}")
-        flash(f"Error during PPTX translation process: {e}", "error")
-        return None
+        print(f"Error translating PPTX from map: {e}"); flash(f"Error re-assembling PPTX file: {e}", "error"); return None
 
-def translate_excel_in_memory(file_stream, target_lang, model_name, detected_lang):
+def translate_excel_from_map(file_stream, translation_map):
     try:
-        file_stream.seek(0)
-        excel_file = pd.ExcelFile(file_stream)
-        sheet_names = excel_file.sheet_names
-        translated_sheets = {}
-
-        for sheet_name in sheet_names:
+        file_stream.seek(0); excel_file = pd.ExcelFile(file_stream); translated_sheets = {}
+        for sheet_name in excel_file.sheet_names:
             df = excel_file.parse(sheet_name)
-            translated_df = df.applymap(lambda x:
-                translate_text_util(str(x).strip(), target_lang, model_name, detected_lang)
-                if pd.notna(x) and isinstance(x, str) and str(x).strip() not in [None, ""]
-                else x
-            )
-            translated_sheets[sheet_name] = translated_df
-        
+            def translate_cell(cell_value):
+                if pd.notna(cell_value) and isinstance(cell_value, str):
+                    stripped_val = cell_value.strip(); return translation_map.get(stripped_val, cell_value)
+                return cell_value
+            translated_df = df.applymap(translate_cell); translated_sheets[sheet_name] = translated_df
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             for sheet_name, data_frame in translated_sheets.items():
                 data_frame.to_excel(writer, sheet_name=sheet_name, index=False)
-        output.seek(0)
-        return output
+        output.seek(0); return output
     except Exception as e:
-        print(f"Error translating Excel: {e}")
-        flash(f"Error during Excel translation process: {e}", "error")
-        return None
+        print(f"Error translating Excel from map: {e}"); flash(f"Error re-assembling Excel file: {e}", "error"); return None
 
 # --- Routes for Translation Feature ---
 def define_translation_routes(app_shell):
 
     @app_shell.route("/process/translation/translate_document", methods=["POST"])
     def process_translate_document():
-        g.request_id = uuid.uuid4().hex 
+        g.request_id = uuid.uuid4().hex
         gcs_temp_paths_to_clean = []
-        render_context = {"file_id": None, "translated_markdown": None}
+        render_context = {"file_id": None, "translated_html": None}
 
         gcs_available = current_app.config.get('GCS_AVAILABLE', False)
         gemini_configured = current_app.config.get('GEMINI_CONFIGURED', False)
         gcs_bucket = current_app.gcs_bucket
         gemini_model_name = current_app.config.get('GEMINI_MODEL_NAME')
-        
-        if not gcs_available:
-            flash("Google Cloud Storage is not available. Cannot process files.", "error")
-            return render_template("translation/templates/_translation_results_partial.html", **render_context)
-        if not gemini_configured or not gemini_model_name:
-            flash("Google Gemini AI is not configured or model name is missing. Cannot translate.", "error")
+        if not all([gcs_available, gemini_configured, gemini_model_name]):
+            flash("Service not fully configured.", "error")
             return render_template("translation/templates/_translation_results_partial.html", **render_context)
 
-        file = request.files.get("file")
-        target_lang = request.form.get("target_language")
-
-        if not file or file.filename == "":
-            flash("No file selected.", "error")
-            return render_template("translation/templates/_translation_results_partial.html", **render_context)
-        if not target_lang:
-            flash("No target language selected.", "error")
+        file = request.files.get("file"); target_lang = request.form.get("target_language")
+        if not file or not target_lang:
+            flash("File and target language are required.", "error")
             return render_template("translation/templates/_translation_results_partial.html", **render_context)
 
         safe_filename = secure_filename(file.filename)
         file_extension = os.path.splitext(safe_filename)[1].lower()
         if file_extension not in [".docx", ".pptx", ".xlsx"]:
-            flash("Unsupported file type. Only .docx, .pptx, .xlsx are supported.", "error")
+            flash("Unsupported file type.", "error")
             return render_template("translation/templates/_translation_results_partial.html", **render_context)
 
         upload_gcs_path = f"translation_feature/uploads/{g.request_id}/{safe_filename}"
         translated_gcs_path = f"translation_feature/results/{g.request_id}/translated_{safe_filename}"
-
+        
         try:
-            print(f"[{g.request_id}] Uploading {safe_filename} to gs://{gcs_bucket.name}/{upload_gcs_path}")
-            upload_blob = gcs_bucket.blob(upload_gcs_path)
-            file.stream.seek(0)
-            upload_blob.upload_from_file(file.stream)
+            upload_blob = gcs_bucket.blob(upload_gcs_path); file.stream.seek(0); upload_blob.upload_from_file(file.stream)
             gcs_temp_paths_to_clean.append(upload_gcs_path)
-            print(f"[{g.request_id}] Upload complete for {safe_filename}.")
-
-            print(f"[{g.request_id}] Reading content from GCS for translation and Markdown generation...")
             uploaded_file_stream = blob_to_bytesio(upload_blob)
-            if not uploaded_file_stream:
+            if not uploaded_file_stream: return render_template("translation/templates/_translation_results_partial.html", **render_context)
+
+            translation_map = {}
+            limited_segments_with_style = []
+            unique_segments_to_translate = []
+            
+            if file_extension == ".docx":
+                doc = Document(uploaded_file_stream)
+                text_to_objects_map = defaultdict(list)
+                seen_texts = set()
+                
+                all_paragraphs = list(doc.paragraphs)
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            all_paragraphs.extend(cell.paragraphs)
+
+                for p in all_paragraphs:
+                    text = p.text.strip()
+                    if text:
+                        style_name = p.style.name.lower() if p.style and p.style.name else 'normal'
+                        text_to_objects_map[text].append(p)
+                        if text not in seen_texts:
+                            limited_segments_with_style.append((style_name, text))
+                            seen_texts.add(text)
+                
+                MAX_DOCX_SEGMENTS = 100
+                if len(limited_segments_with_style) > MAX_DOCX_SEGMENTS:
+                    flash(f"For this demo, we've translated the first {MAX_DOCX_SEGMENTS} content blocks of the document.", "info")
+                    limited_segments_with_style = limited_segments_with_style[:MAX_DOCX_SEGMENTS]
+                
+                unique_segments_to_translate = [text for style, text in limited_segments_with_style]
+
+            else:
+                text_segments_generator = None; limit = 0; unit = "segments"
+                if file_extension == ".pptx":
+                    limit, unit, text_segments_generator = 10, "slides", read_pptx_structured(uploaded_file_stream)
+                elif file_extension == ".xlsx":
+                    limit, unit, text_segments_generator = 200, "cells", read_excel_structured(uploaded_file_stream)
+                
+                all_segments = list(itertools.islice(text_segments_generator, limit))
+                if next(text_segments_generator, None) is not None:
+                    flash(f"For this demo, we've translated the first {limit} {unit} of the document.", "info")
+                
+                seen_texts = set()
+                for segment in all_segments:
+                    limited_segments_with_style.append(('normal', segment))
+                    if segment not in seen_texts:
+                        unique_segments_to_translate.append(segment)
+                        seen_texts.add(segment)
+
+            if not unique_segments_to_translate:
+                flash("No text content was found to translate.", "warning")
                 return render_template("translation/templates/_translation_results_partial.html", **render_context)
 
-            text_segments = []
-            if file_extension == ".docx":
-                text_segments = list(read_docx_structured(uploaded_file_stream))
-            elif file_extension == ".pptx":
-                text_segments = list(read_pptx_structured(uploaded_file_stream))
-            elif file_extension == ".xlsx":
-                text_segments = list(read_excel_structured(uploaded_file_stream))
+            detected_language_code = detect_language_util("\n".join(unique_segments_to_translate))
+            if detected_language_code: flash(f"Detected source language: {detected_language_code.upper()}", "info")
             
-            detected_language_code = None
-            if text_segments:
-                full_text_for_detection = "\n".join(text_segments)
-                detected_language_code = detect_language_util(full_text_for_detection)
-                if detected_language_code:
-                    flash(f"Detected source language: {detected_language_code.upper()}", "info")
-            else:
-                flash("No text extracted for translation.", "warning")
+            with ThreadPoolExecutor(max_workers=16) as executor:
+                future_to_segment = {executor.submit(translate_text_util, s, target_lang, gemini_model_name, detected_language_code): s for s in unique_segments_to_translate}
+                for future in as_completed(future_to_segment):
+                    original_segment = future_to_segment[future]
+                    try:
+                        status, content, message = future.result()
+                        if status == 'blocked': flash(message, 'warning')
+                        translation_map[original_segment] = content
+                    except Exception as exc:
+                        print(f"A future raised an exception: {exc}"); translation_map[original_segment] = original_segment
 
-            # --- Translate for Markdown (Segment by Segment) ---
-            translated_segments = [translate_text_util(s, target_lang, gemini_model_name, detected_language_code) for s in text_segments]
+            markdown_parts = []
+            for style, original_text in limited_segments_with_style:
+                translated_text = translation_map.get(original_text, original_text)
+                if not translated_text: continue
+                if 'heading 1' in style: markdown_parts.append(f"# {translated_text}")
+                elif 'heading 2' in style: markdown_parts.append(f"## {translated_text}")
+                elif 'heading 3' in style: markdown_parts.append(f"### {translated_text}")
+                elif 'list' in style or 'bullet' in style: markdown_parts.append(f"* {translated_text}")
+                else: markdown_parts.append(translated_text)
             
-            # --- Format Translated Segments into Markdown ---
-            if translated_segments:
-                if file_extension == ".pptx":
-                    render_context["translated_markdown"] = "\n\n---\n\n".join(
-                        [f"# Slide {i+1}\n\n{text}" for i, text in enumerate(translated_segments)]
-                    )
-                else: # .docx and .xlsx
-                    render_context["translated_markdown"] = "\n\n".join(translated_segments)
+            markdown_string = "\n\n".join(markdown_parts)
+            render_context["translated_html"] = mistune.html(markdown_string)
             
-            # --- Translate Native File (In Memory) ---
-            print(f"[{g.request_id}] Translating native file to {target_lang}...")
             translated_file_stream = None
             if file_extension == ".docx":
-                translated_file_stream = translate_docx_in_memory(uploaded_file_stream, target_lang, gemini_model_name, detected_language_code)
-            elif file_extension == ".pptx":
-                translated_file_stream = translate_pptx_in_memory(uploaded_file_stream, target_lang, gemini_model_name, detected_language_code)
-            elif file_extension == ".xlsx":
-                translated_file_stream = translate_excel_in_memory(uploaded_file_stream, target_lang, gemini_model_name, detected_language_code)
-
+                for original_text, translated_text in translation_map.items():
+                    if original_text in text_to_objects_map:
+                        for p_object in text_to_objects_map[original_text]:
+                            original_runs = list(p_object.runs); p_object.clear()
+                            if translated_text.strip():
+                                new_run = p_object.add_run(translated_text)
+                                if original_runs:
+                                    try:
+                                        if original_runs[0].font.name: new_run.font.name = original_runs[0].font.name
+                                        if original_runs[0].font.size: new_run.font.size = original_runs[0].font.size
+                                        new_run.bold, new_run.italic, new_run.underline = original_runs[0].bold, original_runs[0].italic, original_runs[0].underline
+                                    except Exception: pass
+                output = io.BytesIO(); doc.save(output); output.seek(0); translated_file_stream = output
+            else:
+                uploaded_file_stream.seek(0)
+                if file_extension == ".pptx": translated_file_stream = translate_pptx_from_map(uploaded_file_stream, translation_map)
+                elif file_extension == ".xlsx": translated_file_stream = translate_excel_from_map(uploaded_file_stream, translation_map)
+            
             if translated_file_stream:
-                print(f"[{g.request_id}] Uploading translated file to gs://{gcs_bucket.name}/{translated_gcs_path}")
                 translated_blob = gcs_bucket.blob(translated_gcs_path)
-                translated_file_stream.seek(0)
-                translated_blob.upload_from_file(translated_file_stream)
-                print(f"[{g.request_id}] Upload complete for translated file.")
-                
+                translated_file_stream.seek(0); translated_blob.upload_from_file(translated_file_stream)
                 session_file_id = str(uuid.uuid4())
-                session[session_file_id] = {
-                    'gcs_path': translated_gcs_path,
-                    'filename': f"translated_{safe_filename}"
-                }
+                session[session_file_id] = {'gcs_path': translated_gcs_path, 'filename': f"translated_{safe_filename}"}
                 render_context["file_id"] = session_file_id
                 flash("Translation process completed successfully.", "success")
             else:
-                 if not any(cat == 'error' for cat, msg in get_flashed_messages(with_categories=True)):
-                    flash("Translation succeeded for text preview, but failed to generate the downloadable native file.", "warning")
+                if "file_id" not in render_context: flash("Text preview was generated, but creating the downloadable native file failed.", "warning")
 
             return render_template("translation/templates/_translation_results_partial.html", **render_context)
-
         except Exception as e:
-            print(f"[{g.request_id}] Critical error during translation processing: {e}")
-            flash(f"An unexpected critical error occurred: {str(e)}", "error")
-            import traceback
-            traceback.print_exc()
+            print(f"[{g.request_id}] Critical error: {e}"); flash(f"An unexpected critical error occurred: {str(e)}", "error"); import traceback; traceback.print_exc()
             return render_template("translation/templates/_translation_results_partial.html", **render_context)
         finally:
             if gcs_bucket and gcs_temp_paths_to_clean:
                 print(f"[{g.request_id}] Cleaning up temporary GCS objects: {gcs_temp_paths_to_clean}")
                 try:
-                    blobs_to_delete_objects = [gcs_bucket.blob(path) for path in gcs_temp_paths_to_clean]
-                    def on_delete_error(blob_with_error): print(f"Failed to delete blob {blob_with_error.name} during cleanup.")
-                    gcs_bucket.delete_blobs(blobs=blobs_to_delete_objects, on_error=on_delete_error)
+                    blobs_to_delete = [gcs_bucket.blob(path) for path in gcs_temp_paths_to_clean]
+                    gcs_bucket.delete_blobs(blobs=blobs_to_delete, on_error=lambda blob: print(f"Failed to delete blob {blob.name}"))
                     print(f"[{g.request_id}] Cleanup of uploaded original files successful.")
                 except Exception as e_cleanup:
                     print(f"[{g.request_id}] GCS Cleanup error for uploaded original files: {e_cleanup}")
@@ -423,51 +303,27 @@ def define_translation_routes(app_shell):
     def download_translated_file(file_id):
         gcs_available = current_app.config.get('GCS_AVAILABLE', False)
         gcs_bucket = current_app.gcs_bucket
-
         if not gcs_available or not gcs_bucket:
             flash("Google Cloud Storage is not available. Cannot download file.", "error")
-            return redirect(url_for('index', feature_key='translation')) 
-
+            return redirect(url_for('index', feature_key='translation'))
         file_info = session.get(file_id)
         if not file_info or 'gcs_path' not in file_info or 'filename' not in file_info:
             flash("File not found or download link expired/invalid.", "error")
             return redirect(url_for('index', feature_key='translation'))
-
-        gcs_path = file_info['gcs_path']
-        filename_for_download = file_info['filename']
-        
-        request_id_dl = uuid.uuid4().hex
-        print(f"[{request_id_dl}] Attempting to download gs://{gcs_bucket.name}/{gcs_path} as {filename_for_download}")
-
+        gcs_path, filename_for_download = file_info['gcs_path'], file_info['filename']
         try:
             translated_blob = gcs_bucket.blob(gcs_path)
             if not translated_blob.exists():
-                print(f"[{request_id_dl}] Error: Blob not found at gs://{gcs_bucket.name}/{gcs_path}")
                 flash("Error: Translated file no longer found (it may have expired).", "error")
-                session.pop(file_id, None)
-                return redirect(url_for('index', feature_key='translation'))
-
+                session.pop(file_id, None); return redirect(url_for('index', feature_key='translation'))
             output_stream = io.BytesIO()
             translated_blob.download_to_file(output_stream)
             output_stream.seek(0)
-            
-            print(f"[{request_id_dl}] Successfully downloaded from GCS. Serving file {filename_for_download}.")
-
-            return send_file(
-                output_stream,
-                as_attachment=True,
-                download_name=filename_for_download,
-                mimetype='application/octet-stream' 
-            )
+            return send_file(output_stream, as_attachment=True, download_name=filename_for_download, mimetype='application/octet-stream')
         except NotFound:
-            print(f"[{request_id_dl}] Error: Blob not found (NotFound exception) at gs://{gcs_bucket.name}/{gcs_path}")
             flash("Error: Translated file not found (it may have expired).", "error")
-            session.pop(file_id, None)
-            return redirect(url_for('index', feature_key='translation'))
+            session.pop(file_id, None); return redirect(url_for('index', feature_key='translation'))
         except Exception as e:
-            print(f"[{request_id_dl}] Error serving file from GCS {gcs_path}: {e}")
+            print(f"Error serving file from GCS {gcs_path}: {e}")
             flash(f"An error occurred while serving the translated file: {str(e)}", "error")
-            session.pop(file_id, None)
-            import traceback
-            traceback.print_exc()
-            return redirect(url_for('index', feature_key='translation'))
+            session.pop(file_id, None); import traceback; traceback.print_exc(); return redirect(url_for('index', feature_key='translation'))
