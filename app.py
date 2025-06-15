@@ -1,3 +1,4 @@
+# app.py
 from flask import Flask, render_template, request, url_for, current_app, redirect
 import os
 from jinja2 import ChoiceLoader, FileSystemLoader
@@ -37,7 +38,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 app.jinja_loader = ChoiceLoader([
     app.jinja_loader,
-    FileSystemLoader('features') # This allows using paths like 'multimedia/templates/multimedia_content.html'
+    FileSystemLoader('features') 
 ])
 
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this")
@@ -72,7 +73,7 @@ if GCS_BUCKET_NAME and GOOGLE_CLOUD_PROJECT:
     try:
         app.storage_client = storage.Client(project=GOOGLE_CLOUD_PROJECT)
         app.gcs_bucket = app.storage_client.bucket(GCS_BUCKET_NAME)
-        app.gcs_bucket.reload() # Check if bucket exists and is accessible
+        app.gcs_bucket.reload()
         app.config['GCS_AVAILABLE'] = True
         logging.info(f"Global: GCS client initialized (Bucket: gs://{GCS_BUCKET_NAME}).")
     except NotFound:
@@ -92,7 +93,7 @@ try:
     logging.info("Global: Initializing Presidio Analyzer Engine...")
     provider = NlpEngineProvider(nlp_configuration={
         "nlp_engine_name": "spacy",
-        "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}] # Ensure this model is downloaded: python -m spacy download en_core_web_lg
+        "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}]
     })
     app.presidio_analyzer = AnalyzerEngine(nlp_engine=provider.create_engine(), supported_languages=["en"])
     app.config['PRESIDIO_ANALYZER_AVAILABLE'] = True
@@ -103,11 +104,10 @@ except Exception as e:
 
 FEATURES_DATA = {
     "welcome": {"name": "Welcome", "icon": "fas fa-home", "template": "partials/_welcome_content.html"},
-    # "transcription": {"name": "Transcription", "icon": "fas fa-microphone-alt", "template": "transcription/templates/transcription_content.html"},
     "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"},
     "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"},
     "pii_redaction": {"name": "PII Redaction", "icon": "fas fa-user-shield", "template": "pii_redaction/templates/pii_redaction_content.html"},
-    "multimedia": {"name": "Multimedia", "icon": "fas fa-photo-video", "template": "multimedia/templates/multimedia_content.html"}, # CHANGED
+    "multimedia": {"name": "Multimedia", "icon": "fas fa-photo-video", "template": "multimedia/templates/multimedia_content.html"},
     "info": {"name": "Information", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"},
 }
 DEFAULT_FEATURE_KEY = "welcome"
@@ -131,19 +131,16 @@ else:
     app.config['PPT_TEMPLATES'] = ['professional', 'creative', 'minimalist']
     app.config['PPT_DEFAULT_TEMPLATE_NAME'] = 'professional'
 
-# --- Import and Register Feature Routes ---
-# from features.transcription.routes import define_transcription_routes
 from features.translation.routes import define_translation_routes
 from features.summarization.routes import define_summarization_routes
 from features.pii_redaction.routes import define_pii_redaction_routes
-from features.multimedia.routes import define_multimedia_routes # CHANGED
+from features.multimedia.routes import define_multimedia_routes
 from features.info.routes import define_info_routes
 
-# define_transcription_routes(app)
 define_translation_routes(app)
 define_summarization_routes(app)
 define_pii_redaction_routes(app)
-define_multimedia_routes(app) # CHANGED
+define_multimedia_routes(app)
 define_info_routes(app)
 
 @app.route('/')
@@ -153,36 +150,29 @@ def root_redirect():
 @app.route('/feature/<feature_key>')
 def index(feature_key): 
     if feature_key not in FEATURES_DATA:
-        feature_key_to_render = DEFAULT_FEATURE_KEY
-    else:
-        feature_key_to_render = feature_key
+        feature_key = DEFAULT_FEATURE_KEY
     
-    current_feature_data = FEATURES_DATA[feature_key_to_render]
+    current_feature_data = FEATURES_DATA[feature_key]
     initial_content_template_path = current_feature_data["template"]
 
-    # <<< START OF FIX >>>
-    # Build the full context needed by the initial template render.
-    # This mirrors the logic in get_feature_content to prevent context discrepancies.
     template_context = {
         "gcs_available": current_app.config.get('GCS_AVAILABLE', False),
         "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
-        # Add other feature-specific initial context variables here as needed
     }
-    # Example for another feature:
-    # if feature_key_to_render == "summarization":
-    #     template_context["ppt_api_key_configured"] = current_app.config.get('GEMINI_CONFIGURED', False) and current_app.config.get('GCS_AVAILABLE', False)
-    #     # ... add other summarization vars
-    # <<< END OF FIX >>>
-
-
+    
+    # Pass initial data needed by the template on first load.
+    # This mirrors the context logic in get_feature_content.
+    if feature_key == "translation":
+        template_context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
+        
     return render_template(
         'layout.html',
         features=FEATURES_DATA,
         current_feature=current_feature_data,
-        active_feature_key=feature_key_to_render,
+        active_feature_key=feature_key,
         initial_content_template=initial_content_template_path,
         DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY,
-        **template_context # Pass the full context to the template
+        **template_context
     )
 
 @app.route('/content/<feature_key>')
@@ -193,14 +183,17 @@ def get_feature_content(feature_key):
     feature_data = FEATURES_DATA[feature_key]
     template_to_render = feature_data["template"]
     
-    # Common context items for all features
     context = {
         "gcs_available": current_app.config.get('GCS_AVAILABLE', False),
         "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
     }
     
+    # ======================= THE FIX IS HERE =======================
+    # This block ensures that when the Translation feature is loaded via HTMX,
+    # it always receives the list of languages.
     if feature_key == "translation":
         context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
+    # ======================= END OF FIX ============================
     elif feature_key == "summarization":
         context["summary"] = "" 
         context["hx_target_is_result"] = False 
@@ -221,14 +214,11 @@ def get_feature_content(feature_key):
         context["original_filename"] = None
         context["presidio_available"] = current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False)
         context["hx_target_is_result"] = False
-    elif feature_key == "multimedia": # CHANGED
-        # No specific extra context needed for initial render of multimedia beyond common ones
+    elif feature_key == "multimedia":
         pass
 
     return render_template(template_to_render, **context)
 
 if __name__ == '__main__':
     logging.info(f"Starting Flask development server on http://localhost:5001")
-    print(f"FLASK_SECRET_KEY is {'SET (hopefully not the default)' if app.secret_key != 'a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this' else 'USING DEFAULT DEV KEY - NOT FOR PRODUCTION'}")
-    print(f"GOOGLE_API_KEY is {'SET' if GOOGLE_API_KEY else 'NOT SET (will be needed for AI features)'}")
     app.run(host="0.0.0.0", port=5001, debug=True)

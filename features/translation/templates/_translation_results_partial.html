@@ -1,20 +1,13 @@
 {# features/translation/templates/_translation_results_partial.html #}
-
-{# First, display any flashed messages that occurred during processing #}
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
         <div class="translation-messages">
             {% for category, message in messages %}
-                <div class="message-item category-{{ category|default('info') }}" 
-                     role="alert">
-                    {% if category == 'error' %}
-                        <i class="fas fa-exclamation-triangle"></i>
-                    {% elif category == 'success' %}
-                        <i class="fas fa-check-circle"></i>
-                    {% elif category == 'warning' %}
-                        <i class="fas fa-exclamation-circle"></i>
-                    {% else %}
-                        <i class="fas fa-info-circle"></i>
+                <div class="message-item category-{{ category|default('info') }}" role="alert">
+                    {% if category == 'error' %}<i class="fas fa-exclamation-triangle"></i>
+                    {% elif category == 'success' %}<i class="fas fa-check-circle"></i>
+                    {% elif category == 'warning' %}<i class="fas fa-exclamation-circle"></i>
+                    {% else %}<i class="fas fa-info-circle"></i>
                     {% endif %}
                     {{ message }}
                 </div>
@@ -23,7 +16,6 @@
     {% endif %}
 {% endwith %}
 
-{# Then, display the download link for the translated native file, if it was created #}
 {% if file_id %}
     <div class="translation-download-link" style="margin-bottom: 1.5rem;">
         <a href="{{ url_for('download_translated_file', file_id=file_id) }}" 
@@ -36,13 +28,22 @@
     </div>
 {% endif %}
 
-{# Display the RENDERED HTML, not the raw markdown #}
-{% if translated_html %}
-<div class="summary-display-box" style="margin-top: 1rem;">
-    <h4>Translated Text</h4>
-    {# This div will render the HTML. The 'safe' filter is CRITICAL. #}
-    <div class="markdown-body" style="background-color: #fff; padding: 1rem; border-radius: 4px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto; text-align: left;">
-        {{ translated_html | safe }}
+{% if translated_markdown %}
+    <div class="summary-display-box" style="margin-top: 1rem;">
+        <h4>Translated Text Preview</h4>
+        <div id="translation-output-container" class="markdown-body" style="background-color: #fff; padding: 1rem; border-radius: 4px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto; text-align: left;">
+        </div>
     </div>
-</div>
+    <script>
+        (function() {
+            const markdownContent = {{ translated_markdown|tojson }};
+            const container = document.getElementById('translation-output-container');
+            if (container && typeof window.renderMarkdownSummary === 'function') {
+                window.renderMarkdownSummary(markdownContent, container);
+            } else if (container) { 
+                console.warn("renderMarkdownSummary function not found, using basic render.");
+                container.innerHTML = '<p>' + markdownContent.replace(/\n/g, '<br>') + '</p>';
+            }
+        })();
+    </script>
 {% endif %}
