@@ -7,51 +7,38 @@ import logging
 import json
 import base64
 from flask import (
-    Blueprint, render_template, request, flash, current_app, url_for, g, jsonify, send_file, after_this_request
+    Blueprint, render_template, request, flash, current_app, url_for, g, jsonify, send_file, after_this_request, session
 )
 from werkzeug.utils import secure_filename
 from google.cloud import storage
 from google.cloud.exceptions import NotFound as GCSNotFound
 import google.generativeai as genai
-from PIL import Image, ImageOps # Import ImageOps here
+from PIL import Image, ImageOps
 
 from .blur_utils import allowed_file, blur_image_opencv
 from .analytics_utils import analyze_image_with_gemini, extract_dominant_colors
 
-# --- GLOBAL CONFIGURATION ---
 MULTIMEDIA_BLUR_UPLOAD_FOLDER_PREFIX = "multimedia_feature/blurring/uploads/"
 MULTIMEDIA_BLUR_RESULTS_FOLDER_PREFIX = "multimedia_feature/blurring/results/"
 TARGET_RESOLUTION = (1920, 1920)
 
 def normalize_and_resize_image(image_bytes: bytes) -> bytes:
-    """
-    Resizes an image to a standard resolution and corrects its orientation
-    based on EXIF data to ensure fast, consistent processing.
-    """
     try:
         logging.info(f"Normalizing image for optimal processing...")
         img = Image.open(io.BytesIO(image_bytes))
-        
-        # ======================= THE FIX IS HERE =======================
-        # This line reads the EXIF orientation tag and applies the correct rotation.
         img = ImageOps.exif_transpose(img)
-        # ===============================================================
-        
         img.thumbnail(TARGET_RESOLUTION, Image.Resampling.LANCZOS)
-        
         output_buffer = io.BytesIO()
         img_format = img.format if img.format in ['JPEG', 'PNG', 'WEBP'] else 'JPEG'
-        # Ensure we save as RGB to avoid issues with palettes in PNGs etc.
         if img.mode != 'RGB':
             img = img.convert('RGB')
         img.save(output_buffer, format=img_format, quality=85)
-        
         resized_bytes = output_buffer.getvalue()
         logging.info(f"Image normalized from {len(image_bytes) / 1024 / 1024:.2f}MB to {len(resized_bytes) / 1024 / 1024:.2f}MB.")
         return resized_bytes
     except Exception as e:
         logging.error(f"Failed to normalize image: {e}", exc_info=True)
-        return image_bytes # Return original bytes on failure
+        return image_bytes
 
 def define_multimedia_routes(app_shell):
     
@@ -61,22 +48,22 @@ def define_multimedia_routes(app_shell):
         req_start_time = time.time()
         log_extra = {'extra_data': {'request_id': g.request_id, 'feature': 'multimedia-blur'}}
         
-        if not hasattr(g, 'gcs_urgent_temp_paths_to_clean'):
-            g.gcs_urgent_temp_paths_to_clean = []
-
-        @after_this_request
-        def cleanup_gcs_uploads(response):
-            if hasattr(g, 'gcs_urgent_temp_paths_to_clean') and g.gcs_urgent_temp_paths_to_clean:
-                if current_app.gcs_bucket:
-                    try:
-                        blobs_to_delete = [current_app.gcs_bucket.blob(path) for path in g.gcs_urgent_temp_paths_to_clean]
-                        existing_blobs_to_delete = [b for b in blobs_to_delete if b.exists()]
-                        if existing_blobs_to_delete:
-                            current_app.gcs_bucket.delete_blobs(blobs=existing_blobs_to_delete, on_error=lambda blob: logging.error(f"[{g.request_id}] Failed to delete GCS blob {blob.name} during urgent cleanup.", extra=log_extra))
-                        logging.info(f"[{g.request_id}] Cleaned up URGENT temporary GCS uploads for multimedia-blur: {g.gcs_urgent_temp_paths_to_clean}", extra=log_extra)
-                    except Exception as e_clean:
-                        logging.error(f"[{g.request_id}] GCS URGENT cleanup error for multimedia-blur uploads: {e_clean}", exc_info=True, extra=log_extra)
-            return response
+        # ======================= START OF THE FIX: SESSION-BASED CLEANUP =======================
+        # 1. Clean up OLD files from the PREVIOUS request before starting a new one.
+        if 'multimedia_temp_files' in session and current_app.gcs_bucket:
+            old_paths_to_clean = session.pop('multimedia_temp_files', [])
+            if old_paths_to_clean:
+                try:
+                    blobs_to_delete = [current_app.gcs_bucket.blob(path) for path in old_paths_to_clean]
+                    existing_blobs_to_delete = [b for b in blobs_to_delete if b.exists()]
+                    if existing_blobs_to_delete:
+                        current_app.gcs_bucket.delete_blobs(blobs=existing_blobs_to_delete, on_error=lambda blob: logging.error(f"[{g.request_id}] Failed to delete old GCS blob {blob.name}.", extra=log_extra))
+                    logging.info(f"[{g.request_id}] Cleaned up old temporary files from session: {old_paths_to_clean}", extra=log_extra)
+                except Exception as e_clean:
+                    logging.error(f"[{g.request_id}] GCS cleanup error for old session files: {e_clean}", exc_info=True, extra=log_extra)
+        
+        # Remove the immediate @after_this_request decorator. It's no longer needed.
+        # ======================= END OF THE FIX: SESSION-BASED CLEANUP =========================
 
         if not current_app.config.get('GCS_AVAILABLE'):
             return render_template("multimedia/templates/_blurring_results_partial.html", error_message="Cloud Storage service is unavailable. Cannot process image.")
@@ -97,11 +84,14 @@ def define_multimedia_routes(app_shell):
             blur_size = blur_strength_map.get(blur_selection, 151)
 
             original_filename = secure_filename(file.filename)
-            file_root, file_ext = os.path.splitext(original_filename)
+            file_root, _ = os.path.splitext(original_filename)
+            blurred_filename_gcs = f"{file_root}-blurred.png"
             
             gcs_original_upload_path = f"{MULTIMEDIA_BLUR_UPLOAD_FOLDER_PREFIX}{g.request_id}/{original_filename}"
-            blurred_filename_gcs = f"{file_root}-blurred{file_ext if file_ext else '.png'}"
             gcs_blurred_output_path = f"{MULTIMEDIA_BLUR_RESULTS_FOLDER_PREFIX}{g.request_id}/{blurred_filename_gcs}"
+            
+            # 2. Store the NEW paths for this request in the session.
+            session['multimedia_temp_files'] = [gcs_original_upload_path, gcs_blurred_output_path]
 
             original_blob = current_app.gcs_bucket.blob(gcs_original_upload_path)
             original_blob.upload_from_string(resized_image_bytes, content_type=file.content_type)
@@ -115,8 +105,7 @@ def define_multimedia_routes(app_shell):
                 return render_template("multimedia/templates/_blurring_results_partial.html", error_message="Image processing failed during blurring.")
 
             blurred_blob = current_app.gcs_bucket.blob(gcs_blurred_output_path)
-            blurred_content_type = f'image/{file_ext[1:] if file_ext else "png"}'
-            blurred_blob.upload_from_string(blurred_image_bytes, content_type=blurred_content_type)
+            blurred_blob.upload_from_string(blurred_image_bytes, content_type='image/png')
             logging.info(f"[{g.request_id}] Blurred image '{blurred_filename_gcs}' uploaded to {gcs_blurred_output_path}", extra=log_extra)
 
             original_image_url = url_for('serve_multimedia_blur_image', type='original', r_id=g.request_id, filename=original_filename)
@@ -139,43 +128,33 @@ def define_multimedia_routes(app_shell):
     def process_multimedia_analyze_image_route():
         g.request_id = uuid.uuid4().hex
         log_extra = {'extra_data': {'request_id': g.request_id, 'feature': 'multimedia-analytics'}}
-
         if not current_app.config.get('GEMINI_CONFIGURED'):
             return render_template("multimedia/templates/_analytics_results_partial.html", 
                                    analysis_results={"error": "AI service is not configured. Cannot analyze image."})
-
         if 'file' not in request.files:
             return render_template("multimedia/templates/_analytics_results_partial.html",
                                    analysis_results={"error": "No file part in the request."})
-
         file = request.files['file']
         if file.filename == '' or not allowed_file(file.filename):
             return render_template("multimedia/templates/_analytics_results_partial.html",
                                    analysis_results={"error": "No valid file selected. Please upload a JPG, PNG, or WEBP image."})
-
         try:
             image_bytes_original = file.read()
             image_bytes = normalize_and_resize_image(image_bytes_original)
-            
             file_mimetype = file.mimetype
             base64_encoded_data = base64.b64encode(image_bytes).decode('utf-8')
             image_data_url = f"data:{file_mimetype};base64,{base64_encoded_data}"
-
             model_name = current_app.config.get('GEMINI_MODEL_NAME', 'gemini-1.5-flash-latest')
             gemini_model = genai.GenerativeModel(model_name)
-
             analysis_results = analyze_image_with_gemini(image_bytes, gemini_model)
             dominant_colors = extract_dominant_colors(image_bytes)
-
             if analysis_results is None:
                  return render_template("multimedia/templates/_analytics_results_partial.html",
                                    analysis_results={"error": "Image analysis failed."})
-
             return render_template("multimedia/templates/_analytics_results_partial.html",
                                    analysis_results=analysis_results,
                                    dominant_colors=dominant_colors,
                                    image_data_url=image_data_url)
-
         except Exception as e:
             logging.error(f"[{g.request_id}] Error during analytics process for {file.filename}: {e}", exc_info=True, extra=log_extra)
             return render_template("multimedia/templates/_analytics_results_partial.html", 
@@ -186,7 +165,6 @@ def define_multimedia_routes(app_shell):
         log_extra = {'extra_data': {'request_id': r_id, 'feature': 'multimedia_serve', 'type': type, 'filename': filename}}
         if not current_app.config.get('GCS_AVAILABLE'):
             return "Cloud Storage not available", 503
-
         if type == 'original':
             gcs_path = f"{MULTIMEDIA_BLUR_UPLOAD_FOLDER_PREFIX}{r_id}/{filename}"
         elif type == 'blurred':
@@ -194,6 +172,11 @@ def define_multimedia_routes(app_shell):
         else:
             return "Invalid image type", 404
         
+        # 3. Security Check: Only serve files that are listed in the current user's session.
+        if 'multimedia_temp_files' not in session or gcs_path not in session['multimedia_temp_files']:
+            logging.warning(f"Unauthorized access attempt for GCS path: {gcs_path}", extra=log_extra)
+            return "Access denied or file has expired.", 403
+
         try:
             blob = current_app.gcs_bucket.blob(gcs_path)
             if not blob.exists():
@@ -201,14 +184,14 @@ def define_multimedia_routes(app_shell):
             
             image_data = io.BytesIO(blob.download_as_bytes())
             image_data.seek(0)
-            
-            mimetype = 'image/jpeg' 
-            lowered_filename = filename.lower()
-            if lowered_filename.endswith('.png'):
-                mimetype = 'image/png'
-            elif lowered_filename.endswith('.webp'):
-                mimetype = 'image/webp'
-            
+            mimetype = 'image/png' # Since output is now always PNG
+            if type == 'original':
+                lowered_filename = filename.lower()
+                if lowered_filename.endswith('.jpg') or lowered_filename.endswith('.jpeg'):
+                    mimetype = 'image/jpeg'
+                elif lowered_filename.endswith('.webp'):
+                    mimetype = 'image/webp'
+
             return send_file(image_data, mimetype=mimetype)
             
         except GCSNotFound:

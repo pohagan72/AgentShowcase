@@ -1,79 +1,82 @@
 {# features/multimedia/templates/_analytics_results_partial.html #}
 
-{% if analysis_results and not analysis_results.get('error') %}
-<div class="analytics-results-grid">
-    <!-- Left Column: Image Preview -->
-    <div class="image-preview-container">
-        <img id="analytics-image-preview-img" src="{{ image_data_url }}" alt="Image Preview" class="img-fluid result-image">
-    </div>
-
-    <!-- Right Column: Analysis Details -->
-    <div class="analysis-details-container">
-        
-        <h4><i class="fas fa-file-alt"></i> AI Description</h4>
-        <p class="analysis-description">{{ analysis_results.rich_description }}</p>
-
-        <h4><i class="fas fa-spell-check"></i> Extracted Text (OCR)</h4>
-        {% if analysis_results.extracted_text %}
-            <pre class="analysis-ocr-text">{{ analysis_results.extracted_text }}</pre>
-        {% else %}
-            <p class="analysis-ocr-text no-text-found" style="font-style: italic; color: #6c757d;">No text was detected in the image.</p>
-        {% endif %}
-
-        {# --- CONTENT SAFETY SECTION TEMPORARILY DISABLED FOR DEBUGGING ---
-        <h4><i class="fas fa-shield-alt"></i> Content Safety</h4>
-        <ul class="safety-flags-list">
-            <li>
-                {% if analysis_results.safety_flags.contains_people %}
-                    <i class="fas fa-check-circle category-success"></i> Contains People: <strong>Yes</strong>
-                {% else %}
-                    <i class="fas fa-times-circle category-secondary"></i> Contains People: <strong>No</strong>
-                {% endif %}
-            </li>
-            <li>
-                {% if analysis_results.safety_flags.contains_potential_pii %}
-                    <i class="fas fa-exclamation-triangle category-warning"></i> Potential PII: <strong>Yes</strong>
-                {% else %}
-                    <i class="fas fa-check-circle category-secondary"></i> Potential PII: <strong>No</strong>
-                {% endif %}
-            </li>
-             <li>
-                {% if analysis_results.safety_flags.is_graphic_or_violent %}
-                    <i class="fas fa-exclamation-triangle category-error"></i> Graphic/Violent: <strong>Yes</strong>
-                {% else %}
-                    <i class="fas fa-check-circle category-secondary"></i> Graphic/Violent: <strong>No</strong>
-                {% endif %}
-            </li>
-        </ul>
-        --- END OF DISABLED SECTION --- #}
-
-        <h4><i class="fas fa-tags"></i> Detected Objects & Labels</h4>
-        <div class="object-tags-container">
-            {% for obj in analysis_results.detected_objects %}
-                <span class="object-tag">{{ obj }}</span>
-            {% endfor %}
+{# The entire content is now wrapped in the main styling container div #}
+<div class="processing-result">
+    {% if analysis_results and not analysis_results.get('error') %}
+    <div class="analytics-results-grid">
+        <!-- Left Column: Image Preview -->
+        <div class="image-preview-container">
+            <img id="analytics-image-preview-img" src="{{ image_data_url }}" alt="Image Preview" class="img-fluid result-image">
         </div>
-        
-        {% if dominant_colors %}
-        <h4><i class="fas fa-palette"></i> Dominant Colors</h4>
-        <div class="color-palette-container">
-            {% for color in dominant_colors %}
-            <div class="color-swatch-wrapper" title="{{ color }}">
-                <div class="color-swatch" style="background-color: {{ color }};"></div>
+
+        <!-- Right Column: Analysis Details -->
+        <div class="analysis-details-container">
+            
+            <h4><i class="fas fa-file-alt"></i> AI Description</h4>
+            <p class="analysis-description">{{ analysis_results.rich_description }}</p>
+
+            <h4><i class="fas fa-spell-check"></i> Extracted Text (OCR)</h4>
+            {% if analysis_results.extracted_text %}
+                <pre class="analysis-ocr-text">{{ analysis_results.extracted_text }}</pre>
+            {% else %}
+                <p class="analysis-ocr-text no-text-found" style="font-style: italic; color: #6c757d;">No text was detected in the image.</p>
+            {% endif %}
+
+            {# --- CONTENT SAFETY SECTION TEMPORARILY DISABLED FOR DEBUGGING ---
+            <h4><i class="fas fa-shield-alt"></i> Content Safety</h4>
+            <ul class="safety-flags-list">
+                <li>
+                    {% if analysis_results.safety_flags.contains_people %}
+                        <i class="fas fa-check-circle category-success"></i> Contains People: <strong>Yes</strong>
+                    {% else %}
+                        <i class="fas fa-times-circle category-secondary"></i> Contains People: <strong>No</strong>
+                    {% endif %}
+                </li>
+                <li>
+                    {% if analysis_results.safety_flags.contains_potential_pii %}
+                        <i class="fas fa-exclamation-triangle category-warning"></i> Potential PII: <strong>Yes</strong>
+                    {% else %}
+                        <i class="fas fa-check-circle category-secondary"></i> Potential PII: <strong>No</strong>
+                    {% endif %}
+                </li>
+                 <li>
+                    {% if analysis_results.safety_flags.is_graphic_or_violent %}
+                        <i class="fas fa-exclamation-triangle category-error"></i> Graphic/Violent: <strong>Yes</strong>
+                    {% else %}
+                        <i class="fas fa-check-circle category-secondary"></i> Graphic/Violent: <strong>No</strong>
+                    {% endif %}
+                </li>
+            </ul>
+            --- END OF DISABLED SECTION --- #}
+
+            <h4><i class="fas fa-tags"></i> Detected Objects & Labels</h4>
+            <div class="object-tags-container">
+                {% for obj in analysis_results.detected_objects %}
+                    <span class="object-tag">{{ obj }}</span>
+                {% endfor %}
             </div>
-            {% endfor %}
+            
+            {% if dominant_colors %}
+            <h4><i class="fas fa-palette"></i> Dominant Colors</h4>
+            <div class="color-palette-container">
+                {% for color in dominant_colors %}
+                <div class="color-swatch-wrapper" title="{{ color }}">
+                    <div class="color-swatch" style="background-color: {{ color }};"></div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
+    {% elif analysis_results and analysis_results.get('error') %}
+        <div class="message-item category-error" role="alert">
+            <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+            {{ analysis_results.get('error') }}
+        </div>
+    {% else %}
+        <div class="message-item category-error" role="alert">
+            <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+            An unknown error occurred during analysis.
+        </div>
+    {% endif %}
 </div>
-{% elif analysis_results and analysis_results.get('error') %}
-    <div class="message-item category-error" role="alert">
-        <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
-        {{ analysis_results.get('error') }}
-    </div>
-{% else %}
-    <div class="message-item category-error" role="alert">
-        <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
-        An unknown error occurred during analysis.
-    </div>
-{% endif %}

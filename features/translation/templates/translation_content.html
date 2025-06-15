@@ -1,109 +1,25 @@
 {# features/translation/templates/translation_content.html #}
-
-<!-- Isolated styles for this template only -->
 <style>
-    /* --- Existing Styles (Unchanged) --- */
-    .translation-feature-container .feature-note {
-        margin-top: 2rem;
-        margin-bottom: 1.5rem;
-        padding: 0.8rem 1rem;
-        background-color: #f0f9ff;
-        border: 1px solid #e0f2fe;
-        border-left: 5px solid var(--primary-color, #3b82f6);
-        border-radius: 6px;
-        font-size: 0.95em;
-        color: #0c4a6e;
-        display: flex;
-        align-items: center;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-    .translation-feature-container .feature-note i {
-        margin-right: 1rem;
-        font-size: 1.6em;
-        color: var(--primary-color, #3b82f6);
-        opacity: 0.85;
-        flex-shrink: 0;
-    }
-    .translation-feature-container .feature-note p {
-        margin: 0;
-        line-height: 1.6;
-    }
-    .translation-feature-container .feature-note strong {
-        font-weight: 600;
-        color: var(--primary-color-dark, #2563eb);
-    }
-    .translation-feature-container .feature-description {
-        margin-bottom: 2rem;
-    }
-
-    /* --- UPDATED: Styles for a Balanced 3-Column Panel --- */
-    .translation-feature-container .feature-grid {
-        display: grid;
-        /* Default to a single column for mobile */
-        grid-template-columns: 1fr; 
-        
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-    }
-    
-    /* On larger screens (laptops and up), switch to 3 columns */
-    @media (min-width: 992px) {
-        .translation-feature-container .feature-grid {
-            grid-template-columns: repeat(3, 1fr);
-        }
-    }
-
-    .translation-feature-container .feature-item {
-        background: #ffffff;
-        padding: 2rem;
-        text-align: center;
-        transition: background-color 0.2s ease-in-out;
-    }
-    
-    /* Vertical dividers for larger screens */
-    @media (min-width: 992px) {
-        .translation-feature-container .feature-item:not(:last-child) {
-            border-right: 1px solid #e5e7eb;
-        }
-    }
-
-    /* Horizontal dividers for smaller screens */
-    @media (max-width: 991.98px) {
-        .translation-feature-container .feature-item:not(:last-child) {
-            border-bottom: 1px solid #e5e7eb;
-        }
-    }
-    
-    .translation-feature-container .feature-item:hover {
-        background-color: #f9fafb;
-    }
-
-    .translation-feature-container .feature-item h3 {
-        margin: 0 0 0.75rem 0;
-        font-family: Georgia, "Times New Roman", Times, serif;
-        font-size: 1.1em;
-        color: #1a2b48;
-        font-weight: 600;
-    }
-    .translation-feature-container .feature-item p {
-        font-family: Georgia, "Times New Roman", Times, serif;
-        color: #5a6a7b;
-        line-height: 1.6;
-        margin: 0;
-        font-size: 0.95em;
-    }
+    /* styles... */
+    .translation-feature-container .feature-note { margin-top: 2rem; margin-bottom: 1.5rem; padding: 0.8rem 1rem; background-color: #f0f9ff; border: 1px solid #e0f2fe; border-left: 5px solid var(--primary-color, #3b82f6); border-radius: 6px; font-size: 0.95em; color: #0c4a6e; display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+    .translation-feature-container .feature-note i { margin-right: 1rem; font-size: 1.6em; color: var(--primary-color, #3b82f6); opacity: 0.85; flex-shrink: 0; }
+    .translation-feature-container .feature-note p { margin: 0; line-height: 1.6; }
+    .translation-feature-container .feature-note strong { font-weight: 600; color: var(--primary-color-dark, #2563eb); }
+    .translation-feature-container .feature-description { margin-bottom: 2rem; }
+    .translation-feature-container .feature-grid { display: grid; grid-template-columns: 1fr; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
+    @media (min-width: 992px) { .translation-feature-container .feature-grid { grid-template-columns: repeat(3, 1fr); } }
+    .translation-feature-container .feature-item { background: #ffffff; padding: 2rem; text-align: center; transition: background-color 0.2s ease-in-out; }
+    @media (min-width: 992px) { .translation-feature-container .feature-item:not(:last-child) { border-right: 1px solid #e5e7eb; } }
+    @media (max-width: 991.98px) { .translation-feature-container .feature-item:not(:last-child) { border-bottom: 1px solid #e5e7eb; } }
+    .translation-feature-container .feature-item:hover { background-color: #f9fafb; }
+    .translation-feature-container .feature-item h4 { margin: 0 0 0.75rem 0; font-family: Georgia, "Times New Roman", Times, serif; font-size: 1.1em; color: #1a2b48; font-weight: 600; }
+    .translation-feature-container .feature-item p { font-family: Georgia, "Times New Roman", Times, serif; color: #5a6a7b; line-height: 1.6; margin: 0; font-size: 0.95em; }
 </style>
-
 <div class="feature-container translation-feature-container">
     <h1><i class="fas fa-language"></i> Native File Translation</h1>
-
     <p class="feature-description">
         This <strong>AI Agent</strong> is responsible for a multi-step workflow that delivers high-quality translations in multiple formats.
     </p>
-
-    <!-- The HTML structure is the same, but the CSS will now create a 3-column layout on larger screens -->
     <div class="feature-grid">
         <div class="feature-item">
             <h4>Language Analysis</h4>
@@ -118,12 +34,10 @@
             <p>Creates new translated new version and Markdown</p>
         </div>
     </div>
-    
     <div class="feature-note">
         <i class="fas fa-server"></i>
         <p>While this demonstration showcases the Translation AI Agent on a single document, the underlying architecture is engineered for <strong>enterprise scale</strong>, capable of processing thousands of documents hundreds of pages in length.</p>
     </div>
-
     {% if not gcs_available or not gemini_configured %}
         <div class="error-message" style="margin-bottom: 20px;">
             <strong>Configuration Issue:</strong>
@@ -132,14 +46,12 @@
             File processing for translation is disabled. Please check server logs and environment variable settings.
         </div>
     {% endif %}
-
     <form method="POST" action="{{ url_for('process_translate_document') }}" enctype="multipart/form-data"
           hx-post="{{ url_for('process_translate_document') }}"
           hx-target="#translation-results-area"
           hx-swap="innerHTML"
           hx-encoding="multipart/form-data"
           hx-indicator="#translation-submit-button .spinner">
-        
         <div class="form-group">
             <label for="translation-file-input" id="translation-drop-zone-label" class="drop-zone-style">
                 <p>Drop .docx, .pptx, .xlsx file here, or click to select.</p>
@@ -147,7 +59,6 @@
             </label>
             <input type="file" id="translation-file-input" name="file" accept=".docx,.pptx,.xlsx" required style="display: none;">
         </div>
-
         <div class="form-group">
             <label for="translation-target-language">Target Language:</label>
             <select id="translation-target-language" name="target_language" required 
@@ -163,7 +74,6 @@
                 {% endif %}
             </select>
         </div>
-
         <div class="submit-area">
             <button type="submit" class="submit-button" id="translation-submit-button"
                     {% if not gcs_available or not gemini_configured %}disabled aria-disabled="true" title="Translation service is not fully configured." {% endif %}>
@@ -172,23 +82,67 @@
             </button>
         </div>
     </form>
-    
     <div id="translation-results-area" class="processing-result" style="margin-top: 1.5rem; border: none; padding: 0; background-color: transparent; min-height: 0;">
-        <!-- Results will be loaded here by HTMX -->
     </div>
-
 </div>
-
 <script>
-// This JavaScript remains the same.
+if (typeof window.renderMarkdownSummary !== 'function') {
+    window.renderMarkdownSummary = function(markdownText, containerElement) {
+        if (!markdownText || markdownText.trim() === "") {
+            containerElement.innerHTML = '<p><i>No content to display.</i></p>';
+            return;
+        }
+        let html = "";
+        const lines = markdownText.split('\n');
+        let inList = false;
+        let currentParagraph = "";
+        function flushParagraph() {
+            if (currentParagraph.trim() !== "") {
+                currentParagraph = currentParagraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                html += `<p>${currentParagraph.trim()}</p>\n`;
+            }
+            currentParagraph = "";
+        }
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (line === "") {
+                flushParagraph();
+                if (inList) { html += "</ul>\n"; inList = false; }
+                continue;
+            }
+            const headingMatch = line.match(/^\s*\*\*(.+?)\:\*\*\s*$/);
+            if (headingMatch) {
+                flushParagraph();
+                if (inList) { html += "</ul>\n"; inList = false; }
+                html += `<h4>${headingMatch[1].trim()}</h4>\n`;
+                continue;
+            }
+            const listItemMatch = line.match(/^\s*-\s+(.+)/);
+            if (listItemMatch) {
+                flushParagraph();
+                if (!inList) { html += "<ul>\n"; inList = true; }
+                let listItemContent = listItemMatch[1];
+                listItemContent = listItemContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                html += `  <li>${listItemContent}</li>\n`;
+                continue;
+            }
+            if (inList) {
+                html += "</ul>\n";
+                inList = false;
+            }
+            currentParagraph += (currentParagraph === "" ? "" : " ") + line;
+        }
+        flushParagraph();
+        if (inList) { html += "</ul>\n"; }
+        containerElement.innerHTML = html;
+    };
+}
 (function() {
     const translationFeatureContainer = document.querySelector('.translation-feature-container');
     if (!translationFeatureContainer) return;
-
     const dropZoneLabel = translationFeatureContainer.querySelector('#translation-drop-zone-label');
     const fileInput = translationFeatureContainer.querySelector('#translation-file-input');
     const fileNameDisplay = translationFeatureContainer.querySelector('#translation-file-name-display');
-
     if (dropZoneLabel && fileInput && fileNameDisplay) {
         dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneLabel.classList.add('drag-over'); });
         dropZoneLabel.addEventListener('dragleave', () => { dropZoneLabel.classList.remove('drag-over'); });
@@ -202,7 +156,6 @@
                 fileInput.dispatchEvent(event);
             }
         });
-
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
                 fileNameDisplay.textContent = fileInput.files[0].name;

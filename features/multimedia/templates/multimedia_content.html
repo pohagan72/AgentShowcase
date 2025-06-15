@@ -149,8 +149,8 @@
                         </div>
                     </div>
                 </div>
-
-                <button type="submit" id="blur-start-button" class="submit-button" {% if not gcs_available %}disabled{% endif %}>
+                
+                <button type="submit" id="blur-start-button" class="submit-button" disabled>
                     <i class="fas fa-cogs"></i> Anonymize Image
                     <span class="htmx-indicator spinner"></span>
                 </button>
@@ -215,7 +215,7 @@
                        {% if not gemini_configured %}disabled{% endif %}>
             </div>
 
-            <button type="submit" id="analytics-start-button" class="submit-button" {% if not gemini_configured %}disabled{% endif %}>
+            <button type="submit" id="analytics-start-button" class="submit-button" disabled>
                 <i class="fas fa-search"></i> Analyze Image
                 <span class="htmx-indicator spinner"></span>
             </button>
@@ -259,8 +259,39 @@
         const dropZoneLabel = blurringTabContainer.querySelector('#blur-drop-zone-label');
         const fileInput = blurringTabContainer.querySelector('#blur-file-input');
         const fileNameDisplay = blurringTabContainer.querySelector('#blur-file-name-display');
-        if (dropZoneLabel && fileInput && fileNameDisplay) {
-            setupFileDropZone(dropZoneLabel, fileInput, fileNameDisplay);
+        const resultsArea = blurringTabContainer.querySelector('#blurring-results-area');
+        const processButton = blurringTabContainer.querySelector('#blur-start-button');
+
+        if (dropZoneLabel && fileInput && fileNameDisplay && resultsArea && processButton) {
+            setupFileDropZone(
+                dropZoneLabel,
+                fileInput,
+                fileNameDisplay,
+                processButton,
+                (file) => { // onFileValid callback
+                    resultsArea.innerHTML = `<p><i>Loading preview for ${file.name}...</i></p>`;
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const imageDataUrl = e.target.result;
+                        resultsArea.innerHTML = `<div class="processing-result"><div class="blurring-image-results-grid">
+                            <div class="image-result-container">
+                                <h4>Original</h4>
+                                <img src="${imageDataUrl}" alt="Original Image Preview" class="img-fluid result-image">
+                            </div>
+                            <div class="image-result-container">
+                                <h4>Blurred</h4>
+                                <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#888; background:#f0f0f0; border-radius:4px;">
+                                    <p><i>Awaiting processing...</i></p>
+                                </div>
+                            </div>
+                        </div></div>`;
+                    };
+                    reader.readAsDataURL(file);
+                },
+                () => { // onFileRemoved callback
+                    resultsArea.innerHTML = '<p><i>Anonymized images will appear here.</i></p>';
+                }
+            );
         }
     }
     
@@ -272,32 +303,42 @@
         const fileNameDisplay = analyticsTabContainer.querySelector('#analytics-file-name-display');
         const resultsArea = analyticsTabContainer.querySelector('#analytics-results-area');
         const hiddenDataUrlInput = analyticsTabContainer.querySelector('#analytics-image-data-url');
+        const processButton = analyticsTabContainer.querySelector('#analytics-start-button');
         
-        if (dropZoneLabel && fileInput && fileNameDisplay && resultsArea && hiddenDataUrlInput) {
-            setupFileDropZone(dropZoneLabel, fileInput, fileNameDisplay, (file) => {
-                resultsArea.innerHTML = `<p><i>Loading preview for ${file.name}...</i></p>`;
-
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const imageDataUrl = e.target.result;
-                    hiddenDataUrlInput.value = imageDataUrl; 
-                    
-                    resultsArea.innerHTML = `<div class="analytics-results-grid">
-                        <div class="image-preview-container">
-                            <img src="${imageDataUrl}" alt="Image Preview" class="img-fluid result-image">
-                        </div>
-                        <div class="analysis-details-container">
-                            <p><i>Awaiting analysis from AI agent...</i></p>
-                        </div>
-                    </div>`;
-                };
-                reader.readAsDataURL(file);
-            });
+        if (dropZoneLabel && fileInput && fileNameDisplay && resultsArea && hiddenDataUrlInput && processButton) {
+            setupFileDropZone(
+                dropZoneLabel,
+                fileInput,
+                fileNameDisplay,
+                processButton,
+                (file) => { // onFileValid
+                    resultsArea.innerHTML = `<p><i>Loading preview for ${file.name}...</i></p>`;
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const imageDataUrl = e.target.result;
+                        hiddenDataUrlInput.value = imageDataUrl; 
+                        
+                        resultsArea.innerHTML = `<div class="processing-result"><div class="analytics-results-grid">
+                            <div class="image-preview-container">
+                                <img src="${imageDataUrl}" alt="Image Preview" class="img-fluid result-image">
+                            </div>
+                            <div class="analysis-details-container">
+                                <p><i>Awaiting analysis from AI agent...</i></p>
+                            </div>
+                        </div></div>`;
+                    };
+                    reader.readAsDataURL(file);
+                },
+                () => { // onFileRemoved
+                    resultsArea.innerHTML = '<p><i>Your image analysis will appear here.</i></p>';
+                    hiddenDataUrlInput.value = '';
+                }
+            );
         }
     }
     
     // --- Reusable File Drop Zone Handler ---
-    function setupFileDropZone(dropZoneLabel, fileInput, fileNameDisplay, onFileValid) {
+    function setupFileDropZone(dropZoneLabel, fileInput, fileNameDisplay, button, onFileValid, onFileRemoved) {
         dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); if (fileInput.disabled) return; dropZoneLabel.classList.add('drag-over');});
         dropZoneLabel.addEventListener('dragleave', () => { if (fileInput.disabled) return; dropZoneLabel.classList.remove('drag-over');});
         dropZoneLabel.addEventListener('drop', (e) => {
@@ -312,9 +353,6 @@
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
-                
-                // CLIENT-SIDE FILE SIZE CHECK REMOVED - Server will handle resizing gracefully.
-                
                 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
                 const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
                 const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
@@ -322,8 +360,10 @@
                 if (allowedTypes.includes(file.type) || validExtensions.includes(fileExt)) {
                     fileNameDisplay.innerHTML = `<strong>${file.name}</strong> (${(file.size / 1024 / 1024).toFixed(2)} MB) <span class="remove-file-link" style="cursor:pointer; color:red; margin-left:5px;">× Remove</span>`;
                     dropZoneLabel.classList.add('file-selected');
+                    button.disabled = false;
                     fileNameDisplay.querySelector('.remove-file-link')?.addEventListener('click', (e) => {
-                        e.stopPropagation(); fileInput.value = '';
+                        e.stopPropagation(); 
+                        fileInput.value = '';
                         fileInput.dispatchEvent(new Event('change', { bubbles: true }));
                     });
                     if (typeof onFileValid === 'function') {
@@ -337,12 +377,17 @@
             } else {
                 fileNameDisplay.textContent = 'No file selected';
                 dropZoneLabel.classList.remove('file-selected');
+                button.disabled = true;
+                if (typeof onFileRemoved === 'function') {
+                    onFileRemoved();
+                }
             }
         });
     }
 
 })();
 
+// Prevent browser from opening dropped files
 window.addEventListener('dragover', (e) => { e.preventDefault(); });
 window.addEventListener('drop', (e) => { e.preventDefault(); });
 </script>
