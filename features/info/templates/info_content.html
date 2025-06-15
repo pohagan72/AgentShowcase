@@ -175,16 +175,16 @@
     .info-feature-container .profile-card {
         flex: 0 0 280px; /* Profile card takes a fixed width */
         text-align: center;
-        padding: 15px;
+        padding: 20px; /* Increased padding */
         background-color: #fdfdfd;
-        border-radius: 5px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-radius: 8px; /* Slightly larger radius */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* A bit more shadow */
     }
 
     .info-feature-container .profile-picture {
-        width: 150px; /* Fixed width */
-        height: 150px; /* Fixed height for consistent circle */
-        object-fit: cover; /* Ensures image covers the area without distortion */
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
         border-radius: 50%;
         margin-bottom: 15px;
         border: 3px solid #3498db;
@@ -200,58 +200,108 @@
     .info-feature-container .profile-title {
         font-size: 0.95em;
         color: #555;
-        margin-bottom: 15px; /* Increased margin to give space for the link below */
+        margin-bottom: 20px; /* More space before credentials */
         line-height: 1.4;
     }
+    
+    /* === NEW Styles for Credentials in Profile Card === */
+    .info-feature-container .profile-credentials {
+        text-align: left;
+        margin-bottom: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #e0e0e0;
+    }
+    .info-feature-container .credential-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+    .info-feature-container .credential-item:last-child {
+        margin-bottom: 0;
+    }
+    .info-feature-container .credential-icon {
+        font-size: 1.2em;
+        color: #3498db;
+        margin-right: 12px;
+        margin-top: 3px;
+        width: 20px; /* Ensures text aligns neatly */
+        text-align: center;
+    }
+    .info-feature-container .credential-details {
+        flex: 1;
+    }
+    .info-feature-container .credential-details h4 {
+        font-size: 1em;
+        color: #2c3e50;
+        font-weight: bold;
+        margin: 0 0 5px 0;
+    }
+    .info-feature-container .credential-details p,
+    .info-feature-container .credential-details ul {
+        margin: 0;
+        padding: 0;
+        list-style-type: none;
+        font-size: 0.85em;
+        color: #555;
+        line-height: 1.5;
+    }
+    .info-feature-container .credential-details ul li {
+        margin-bottom: 5px;
+    }
+     .info-feature-container .credential-details a {
+        color: #3498db;
+        text-decoration: none;
+    }
+    .info-feature-container .credential-details a:hover {
+        text-decoration: underline;
+    }
+    /* === END of New Styles === */
+
 
     .info-feature-container .bio-details {
         flex: 1; /* Bio details take up the remaining space */
         min-width: 300px; /* Ensure it has some minimum width before wrapping */
         line-height: 1.6;
     }
-    .info-feature-container .bio-details p { /* Add some bottom margin to paragraphs for better spacing */
+    .info-feature-container .bio-details p {
         margin-bottom: 15px;
     }
-    .info-feature-container .bio-details p:last-child { /* Remove bottom margin from the very last paragraph in bio-details */
+    .info-feature-container .bio-details p:last-child {
         margin-bottom: 0;
     }
 
-
     .info-feature-container .bio-details .genai-development-highlight {
-        background-color: #e9f5fd; /* Light blue background */
-        border-left: 4px solid #3498db; /* Blue left border - matches theme */
+        background-color: #e9f5fd;
+        border-left: 4px solid #3498db;
         padding: 12px 15px;
         margin-top: 15px;
-        margin-bottom: 20px; /* Increased bottom margin for separation */
+        margin-bottom: 20px;
         border-radius: 4px;
     }
     .info-feature-container .bio-details .genai-development-highlight p {
-        margin-bottom: 0; /* Remove default p margin if inside this div */
-        color: #2c3e50; /* Slightly darker text for readability on light bg */
+        margin-bottom: 0;
+        color: #2c3e50;
     }
 
-
-    .info-feature-container .bio-details h4 { /* Specific H4 styling within bio-details */
-        margin-top: 25px; /* More space above section headings */
+    .info-feature-container .bio-details h4 {
+        margin-top: 25px;
         margin-bottom: 10px;
-        color: #34495e; /* Match H2/H3 color for consistency */
+        color: #34495e;
     }
-
 
     .info-feature-container .bio-details ul {
         padding-left: 20px;
         list-style-type: disc;
-        margin-bottom: 15px; /* Add margin below ULs too */
+        margin-bottom: 15px;
     }
     .info-feature-container .bio-details ul li {
-        margin-bottom: 10px; /* Increased margin for list items */
+        margin-bottom: 10px;
     }
-
 
     /* Styling for the Connect Links (LinkedIn, Email, WhatsApp, GitHub) */
     .info-feature-container .connect-link {
         display: block; 
-        width: calc(100% - 24px); 
+        width: 100%;
         margin: 10px auto 0; 
         padding: 10px 12px; 
         color: #fff !important;
@@ -270,39 +320,15 @@
         margin-right: 8px;
         font-size: 1.1em; 
     }
-
-    /* LinkedIn Specific */
-    .info-feature-container .linkedin-link {
-        background-color: #0077b5; 
-    }
-    .info-feature-container .linkedin-link:hover {
-        background-color: #005582; 
-    }
-
-    /* GitHub Specific */
-    .info-feature-container .github-link {
-        background-color: #333; 
-    }
-    .info-feature-container .github-link:hover {
-        background-color: #1a1a1a; 
-    }
-
-    /* Styling for Email Link */
-    .info-feature-container .email-link {
-        background-color: #6c757d; 
-    }
-    .info-feature-container .email-link:hover {
-        background-color: #5a6268; 
-    }
-
-    /* Styling for WhatsApp Link */
-    .info-feature-container .whatsapp-link {
-        background-color: #25D366; 
-    }
-    .info-feature-container .whatsapp-link:hover {
-        background-color: #1DA851; 
-    }
-
+    
+    .info-feature-container .linkedin-link { background-color: #0077b5; }
+    .info-feature-container .linkedin-link:hover { background-color: #005582; }
+    .info-feature-container .github-link { background-color: #333; }
+    .info-feature-container .github-link:hover { background-color: #1a1a1a; }
+    .info-feature-container .email-link { background-color: #6c757d; }
+    .info-feature-container .email-link:hover { background-color: #5a6268; }
+    .info-feature-container .whatsapp-link { background-color: #25D366; }
+    .info-feature-container .whatsapp-link:hover { background-color: #1DA851; }
 
     /* Responsive adjustments */
     @media (max-width: 768px) {
@@ -323,36 +349,27 @@
             padding: 10px 12px; 
             font-size: 0.9em;
         }
-        .info-feature-container h1 {
-            font-size: 1.6em;
-        }
-         .info-feature-container h2 {
-            font-size: 1.3em;
-        }
+        .info-feature-container h1 { font-size: 1.6em; }
+        .info-feature-container h2 { font-size: 1.3em; }
     }
 </style>
 
 <div class="info-feature-container feature-container">
-    <h1><i class="fas fa-info-circle"></i> Innovation Zone Information</h1>
+    <h1><i class="fas fa-info-circle"></i> About</h1>
 
     <div class="feature-tabs">
-        <!-- `active` class removed from here -->
         <button class="tab-link" data-target-tab="legal-notice-tab">
             <i class="fas fa-gavel"></i> Legal Notice
         </button>
-        <!-- `active` class added here -->
         <button class="tab-link active" data-target-tab="about-me-tab">
             <i class="fas fa-user-circle"></i> Meet Paul O'Hagan
         </button>
     </div>
 
     <!-- Legal Notice Tab Content -->
-    <!-- `active-content` class removed from here -->
     <div id="legal-notice-tab" class="feature-tab-content">
         <h2>Platform Governance & Terms of Service</h2>
-        
         <p style="margin-top: 1rem;">My commitment is to innovation, transparency, and responsible AI. Below are the key principles governing this showcase. For full details, please review the complete terms.</p>
-
         <div class="feature-grid">
             <div class="feature-item">
                 <h4>Your Content, Your Ownership</h4>
@@ -367,17 +384,16 @@
                 <p>This platform is designed for professional and lawful use. We prohibit the generation of harmful or infringing content to ensure a safe environment.</p>
             </div>
         </div>
-        
         <details>
             <summary>View Full Terms of Service</summary>
             <div class="full-legal-text">
                 <div class="legal-text-container">
                     <p><strong>Last Updated:</strong> June 8, 2025</p>
                     <br>
-                    <p>Welcome to my AI Agent Showcase. By accessing or using this website and its services (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of the terms, you may not access the Service.</p>
+                    <p>Welcome to my AI Agent Showcase. By accessing or in-use this website and its services (the "Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of the terms, you may not access the Service.</p>
                     <h4>1. Service Provision and "As Is" Disclaimer</h4>
                     <ul>
-                        <li><strong>No Warranty:</strong> The Service is provided on an "AS IS" and "AS AVAILABLE" basis. It is a technology demonstration and is provided without warranties of any kind, whether express or implied, including, but not limited to, implied warranties of merchantability, fitness for a particular purpose, or non-infringement.</li>
+                        <li><strong>No Warranty:</strong> The Service is provided on an "AS IS" and "AS AVAILABLE" basis. It is a technology demonstration and is provided without warranties of any kind, whether express or implied, including, but not to, implied warranties of merchantability, fitness for a particular purpose, or non-infringement.</li>
                         <li><strong>At Your Own Risk:</strong> Your use of the Service is solely at your own risk. The AI-generated outputs may contain errors, inaccuracies, or be incomplete. You should not rely on the outputs for any legal, financial, medical, or other critical decisions.</li>
                     </ul>
                     <h4>2. Intellectual Property Rights</h4>
@@ -412,7 +428,6 @@
     </div>
 
     <!-- About Me Tab Content -->
-    <!-- `active-content` class added here -->
     <div id="about-me-tab" class="feature-tab-content active-content">
         <h2>About Paul</h2>
         <div class="about-me-content">
@@ -422,6 +437,31 @@
                     <h3 class="profile-name">Paul O'Hagan</h3>
                     <p class="profile-title">AI Author, Inventor & Builder of High-Performance Product Teams</p>
                     
+                    <!-- NEW CREDENTIALS SECTION -->
+                    <div class="profile-credentials">
+                        <div class="credential-item">
+                            <i class="fas fa-book-open credential-icon"></i>
+                            <div class="credential-details">
+                                <h4>Author</h4>
+                                <p>
+                                    <em>AI Product Management</em> - <a href="https://www.amazon.ca/AI-Product-Management-Building-AI-Powered/dp/1738136507" target="_blank" rel="noopener noreferrer">View on Amazon</a>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="credential-item">
+                            <i class="fas fa-award credential-icon"></i>
+                            <div class="credential-details">
+                                <h4>Inventor (3 U.S. Patents)</h4>
+                                <ul>
+                                    <li><a href="https://patents.google.com/patent/US20230131066A1" target="_blank" rel="noopener noreferrer">Composite AI Platform</a></li>
+                                    <li><a href="https://patents.google.com/patent/US12111844B2" target="_blank" rel="noopener noreferrer">Cloud Data Replication</a></li>
+                                    <li><a href="https://patents.google.com/patent/US10659624B2" target="_blank" rel="noopener noreferrer">AI for Data Security</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- END NEW CREDENTIALS SECTION -->
+
                     <a href="https://www.linkedin.com/in/paul-ohagan-pm-leader" class="connect-link linkedin-link" target="_blank" rel="noopener noreferrer">
                         <i class="fab fa-linkedin"></i> 
                         Connect on LinkedIn
@@ -441,26 +481,27 @@
                 </div>
 
                 <div class="bio-details">
-                    <p>Welcome to my passion project of building and deploying advanced AI Agents and services.</p>
-                    <p>I’ve been in the analytics and AI industry for over 20 years, always trying my best to be at the forefront of innovation, product management, and sales leadership. Everything about this site and the work I do is in pursuit of the "art of the possible" where innovation meets practical application.</p>
-                    
-                    <div class="genai-development-highlight">
-                        <p>This site and all the AI Agents and services available through it have been developed by GenAI. Tens of thousands of lines of Python written by GenAI through prompts that sometimes exceeded 50 pages. But text, like this, was written by me but checked for grammar and completeness using different models.</p>
-                    </div>
-
-                    <p>While I used Google Gemini to build most of this, I’ve also used ChatGPT, Claude and Llama for various detail tasks. And special acknowledgement to LMArena.ai where I set up models (many I’d never heard of before) to argue against each other and decide which had the right approach to particularly challenging problems when they cropped up.</p>
-
-                    <h4>Author</h4>
                     <p>
-                        <em>AI Product Management: A Guide to Building and Selling AI-Powered Products</em>. <a href="https://www.amazon.ca/AI-Product-Management-Building-AI-Powered/dp/1738136507" target="_blank" rel="noopener noreferrer">Amazon</a>.
+                        Welcome! This site is my passion project—a live showcase of what's possible when innovation meets practical application in the world of AI. It's the culmination of a 20-year journey as a business and technology leader dedicated to one thing: bringing intelligent, impactful products to life.
                     </p>
 
-                    <h4>Patents</h4>
+                    <div class="genai-development-highlight">
+                        <p><strong>Practice What I Preach:</strong> This entire site, including the AI agents and services, was built by me using Generative AI as my co-pilot. It's a real-world example of the AI-native product development I champion.</p>
+                    </div>
+
+                    <h4>A Career of Building and Leading</h4>
+                    <p>
+                        My journey in AI didn't start yesterday. I was fortunate to be on the ground floor, supporting the architecture design team for the pioneering <strong>IBM Watson Jeopardy project</strong>. That experience solidified my belief in AI's power to solve complex problems and set the course for my career. Since then, I've focused on turning that potential into market reality.
+                    </p>
                     <ul>
-                        <li>Data replication over the cloud <a href="https://patents.google.com/patent/US12111844B2" target="_blank" rel="noopener noreferrer">12,111,844</a>.</li>
-                        <li>Composite AI platform for agentic processing <a href="https://patents.google.com/patent/US20230131066A1" target="_blank" rel="noopener noreferrer">1,2141,528</a>.</li>
-                        <li>AI for realtime data security on printers <a href="https://patents.google.com/patent/US10659624B2" target="_blank" rel="noopener noreferrer">10,659,624</a>.</li>
+                        <li><strong>Leading High-Impact Teams:</strong> At OpenText, I led global product management teams responsible for a portfolio of 10 major AI, Analytics, and Cyber Security product lines, delivering over <strong>$50M in annual revenue</strong>.</li>
+                        <li><strong>Driving Revenue Growth:</strong> I built and spearheaded a new sales division for a partner program, growing it from the ground up to <strong>$10M in annual revenue</strong> and managing a portfolio of 75 partners.</li>
+                        <li><strong>Launching Cloud-Native Products:</strong> I've defined and brought brand-new SaaS products to market, from the first cloud services at OpenText in five years to the cloud-native AI product, Risk Guard.</li>
+                        <li><strong>Fostering Strategic Partnerships:</strong> I have a track record of building key alliances with industry leaders like Google Cloud, AWS, Azure, Chubb, and Salesforce to create differentiated, integrated solutions.</li>
                     </ul>
+                    <p>
+                        This showcase is the next chapter in that story. It's where I explore, build, and share my work as I reinvent myself as an "AI-Native" Product Manager, constantly pushing the boundaries of what's possible.
+                    </p>
                 </div>
             </div>
         </div>

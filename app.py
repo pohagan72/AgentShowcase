@@ -108,7 +108,7 @@ FEATURES_DATA = {
     "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"},
     "pii_redaction": {"name": "PII Redaction", "icon": "fas fa-user-shield", "template": "pii_redaction/templates/pii_redaction_content.html"},
     "multimedia": {"name": "Multimedia", "icon": "fas fa-photo-video", "template": "multimedia/templates/multimedia_content.html"},
-    "info": {"name": "Information", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"},
+    "info": {"name": "About", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"},
 }
 DEFAULT_FEATURE_KEY = "welcome"
 
