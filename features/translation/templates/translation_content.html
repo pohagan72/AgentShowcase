@@ -16,28 +16,25 @@
     .translation-feature-container .feature-item p { font-family: Georgia, "Times New Roman", Times, serif; color: #5a6a7b; line-height: 1.6; margin: 0; font-size: 0.95em; }
 </style>
 <div class="feature-container translation-feature-container">
-    <h1><i class="fas fa-language"></i> Native File Translation</h1>
+    <h1><i class="fas fa-language"></i> Intelligent Document Translation</h1>
     <p class="feature-description">
-        This <strong>AI Agent</strong> is responsible for a multi-step workflow that delivers high-quality translations in multiple formats.
+        This <strong>AI Agent</strong> executes a sophisticated, AI-First processing pipeline to translate complex documents while preserving the original layout and formatting integrity. Designed and architected to be integrated into existing applications and workflows for automated language translation and file preservation in over 200 language pairs.
     </p>
     <div class="feature-grid">
         <div class="feature-item">
-            <h4>Language Analysis</h4>
-            <p>GenAI identifies source language and linguistic characteristics</p>
+            <h4>Intelligent Ingestion</h4>
+            <p>Custom AI model automatically detects source language and parses complex Word, PowerPoint and Excel documents</p>
         </div>
         <div class="feature-item">
-            <h4>Dynamic Prompts</h4>
-            <p>Auto-generated to preserve nuances and custom terms</p>
+            <h4>Prompt Engineering</h4>
+            <p>Multi-layered prompt instructs the LLM and ensures accuracy of translation regardless of document content</p>
         </div>
         <div class="feature-item">
-            <h4>Dual Output</h4>
-            <p>Creates new translated new version and Markdown</p>
+            <h4>Native Formatting</h4>
+            <p>The AI reassembles the translated document, preserving layouts, styles, and structure. And a preview is generated</p>
         </div>
     </div>
-    <div class="feature-note">
-        <i class="fas fa-server"></i>
-        <p>While this demonstration showcases the Translation AI Agent on a single document, the underlying architecture is engineered for <strong>enterprise scale</strong>, capable of processing thousands of documents hundreds of pages in length.</p>
-    </div>
+
     {% if not gcs_available or not gemini_configured %}
         <div class="error-message" style="margin-bottom: 20px;">
             <strong>Configuration Issue:</strong>
@@ -61,7 +58,7 @@
         </div>
         <div class="form-group">
             <label for="translation-target-language">Target Language:</label>
-            <select id="translation-target-language" name="target_language" required 
+            <select id="translation-target-language" name="target_language" required
                     {% if not gemini_configured %}disabled{% endif %}>
                 {% if not languages and gemini_configured %}
                     <option value="" disabled selected>No languages configured</option>

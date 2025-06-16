@@ -6,7 +6,7 @@
     {% set messages = get_flashed_messages(with_categories=true) %} {# Get messages ONCE #}
 
     {% if summary and not summary.startswith("(") %} {# Valid summary generated #}
-        <h2>Summary:</h2> 
+        <h2>Summary:</h2>
         <div id="summary-output-container" class="summary-display-box">
             <!-- Content will be rendered by JS -->
         </div>
@@ -34,7 +34,7 @@
                 const container = document.getElementById('summary-output-container');
                 if (container && typeof window.renderMarkdownSummary === 'function') {
                     window.renderMarkdownSummary(summaryContent, container);
-                } else if (container) { 
+                } else if (container) {
                     console.warn("renderMarkdownSummary function not found during HTMX swap, using basic render.");
                     container.innerHTML = '<p>' + summaryContent.replace(/\n/g, '<br>') + '</p>';
                 }
@@ -96,7 +96,22 @@
     {% endif %}
 {% else %}
     {# --- This is the FULL initial rendering of the feature --- #}
-    <div class="feature-container summarization-tile-container"> {# Keep class for now, CSS will ignore tile aspect #}
+
+    {# --- NEW: Styles copied from translation feature for visual consistency --- #}
+    <style>
+        .summarization-feature-container .feature-description { margin-bottom: 2rem; }
+        .summarization-feature-container .feature-grid { display: grid; grid-template-columns: 1fr; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
+        @media (min-width: 992px) { .summarization-feature-container .feature-grid { grid-template-columns: repeat(3, 1fr); } }
+        .summarization-feature-container .feature-item { background: #ffffff; padding: 2rem; text-align: center; transition: background-color 0.2s ease-in-out; }
+        @media (min-width: 992px) { .summarization-feature-container .feature-item:not(:last-child) { border-right: 1px solid #e5e7eb; } }
+        @media (max-width: 991.98px) { .summarization-feature-container .feature-item:not(:last-child) { border-bottom: 1px solid #e5e7eb; } }
+        .summarization-feature-container .feature-item:hover { background-color: #f9fafb; }
+        .summarization-feature-container .feature-item h4 { margin: 0 0 0.75rem 0; font-family: Georgia, "Times New Roman", Times, serif; font-size: 1.1em; color: #1a2b48; font-weight: 600; }
+        .summarization-feature-container .feature-item p { font-family: Georgia, "Times New Roman", Times, serif; color: #5a6a7b; line-height: 1.6; margin: 0; font-size: 0.95em; }
+    </style>
+
+    {# --- NEW: Added summarization-feature-container class for style scoping --- #}
+    <div class="feature-container summarization-tile-container summarization-feature-container">
         <h1><i class="fas fa-file-alt"></i> Intelligent Document Summarization</h1>
 
         <div class="feature-tabs">
@@ -110,35 +125,41 @@
 
         <!-- Tab Content for Text Summary -->
         <div id="text-summary-tab" class="feature-tab-content active-content">
-            <div class="feature-explanation" style="margin-top:15px;"> {# Was previously style="margin-bottom: 2rem;" #}
-                <p>This summarization AI service includes <strong>20 domain specific AI Agents</strong> to deliver expert summaries based on the document you provide. Think of it as an "Agent of Agents."</p>
-                <p style="margin-top: 1rem;">The process involves a two-step embedded AI workflow:</p>
-                <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; font-size: 1.1em;">Intelligent Classification:</h4>
-                <p style="margin-bottom: 1rem;">
-                    An AI Agent first identifies the nature of the document such as legal contract or financial report or python code. This AI classification step determines which expert AI Agent should perform the summary.
-                </p>
-                <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; font-size: 1.1em;">Domain Expert AI Agents:</h4>
-                <p>
-                    Once classified, the document is analyzed by one of 20 custom-tuned AI agents. Each is trained as a domain expert in extracting and summarizing critical information.
-                </p>
+            <p class="feature-description">
+                This <strong>AI Agent</strong> employs a multi-stage "Agent of Agents" architecture to deliver contextually superior summaries. This AI-First workflow ensures that the nuances of different document types are understood and reflected in the final output.
+            </p>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h4>AI-Powered Classification</h4>
+                    <p>A router AI Agent first analyzes the document to determine its type—legal, financial, technical, etc.—ensuring the correct specialist is assigned.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Domain-Expert Summarization</h4>
+                    <p>The document is routed to one of 20+ custom-tuned domain expert AI agents to extract critical information with high relevance and accuracy.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Structured, Actionable Output</h4>
+                    <p>The final summary is delivered in a structured brief format with key highlights, making it easy to consume and act upon instantly.</p>
+                </div>
             </div>
-            <form id="text-summary-form" hx-post="{{ url_for('process_summarize') }}" hx-target="#text-summarization-result" hx-swap="innerHTML" enctype="multipart/form-data" hx-indicator="#text-summary-form .spinner">
+            <form id="text-summary-form" hx-post="{{ url_for('process_summarize') }}" hx-target="#text-summarization-result" hx-swap="innerHTML" enctype="multipart/form-data" hx-indicator="#text-summary-submit-btn .spinner">
                 <div class="form-group">
                     <label for="text-summary-file-input" id="text-summary-drop-zone-label" class="drop-zone-style"
                            style="display: block; border: 2px dashed #007bff; padding: 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 10px;">
                         <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drop .docx, .pptx, .xlsx, or .pdf file here (max 10MB), or click to select.</p>
-                        <p id="text-summary-file-name-display" style="margin-top:5px; color: #555;">No file selected</p> {# REMOVED font-weight: bold; #}
+                        <p id="text-summary-file-name-display" style="margin-top:5px; color: #555;">No file selected</p>
                     </label>
                     <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf"
                            style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">
                 </div>
-                <button type="submit" class="submit-button">
+                {# --- CHANGE 1: Added ID and disabled attribute --- #}
+                <button type="submit" id="text-summary-submit-btn" class="submit-button" disabled>
                     <i class="fas fa-file-alt"></i> Summarize Text
                     <span class="htmx-indicator spinner"></span>
                 </button>
             </form>
             <div id="text-summarization-result" class="processing-result">
-                 {% if summary and not summary.startswith("(") and not hx_target_is_ppt_status_result %} 
+                 {% if summary and not summary.startswith("(") and not hx_target_is_ppt_status_result %}
                     <h2>Summary:</h2>
                     <div id="summary-output-container" class="summary-display-box">
                          <!-- JS will populate this -->
@@ -152,7 +173,7 @@
                         (function() {
                             const summaryContent = {{ summary|tojson }};
                             const container = document.getElementById('summary-output-container');
-                            if (container && typeof window.renderMarkdownSummary === 'function') { 
+                            if (container && typeof window.renderMarkdownSummary === 'function') {
                                 window.renderMarkdownSummary(summaryContent, container);
                             } else if (container) {
                                  console.warn("renderMarkdownSummary function not found on initial load for text summary, using basic render.");
@@ -166,25 +187,24 @@
             </div>
         </div>
 
-                <!-- Tab Content for PPT Summary -->
-        <div id="ppt-summary-tab" class="feature-tab-content"> {# Initially hidden by CSS default for .feature-tab-content #}
-            <h2><i class="fas fa-file-powerpoint"></i> Create Executive PowerPoint</h2>
-             <div class="feature-explanation" style="margin-top:15px;">
-                 <p>The PowerPoint generation AI Agent uses the same <strong>"Agent of Agents"</strong> approach as Text Summary to transform documents into compelling executive presentations.</p>
-                 <p style="margin-top: 1rem;">The process involves a two-step embedded AI workflow:</p>
-                
-                <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; font-size: 1.1em;">Intelligent Content Analysis:</h4>
-                <p style="margin-bottom: 1rem;">
-                    An AI Agent analyzes the core themes, structure, and key information within the uploaded document and creates a relevant and coherent outline.
-                </p>
-                
-                <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; font-size: 1.1em;">Crafting Agents:</h4>
-                <p style="margin-bottom: 1rem;">
-                    Based on the analysis a dedicated domain expert AI Agent crafts the slide content and structure and generates the final PowerPoint deck.
-                </p>
-                <p>
-                    Together this results in a structured, contextually relevant PowerPoint.
-                </p>
+        <!-- Tab Content for PPT Summary -->
+        <div id="ppt-summary-tab" class="feature-tab-content">
+            <p class="feature-description">
+                This <strong>AI Agent</strong> is a strategic communications partner that uses a custom AI model to transform raw documents into compelling, executive-ready presentations by understanding not just the content, but the audience and intent
+            </p>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h4>Multi-Faceted Content Analysis</h4>
+                    <p>20+ custom AI Agents analyze the document's core themes, structure, and classification to build a coherent, logical narrative outline for the presentation</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Dynamic Content Crafting</h4>
+                    <p>A multi-vector prompt engine tailors slide content for a specific audience (e.g., Executive, Technical) and tone, ensuring maximum impact and relevance</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Executive-Ready Deck Generation</h4>
+                    <p>Custom AI model generates a complete PowerPoint file with structured slides, speaker notes, and design suggestions</p>
+                </div>
             </div>
             {% if not ppt_api_key_configured %}
             <div class="ppt-builder-api-warning">
@@ -194,10 +214,10 @@
 
             <form id="ppt-builder-upload-form" method="POST" enctype="multipart/form-data"
                   hx-post="{{ url_for('process_create_ppt') }}"
-                  hx-target="#ppt-builder-status-container" 
+                  hx-target="#ppt-builder-status-container"
                   hx-swap="innerHTML"
                   enctype="multipart/form-data"
-                  hx-indicator="#ppt-builder-convert-btn"> 
+                  hx-indicator="#ppt-builder-convert-btn">
 
                 <input type="hidden" name="template" value="{{ ppt_default_template | default('professional') }}">
                 <input type="hidden" name="inputType" value="file">
@@ -208,7 +228,6 @@
                              <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">
                                  Drop {{ ppt_allowed_extensions_str|default('.docx, .pdf, or .py') }} files here (up to {{ ppt_max_files|default(5) }} files, max {{ ppt_max_file_size_mb|default(10) }}MB each), or click to select.
                              </p>
-                             {# The next <p> for "No file selected" is handled by the div below #}
                              <div id="ppt-builder-file-info" style="margin-top:5px; font-weight: bold; color: #555;"><p class="ppt-builder-no-files-msg">No file selected</p></div>
                          </label>
                          <input type="file" id="ppt-builder-file-input" name="file" accept="{{ ppt_allowed_extensions_str|default('.docx,.pdf,.py') }}"
@@ -219,7 +238,7 @@
 
                 <button type="submit" id="ppt-builder-convert-btn" class="submit-button" {% if not ppt_api_key_configured %}disabled{% endif %}>
                     <i class="fas fa-magic"></i> Generate Presentation
-                    <span class="spinner htmx-indicator"></span> 
+                    <span class="spinner htmx-indicator"></span>
                 </button>
             </form>
 
@@ -228,22 +247,20 @@
                     <p><i>PowerPoint generation status and download link will appear here.</i></p>
                 </div>
             </div>
-        </div> 
+        </div>
 
     </div> {# End of summarization-tile-container #}
 
     <script>
     // Self-invoking function to scope all JS for this feature
     (function() {
-        const summarizationFeatureContainer = document.querySelector('.summarization-tile-container');
+        const summarizationFeatureContainer = document.querySelector('.summarization-feature-container');
         if (!summarizationFeatureContainer) {
             return;
         }
 
-        // --- Markdown Renderer for Text Summary ---
         if (typeof window.renderMarkdownSummary !== 'function') {
             window.renderMarkdownSummary = function(markdownText, containerElement) {
-                // ... (implementation of renderMarkdownSummary as provided previously)
                 if (!markdownText || markdownText.trim() === "") { containerElement.innerHTML = '<p><i>No summary content to display.</i></p>'; return; }
                 let html = ""; const lines = markdownText.split('\n'); let inList = false; let currentParagraph = "";
                 function flushParagraph() { if (currentParagraph.trim() !== "") { currentParagraph = currentParagraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); html += `<p>${currentParagraph.trim()}</p>\n`; } currentParagraph = ""; }
@@ -258,7 +275,6 @@
             };
         }
 
-        // --- Tab Switching Logic (Reinstated) ---
         const tabLinks = summarizationFeatureContainer.querySelectorAll('.feature-tabs .tab-link');
         const tabContents = summarizationFeatureContainer.querySelectorAll('.feature-tab-content');
         function openSummarizationTab(targetTabId) {
@@ -276,56 +292,66 @@
                 if (targetTabId) { openSummarizationTab(targetTabId); }
             });
         });
-        // Ensure a tab is active on load if none is explicitly set (e.g. first tab)
         if (tabLinks.length > 0 && !summarizationFeatureContainer.querySelector('.feature-tabs .tab-link.active')) {
              const firstTabId = tabLinks[0].dataset.targetTab;
              if (firstTabId) openSummarizationTab(firstTabId);
         }
 
-
         // --- Text Summary Tab File Upload Logic ---
-        // Scoped to the specific tab/tile
-        const textSummaryTab = summarizationFeatureContainer.querySelector('#text-summary-tab'); // Changed from #text-summary-tile
-        if (textSummaryTab) { 
+        const textSummaryTab = summarizationFeatureContainer.querySelector('#text-summary-tab');
+        if (textSummaryTab) {
             const textSummaryDropZoneLabel = textSummaryTab.querySelector('#text-summary-drop-zone-label');
             const textSummaryFileInput = textSummaryTab.querySelector('#text-summary-file-input');
             const textSummaryFileNameDisplay = textSummaryTab.querySelector('#text-summary-file-name-display');
             const textSummaryForm = textSummaryTab.querySelector('#text-summary-form');
             const TEXT_SUMMARY_MAX_FILE_SIZE_MB = 10;
             const TEXT_SUMMARY_MAX_FILE_SIZE_BYTES = TEXT_SUMMARY_MAX_FILE_SIZE_MB * 1024 * 1024;
+            
+            // --- CHANGE 2: Get a reference to the button and configuration status ---
+            const textSummarySubmitBtn = textSummaryTab.querySelector('#text-summary-submit-btn');
+            const geminiIsConfigured = {{ gemini_configured|default(false)|tojson }};
+
+            // --- CHANGE 3: Create a function to update the button's state ---
+            function updateTextSummaryButtonState() {
+                if (!textSummarySubmitBtn) return;
+                const isReady = textSummaryFileInput.files.length > 0 && geminiIsConfigured;
+                textSummarySubmitBtn.disabled = !isReady;
+            }
 
             if (textSummaryDropZoneLabel && textSummaryFileInput && textSummaryFileNameDisplay && textSummaryForm) {
-                // ... (file upload event listeners remain the same as previous correct version)
                 textSummaryDropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); textSummaryDropZoneLabel.classList.add('drag-over'); textSummaryDropZoneLabel.style.borderColor = '#28a745'; });
                 textSummaryDropZoneLabel.addEventListener('dragleave', () => { textSummaryDropZoneLabel.classList.remove('drag-over'); textSummaryDropZoneLabel.style.borderColor = '#007bff'; });
+                
                 function handleTextSummaryFileChange() {
                     if (textSummaryFileInput.files.length > 0) {
                         const file = textSummaryFileInput.files[0];
                         if (file.size > TEXT_SUMMARY_MAX_FILE_SIZE_BYTES) {
                             alert(`File "${file.name}" is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is ${TEXT_SUMMARY_MAX_FILE_SIZE_MB}MB.`);
                             textSummaryFileInput.value = ''; textSummaryFileNameDisplay.textContent = 'No file selected';
-                            textSummaryDropZoneLabel.classList.remove('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#007bff'; return;
+                            textSummaryDropZoneLabel.classList.remove('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#007bff';
+                        } else {
+                            textSummaryFileNameDisplay.textContent = file.name; textSummaryDropZoneLabel.classList.add('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#28a745';
                         }
-                        textSummaryFileNameDisplay.textContent = file.name; textSummaryDropZoneLabel.classList.add('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#28a745';
                     } else {
                         textSummaryFileNameDisplay.textContent = 'No file selected'; textSummaryDropZoneLabel.classList.remove('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#007bff';
                     }
+                    // --- CHANGE 4: Call the state update function ---
+                    updateTextSummaryButtonState(); 
                 }
+                
                 textSummaryDropZoneLabel.addEventListener('drop', (e) => { e.preventDefault(); textSummaryDropZoneLabel.classList.remove('drag-over'); textSummaryDropZoneLabel.style.borderColor = '#007bff'; const files = e.dataTransfer.files; if (files.length > 0) { textSummaryFileInput.files = files; handleTextSummaryFileChange(); } });
-                textSummaryFileInput.addEventListener('change', handleTextSummaryFileChange); 
+                textSummaryFileInput.addEventListener('change', handleTextSummaryFileChange);
                 textSummaryForm.addEventListener('submit', function(event) { if (textSummaryFileInput.files.length === 0) { alert('Please upload a file to summarize.'); event.preventDefault(); } });
             }
+            // --- CHANGE 5: Set initial button state on load ---
+            updateTextSummaryButtonState();
         }
 
-
         // --- PowerPoint Builder Specific JavaScript ---
-        const pptSummaryTab = summarizationFeatureContainer.querySelector('#ppt-summary-tab'); // Changed from #ppt-summary-tile
-        if (pptSummaryTab) { 
+        const pptSummaryTab = summarizationFeatureContainer.querySelector('#ppt-summary-tab');
+        if (pptSummaryTab) {
             const pptBuilderForm = pptSummaryTab.querySelector('#ppt-builder-upload-form');
             if (pptBuilderForm) {
-                // ... (PPT variables and helper functions: updatePptConvertButtonState, displayPptFileInfo, clearPptStatus, showPptStatus)
-                // ... (PPT event listeners for file input, dropzone, form submit)
-                // --- Ensure all these are present and correctly scoped to pptSummaryTab ---
                 const pptDropZoneLabel = pptSummaryTab.querySelector('#ppt-builder-drop-zone-label');
                 const pptFileInput = pptSummaryTab.querySelector('#ppt-builder-file-input');
                 const pptConvertBtn = pptSummaryTab.querySelector('#ppt-builder-convert-btn');
@@ -344,7 +370,7 @@
                      if (pptDropZoneLabel) {
                          if (!pptApiKeyIsConfigured) {
                               pptDropZoneLabel.classList.add('disabled-drop-zone'); pptDropZoneLabel.style.cursor = 'not-allowed';
-                               const apiWarningDiv = pptSummaryTab.querySelector('.ppt-builder-api-warning'); 
+                               const apiWarningDiv = pptSummaryTab.querySelector('.ppt-builder-api-warning');
                                if (apiWarningDiv) { pptDropZoneLabel.title = apiWarningDiv.textContent.trim() || 'Presentation generation service is currently unavailable.';
                                } else { pptDropZoneLabel.title = 'Presentation generation service is currently unavailable.'; }
                          } else { pptDropZoneLabel.classList.remove('disabled-drop-zone'); pptDropZoneLabel.style.cursor = 'pointer'; pptDropZoneLabel.title = '';  }
@@ -353,8 +379,8 @@
                      }
                 }
                 function displayPptFileInfo(fileList) {
-                    if (!pptFileInfoDiv || !pptFileInput) return; 
-                    pptFileInfoDiv.innerHTML = ''; const files = pptFileInput.files; 
+                    if (!pptFileInfoDiv || !pptFileInput) return;
+                    pptFileInfoDiv.innerHTML = ''; const files = pptFileInput.files;
                     if (files.length > 0) {
                         const p = document.createElement('p'); p.textContent = `Selected Files (${files.length}):`;
                         p.style.cssText = 'color: var(--text-color-primary); font-weight: bold; text-align: left; margin-bottom: 0.3rem;';
@@ -368,7 +394,7 @@
                             } else { li.style.color = 'var(--text-color-secondary)'; }
                             fileListElement.appendChild(li);
                         });
-                         pptFileInfoDiv.appendChild(fileListElement); 
+                         pptFileInfoDiv.appendChild(fileListElement);
                         if (invalidCount > 0) {
                             const pWarn = document.createElement('p'); pWarn.style.cssText = 'color: var(--error-message-color, #ef4444); font-size: 0.9em; margin-top: 0.5rem; text-align: left;';
                             let warnMsgParts = [];
@@ -381,7 +407,7 @@
                     } else { pptFileInfoDiv.innerHTML = '<p class="ppt-builder-no-files-msg" style="font-weight:normal; color:#555;">No files selected.</p>'; }
                      if (pptDropZoneLabel) {
                          const isFileSelected = files.length > 0;
-                         if (isFileSelected) { pptDropZoneLabel.classList.add('file-selected'); pptDropZoneLabel.style.borderColor = '#17a2b8'; 
+                         if (isFileSelected) { pptDropZoneLabel.classList.add('file-selected'); pptDropZoneLabel.style.borderColor = '#17a2b8';
                          } else { pptDropZoneLabel.classList.remove('file-selected'); pptDropZoneLabel.style.borderColor = !pptApiKeyIsConfigured ? '#ced4da' : '#007bff'; }
                      }
                 }
@@ -404,7 +430,7 @@
                              Array.from(files).forEach(file => { const fileExt = file.name.split('.').pop()?.toLowerCase() || ''; let isTypeValid = PPT_ALLOWED_EXTENSIONS.includes(fileExt); let isSizeValid = file.size <= PPT_MAX_FILE_SIZE; if (!isTypeValid || !isSizeValid) isValidSelection = false; });
                              if (!isValidSelection && files.length <= PPT_MAX_FILES) { validationMessage = `One or more selected files are invalid (check type or size). Allowed: ${PPT_ALLOWED_EXTENSIONS.join(', ')}, Max size: ${PPT_MAX_FILE_SIZE_MB}MB each.`; }
                         }
-                        if (!isValidSelection) { alert(validationMessage || 'Invalid file selection.'); showPptStatus(validationMessage || 'Invalid file selection.', 'error'); event.preventDefault(); 
+                        if (!isValidSelection) { alert(validationMessage || 'Invalid file selection.'); showPptStatus(validationMessage || 'Invalid file selection.', 'error'); event.preventDefault();
                         } else { event.detail.formData.delete('file'); Array.from(files).forEach(file => { event.detail.formData.append('file', file, file.name); }); }
                      });
                 }

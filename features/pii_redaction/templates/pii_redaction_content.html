@@ -28,45 +28,51 @@
     {# --- End of HTMX result block --- #}
 {% else %}
     {# --- This is the FULL initial rendering of the feature --- #}
-    <div class="feature-container pii-redaction-tile-container">
-        <h1><i class="fas fa-user-shield"></i> PII Redaction Service</h1>
-        
-        <div class="feature-explanation">
-            <h2 style="margin-top:0; font-size: 1.2em; color: #333;">About This PII Redaction Tool</h2>
-            <p>
-                This AI Agent identifies and redacts common types of Personally Identifiable Information (PII) from your uploaded Word or PowerPoint documents.</p>
-            <p>
-                <strong>PII targeted for redaction include:</strong>
-            </p>
-            <ul style="font-size: 0.9em; columns: 2; -webkit-columns: 2; -moz-columns: 2; list-style-type: disc; padding-left: 20px;">
-                <li>Names (PERSON)</li>
-                <li>Locations (GPE, LOC)</li>
-                <li>Organizations (ORG)</li>
-                <li>Dates & Times (DATE)</li>
-                <li>Phone Numbers (PHONE_NUMBER)</li>
-                <li>Email Addresses (EMAIL_ADDRESS)</li>
-                <li>Credit Card Numbers (CREDIT_CARD)</li>
-                <li>US Social Security Numbers (US_SSN)</li>
-                <li>US Bank Account Numbers (US_BANK_NUMBER)</li>
-                <li>US Driver's License Numbers (US_DRIVER_LICENSE)</li>
-                <li>US ITIN (US_ITIN)</li>
-                <li>US Passport Numbers (US_PASSPORT)</li>
-                <li>IBAN Codes (IBAN_CODE)</li>
-                <li>IP Addresses (IP_ADDRESS)</li>
-                <li>Medical License Numbers (MEDICAL_LICENSE)</li>
-                <li>And more!</li>
-            </ul>
-             {% if not presidio_available %}
-                <p class="error-message" style="text-align:center;"><strong>Warning:</strong> PII Redaction Analyzer is not currently available. Please check server configuration.</p>
-            {% endif %}
-            {% if not gcs_available and presidio_available %}
-                <p class="error-message" style="text-align:center;"><strong>Warning:</strong> Cloud Storage is not available. Redacted files cannot be saved or downloaded.</p>
-            {% endif %}
+
+    {# --- NEW: Styles for visual consistency --- #}
+    <style>
+        .pii-redaction-feature-container .feature-description { margin-bottom: 2rem; }
+        .pii-redaction-feature-container .feature-grid { display: grid; grid-template-columns: 1fr; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
+        @media (min-width: 992px) { .pii-redaction-feature-container .feature-grid { grid-template-columns: repeat(3, 1fr); } }
+        .pii-redaction-feature-container .feature-item { background: #ffffff; padding: 2rem; text-align: center; transition: background-color 0.2s ease-in-out; }
+        @media (min-width: 992px) { .pii-redaction-feature-container .feature-item:not(:last-child) { border-right: 1px solid #e5e7eb; } }
+        @media (max-width: 991.98px) { .pii-redaction-feature-container .feature-item:not(:last-child) { border-bottom: 1px solid #e5e7eb; } }
+        .pii-redaction-feature-container .feature-item:hover { background-color: #f9fafb; }
+        .pii-redaction-feature-container .feature-item h4 { margin: 0 0 0.75rem 0; font-family: Georgia, "Times New Roman", Times, serif; font-size: 1.1em; color: #1a2b48; font-weight: 600; }
+        .pii-redaction-feature-container .feature-item p { font-family: Georgia, "Times New Roman", Times, serif; color: #5a6a7b; line-height: 1.6; margin: 0; font-size: 0.95em; }
+    </style>
+
+    <div class="feature-container pii-redaction-tile-container pii-redaction-feature-container">
+        <h1><i class="fas fa-user-shield"></i> Intelligent PII Redaction Engine</h1>
+
+        {# --- REPLACED old feature-explanation div with this new structure --- #}
+        <p class="feature-description">
+            This <strong>AI Agent</strong> provides robust, automated PII (Personally Identifiable Information) redaction to secure sensitive data within documents, ensuring compliance and mitigating risk without manual intervention.
+        </p>
+        <div class="feature-grid">
+            <div class="feature-item">
+                <h4>Native Document Parsing</h4>
+                <p>The AI Agent ingests complex Word and PowerPoint files, preserving the original structure and layout for high-fidelity processing</p>
+            </div>
+            <div class="feature-item">
+                <h4>Precision PII Recognition</h4>
+                <p>Custom AI model identifies a comprehensive set of entities, from names and locations to country-specific identifiers like SSNs</p>
+            </div>
+            <div class="feature-item">
+                <h4>Secure Format Reconstruction</h4>
+                <p>Identified PII is securely redacted in-place, and a new, clean version of the document is generated in its original native format</p>
+            </div>
         </div>
 
-        <p class="upload-instructions">
-            <!-- Drag & Drop or Click to Select a .docx or .pptx file for PII redaction. -->
-        </p>
+        {% if not presidio_available or not gcs_available %}
+            <div class="error-message" style="margin-top: 2rem; text-align:center;">
+                <strong>Warning:</strong>
+                {% if not presidio_available %}The PII Redaction Analyzer is not currently available. {% endif %}
+                {% if not gcs_available %}Cloud Storage is not available, so redacted files cannot be saved. {% endif %}
+                Please check server configuration.
+            </div>
+        {% endif %}
+        {# --- END of replacement --- #}
 
         {% set services_ready = presidio_available and gcs_available %}
 
@@ -75,28 +81,26 @@
               hx-target="#pii-redaction-result"
               hx-swap="innerHTML"
               hx-encoding="multipart/form-data"
-              hx-indicator="#pii-upload-form .spinner">
-            
-            {# MODIFICATION: Use a <label> for the drop zone, linked to the file input #}
-            <label for="pii-file-input" id="pii-drop-zone-label" class="drop-zone-style {% if not services_ready %}disabled-drop-zone{% endif %}" 
-                   style="display: block; border: 2px dashed #007bff; padding: 30px 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 15px;">
+              hx-indicator="#pii-submit-button .spinner">
+
+            <label for="pii-file-input" id="pii-drop-zone-label" class="drop-zone-style {% if not services_ready %}disabled-drop-zone{% endif %}"
+                   style="display: block; border: 2px dashed #007bff; padding: 30px 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 15px; margin-top: 1.5rem;">
                 <p style="margin:0 0 10px 0; font-size: 1.1em; color: #333;">Drop .docx or .pptx file here, or click to select.</p>
                 <p id="pii-file-name" class="file-name-display" style="margin-top:10px; font-weight: bold; color: #555;">No file selected</p>
             </label>
-            
-            {# File input is accessibly hidden, but linked to the label by its ID #}
+
             <input type="file" id="pii-file-input" name="file_to_redact" accept=".docx,.pptx" required
                    style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;"
                    {% if not services_ready %}disabled{% endif %}>
 
-            <button type="submit" class="submit-button" id="pii-submit-button" style="width: 100%; margin-top: 15px;" {% if not services_ready %}disabled{% endif %}>
+            {# --- MODIFICATION: Added disabled attribute to be controlled by JS --- #}
+            <button type="submit" class="submit-button" id="pii-submit-button" style="width: 100%; margin-top: 15px;" disabled>
                 <i class="fas fa-user-secret"></i> Upload and Redact
                 <span class="htmx-indicator spinner"></span>
             </button>
         </form>
 
         <div id="pii-redaction-result" class="processing-result">
-            {# This div will be populated by HTMX #}
             {% if redacted_file_url %}
                 <h2>Redaction Complete!</h2>
                 <p>Your document '{{ original_filename or "file" }}' has been processed.</p>
@@ -111,92 +115,74 @@
 
     <script>
     (function() {
-        const dropZoneLabel = document.getElementById('pii-drop-zone-label'); // Changed from pii-drop-zone
-        const fileInputPii = document.getElementById('pii-file-input');
-        const fileNameDisplayPii = document.getElementById('pii-file-name'); // Still targeting by ID
-        const piiUploadForm = document.getElementById('pii-upload-form');
-        const piiSubmitButton = document.getElementById('pii-submit-button');
+        const piiFeatureContainer = document.querySelector('.pii-redaction-feature-container');
+        if (!piiFeatureContainer) return;
+
+        const dropZoneLabel = piiFeatureContainer.querySelector('#pii-drop-zone-label');
+        const fileInputPii = piiFeatureContainer.querySelector('#pii-file-input');
+        const fileNameDisplayPii = piiFeatureContainer.querySelector('#pii-file-name');
+        const piiUploadForm = piiFeatureContainer.querySelector('#pii-upload-form');
+        const piiSubmitButton = piiFeatureContainer.querySelector('#pii-submit-button');
 
         if (dropZoneLabel && fileInputPii && fileNameDisplayPii && piiUploadForm && piiSubmitButton) {
             
-            const isInteractive = !piiSubmitButton.disabled;
+            const servicesAreReady = {{ services_ready|default(false)|tojson }};
 
-            if (isInteractive) {
-                // Drag and Drop listeners on the label
-                dropZoneLabel.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    dropZoneLabel.classList.add('drag-over');
-                    dropZoneLabel.style.borderColor = '#28a745'; // Visual feedback
-                });
+            // --- NEW: Function to control button state ---
+            function updatePiiButtonState() {
+                if (!piiSubmitButton) return;
+                const isReady = fileInputPii.files.length > 0 && servicesAreReady;
+                piiSubmitButton.disabled = !isReady;
+            }
 
-                dropZoneLabel.addEventListener('dragleave', () => {
-                    dropZoneLabel.classList.remove('drag-over');
-                    dropZoneLabel.style.borderColor = '#007bff'; // Reset border
-                });
-
+            if (servicesAreReady) {
+                dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneLabel.classList.add('drag-over'); dropZoneLabel.style.borderColor = '#28a745'; });
+                dropZoneLabel.addEventListener('dragleave', () => { dropZoneLabel.classList.remove('drag-over'); dropZoneLabel.style.borderColor = '#007bff'; });
                 dropZoneLabel.addEventListener('drop', (e) => {
                     e.preventDefault();
                     dropZoneLabel.classList.remove('drag-over');
-                    dropZoneLabel.style.borderColor = '#007bff'; // Reset border
                     const files = e.dataTransfer.files;
                     if (files.length > 0) {
                         fileInputPii.files = files;
-                        // Manually trigger change event on fileInputPii so its listener updates the display
                         const event = new Event('change', { bubbles: true });
                         fileInputPii.dispatchEvent(event);
                     }
                 });
-
-                // NOTE: Explicit click listener on dropZoneLabel to call fileInputPii.click() is usually NOT NEEDED
-                // when using <label for="...">, as the browser handles this.
-                // If clicking the label does not open file dialog, uncomment the following:
-                /*
-                dropZoneLabel.addEventListener('click', function(event) {
-                    // Important: only try to click if the target of THIS event is the label itself,
-                    // not one of its children, if you were to add other interactive elements inside the label.
-                    // For simple text children, this is usually fine.
-                    if (!fileInputPii.disabled && event.target === dropZoneLabel) { 
-                        // fileInputPii.click();
-                    }
-                });
-                */
-
-                // Form submit listener for validation
                 piiUploadForm.addEventListener('submit', function(event) {
                     if (fileInputPii.files.length === 0) {
                         alert('Please select a .docx or .pptx file to redact before submitting.');
-                        event.preventDefault(); 
-                        return false; 
+                        event.preventDefault();
+                        return false;
                     }
                 });
-
-            } else { // If services are not ready
+            } else {
                 dropZoneLabel.style.cursor = 'not-allowed';
                 dropZoneLabel.title = 'PII Redaction Service is currently unavailable or not fully configured.';
-                // Make the label look disabled
                 dropZoneLabel.style.borderColor = '#ced4da';
                 dropZoneLabel.style.backgroundColor = '#e9ecef';
                 dropZoneLabel.style.color = '#6c757d';
-                // The file input is already disabled via Jinja, and the button is also disabled.
             }
 
-            // Listener to update file name display
             fileInputPii.addEventListener('change', () => {
                 if (fileInputPii.files.length > 0) {
                     fileNameDisplayPii.textContent = fileInputPii.files[0].name;
                     if (dropZoneLabel) {
                         dropZoneLabel.classList.add('file-selected');
-                        // Optional: change style of label when file is selected
-                        dropZoneLabel.style.borderColor = '#28a745'; 
+                        dropZoneLabel.style.borderColor = servicesAreReady ? '#28a745' : '#ced4da';
                     }
                 } else {
                     fileNameDisplayPii.textContent = 'No file selected';
                     if (dropZoneLabel) {
                         dropZoneLabel.classList.remove('file-selected');
-                        dropZoneLabel.style.borderColor = isInteractive ? '#007bff' : '#ced4da';
+                        dropZoneLabel.style.borderColor = servicesAreReady ? '#007bff' : '#ced4da';
                     }
                 }
+                // --- Call the button state updater ---
+                updatePiiButtonState();
             });
+
+            // --- Set initial button state on page load ---
+            updatePiiButtonState();
         }
     })();
     </script>
