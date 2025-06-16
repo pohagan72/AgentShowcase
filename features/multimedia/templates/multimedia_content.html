@@ -1,82 +1,33 @@
 {# features/multimedia/templates/multimedia_content.html #}
 <style>
-    /* Styles copied and scoped from translation_content.html for consistency */
-    .multimedia-feature-container .feature-description {
-        margin-bottom: 2rem;
-    }
-    
-    .multimedia-feature-container .feature-grid {
-        display: grid;
-        grid-template-columns: 1fr; /* Default to a single column for mobile */
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-        margin-top: 1rem;
-        margin-bottom: 2rem; /* Added margin for spacing */
-    }
+    /* Styles are consistent with other features */
+    .multimedia-feature-container .feature-description { margin-bottom: 2rem; }
+    .multimedia-feature-container .feature-grid { display: grid; grid-template-columns: 1fr; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); margin-bottom: 2rem; }
+    @media (min-width: 992px) { .multimedia-feature-container .feature-grid { grid-template-columns: repeat(3, 1fr); } }
+    .multimedia-feature-container .feature-item { background: #ffffff; padding: 2rem; text-align: center; transition: background-color 0.2s ease-in-out; }
+    @media (min-width: 992px) { .multimedia-feature-container .feature-item:not(:last-child) { border-right: 1px solid #e5e7eb; } }
+    @media (max-width: 991.98px) { .multimedia-feature-container .feature-item:not(:last-child) { border-bottom: 1px solid #e5e7eb; } }
+    .multimedia-feature-container .feature-item h4 { margin: 0 0 0.75rem 0; font-family: Georgia, "Times New Roman", Times, serif; font-size: 1.1em; color: #1a2b48; font-weight: 600; }
+    .multimedia-feature-container .feature-item p { font-family: Georgia, "Times New Roman", Times, serif; color: #5a6a7b; line-height: 1.6; margin: 0; font-size: 0.95em; }
+    .multimedia-feature-container .feature-note { margin-top: 2rem; margin-bottom: 1.5rem; padding: 0.8rem 1rem; background-color: #f0f9ff; border: 1px solid #e0f2fe; border-left: 5px solid var(--primary-color, #3b82f6); border-radius: 6px; display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+    .multimedia-feature-container .feature-note i { margin-right: 1rem; font-size: 1.6em; color: var(--primary-color, #3b82f6); }
+    .multimedia-feature-container .blur-slider-group label { display: block; margin-bottom: 0.5rem; }
 
-    /* On larger screens (laptops and up), switch to 3 columns */
-    @media (min-width: 992px) {
-        .multimedia-feature-container .feature-grid {
-            grid-template-columns: repeat(3, 1fr);
-        }
-    }
-
-    .multimedia-feature-container .feature-item {
-        background: #ffffff;
-        padding: 2rem;
-        text-align: center;
-        transition: background-color 0.2s ease-in-out;
-    }
-    
-    /* Vertical dividers for larger screens */
-    @media (min-width: 992px) {
-        .multimedia-feature-container .feature-item:not(:last-child) {
-            border-right: 1px solid #e5e7eb;
-        }
-    }
-
-    /* Horizontal dividers for smaller screens */
-    @media (max-width: 991.98px) {
-        .multimedia-feature-container .feature-item:not(:last-child) {
-            border-bottom: 1px solid #e5e7eb;
-        }
-    }
-
-    .multimedia-feature-container .feature-item h4 {
-        margin: 0 0 0.75rem 0;
-        font-family: Georgia, "Times New Roman", Times, serif;
-        font-size: 1.1em;
-        color: #1a2b48;
-        font-weight: 600;
-    }
-
-    .multimedia-feature-container .feature-item p {
-        font-family: Georgia, "Times New Roman", Times, serif;
-        color: #5a6a7b;
-        line-height: 1.6;
-        margin: 0;
-        font-size: 0.95em;
-    }
-
-    .multimedia-feature-container .feature-note {
-        margin-top: 2rem;
-        margin-bottom: 1.5rem;
-        padding: 0.8rem 1rem;
-        background-color: #f0f9ff;
-        border: 1px solid #e0f2fe;
-        border-left: 5px solid var(--primary-color, #3b82f6);
-        border-radius: 6px;
+    /* --- NEW: CSS for the slider with labels --- */
+    .multimedia-feature-container .slider-container {
         display: flex;
         align-items: center;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        gap: 1rem; /* Space between label, slider, and label */
     }
-    .multimedia-feature-container .feature-note i {
-        margin-right: 1rem;
-        font-size: 1.6em;
-        color: var(--primary-color, #3b82f6);
+    .multimedia-feature-container .slider-container .form-range {
+        flex-grow: 1; /* Make the slider take up available space */
     }
+    .multimedia-feature-container .slider-container .slider-label {
+        font-size: 0.9em;
+        color: #5a6a7b;
+        flex-shrink: 0; /* Prevent labels from shrinking */
+    }
+    /* --- END NEW CSS --- */
 </style>
 
 <div class="feature-container multimedia-feature-container">
@@ -93,22 +44,21 @@
 
     <!-- Tab Content for Blurring -->
     <div id="blurring-tab" class="feature-tab-content active-content">
-        <h2><i class="fas fa-user-shield"></i> Precision Facial Redaction</h2>
         <p class="feature-description">
             In an era of strict privacy regulations, our facial redaction agent provides an essential layer of automated compliance. By leveraging a highly-optimized computer vision model, this tool demonstrates the importance of selecting the right AI for the task—delivering fast, accurate, and cost-effective PII removal without the overhead of larger generative models.
         </p>
         <div class="feature-grid">
             <div class="feature-item">
                 <h4>High-Accuracy Detection</h4>
-                <p>Utilizes a specialized computer vision model trained to identify human faces with high precision, minimizing both false positives and missed detections.</p>
+                <p>Utilizes a neural network AI model trained to identify human faces with high precision, minimizing both false positives and missed detections.</p>
             </div>
             <div class="feature-item">
                 <h4>Configurable Anonymization</h4>
                 <p>Offers a range of anonymization strengths, from a light blur to a fully opaque redaction for maximum privacy and GDPR/CCPA compliance.</p>
             </div>
             <div class="feature-item">
-                <h4>Efficient & Scalable</h4>
-                <p>Engineered for high-throughput processing, capable of anonymizing thousands of images efficiently, making it ideal for large-scale content platforms.</p>
+                <h4>Efficient and Scalable</h4>
+                <p>Engineered for large scale high-throughput processing, capable of anonymizing thousands of images efficiently.</p>
             </div>
         </div>
 
@@ -119,43 +69,40 @@
             </div>
         {% endif %}
 
-        <div class="blurring-controls">
-            <form id="blur-upload-form" 
-                  hx-post="{{ url_for('process_multimedia_blur_image_route') }}"
-                  hx-target="#blurring-results-area"
-                  hx-swap="innerHTML"
-                  hx-encoding="multipart/form-data"
-                  hx-indicator="#blur-start-button .spinner">
-                
-                <div class="blur-input-area"> 
-                    <div class="form-group drop-zone-group">
-                        <label for="blur-file-input" id="blur-drop-zone-label" class="drop-zone-style">
-                            <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drag & drop your image (JPG, PNG, WEBP) here, or click to select.</p>
-                            <p id="blur-file-name-display" style="margin-top:5px; color: #555; font-weight: normal;">No file selected</p> 
-                        </label>
-                        <input type="file" id="blur-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required
-                               {% if not gcs_available %}disabled{% endif %}>
-                    </div>
+        <form id="blur-upload-form" 
+              hx-post="{{ url_for('process_multimedia_blur_image_route') }}"
+              hx-target="#blurring-results-area"
+              hx-swap="innerHTML"
+              hx-encoding="multipart/form-data"
+              hx-indicator="#blur-start-button .spinner">
+            
+            <div class="form-group">
+                <label for="blur-file-input" id="blur-drop-zone-label" class="drop-zone-style">
+                    <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drag & drop your image (JPG, PNG, WEBP) here, or click to select.</p>
+                    <p id="blur-file-name-display" style="margin-top:5px; color: #555;">No file selected</p> 
+                </label>
+                <input type="file" id="blur-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required
+                       {% if not gcs_available %}disabled{% endif %}>
+            </div>
 
-                    <div class="form-group blur-slider-group">
-                        <label for="blur_strength_slider" class="blur-slider-label">Anonymization:</label>
-                        <div class="vertical-slider-container">
-                            <span>Light</span>
-                            <input type="range" id="blur_strength_slider" name="blur_strength" class="form-range vertical-slider" 
-                                   orient="vertical"
-                                   min="1" max="3" step="1" value="2" 
-                                   {% if not gcs_available %}disabled{% endif %}>
-                            <span>Opaque</span>
-                        </div>
-                    </div>
+            {# --- MODIFIED: Slider wrapped with labels --- #}
+            <div class="form-group blur-slider-group">
+                <label for="blur_strength_slider">Anonymization Strength:</label>
+                <div class="slider-container">
+                    <span class="slider-label">Light</span>
+                    <input type="range" id="blur_strength_slider" name="blur_strength" class="form-range" 
+                           min="1" max="3" step="1" value="2" 
+                           {% if not gcs_available %}disabled{% endif %}>
+                    <span class="slider-label">Opaque</span>
                 </div>
-                
-                <button type="submit" id="blur-start-button" class="submit-button" disabled>
-                    <i class="fas fa-cogs"></i> Anonymize Image
-                    <span class="htmx-indicator spinner"></span>
-                </button>
-            </form>
-        </div>
+            </div>
+            {# --- END MODIFICATION --- #}
+            
+            <button type="submit" id="blur-start-button" class="submit-button" disabled>
+                <i class="fas fa-cogs"></i> Anonymize Image
+                <span class="htmx-indicator spinner"></span>
+            </button>
+        </form>
 
         <div id="blurring-results-area" class="processing-result" style="margin-top: 2rem; min-height: 150px;">
             <p><i>Anonymized images will appear here.</i></p>
@@ -164,11 +111,9 @@
 
     <!-- Tab Content for Image Analytics -->
     <div id="analytics-tab" class="feature-tab-content">
-        <h2><i class="fas fa-search-dollar"></i> Intelligent Visual Analysis</h2>
         <p class="feature-description">
             This AI Agent leverages a state-of-the-art computer vision model to transform raw pixels into valuable business intelligence, enabling automated content moderation, metadata generation, and data extraction at scale.
         </p>
-
         <div class="feature-grid">
             <div class="feature-item">
                 <h4>Contextual Analysis</h4>
@@ -179,15 +124,15 @@
                 <p>Instantly locates and extracts any embedded text (OCR), converting visual information into machine-readable data for indexing and analysis.</p>
             </div>
             <div class="feature-item">
-                <h4>Automated Moderation</h4>
+                <h4>Image Moderation</h4>
                 <p>Proactively audits images for sensitive material to ensure brand safety, flag inappropriate content, and identify potential compliance risks.</p>
             </div>
         </div>
         
-        <div class="feature-note">
+        <!-- <div class="feature-note">
             <i class="fas fa-server"></i>
             <p>This agent showcases analysis on a single image, but its architecture is built for high-throughput pipelines, processing millions of images for large-scale content moderation and cataloging.</p>
-        </div>
+        </div> -->
 
         {% if not gemini_configured %}
             <div class="message-item category-error" role="alert">
@@ -206,10 +151,10 @@
             
             <input type="hidden" name="image_data_url" id="analytics-image-data-url">
 
-            <div class="form-group drop-zone-group">
+            <div class="form-group">
                 <label for="analytics-file-input" id="analytics-drop-zone-label" class="drop-zone-style">
                     <p style="margin:0 0 5px 0; font-size: 1.0em; color: #333;">Drag & drop your image (JPG, PNG, WEBP) here, or click to select.</p>
-                    <p id="analytics-file-name-display" style="margin-top:5px; color: #555; font-weight: normal;">No file selected</p>
+                    <p id="analytics-file-name-display" style="margin-top:5px; color: #555;">No file selected</p>
                 </label>
                 <input type="file" id="analytics-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required
                        {% if not gemini_configured %}disabled{% endif %}>
@@ -235,7 +180,6 @@
     // --- Tab Switching Logic ---
     const tabLinks = multimediaFeatureContainer.querySelectorAll('.feature-tabs .tab-link');
     const tabContents = multimediaFeatureContainer.querySelectorAll('.feature-tab-content');
-
     function openMultimediaTab(targetTabId) {
         tabContents.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
         tabLinks.forEach(tl => tl.classList.remove('active'));
@@ -244,150 +188,96 @@
         if (currentTabContent) { currentTabContent.style.display = 'block'; currentTabContent.classList.add('active-content'); }
         if (currentTabLink) { currentTabLink.classList.add('active'); }
     }
-
     tabLinks.forEach(link => {
-        link.addEventListener('click', function(event) {
-            event.preventDefault();
-            const targetTabId = this.dataset.targetTab;
-            if (targetTabId) { openMultimediaTab(targetTabId); }
-        });
+        link.addEventListener('click', function(event) { event.preventDefault(); const targetTabId = this.dataset.targetTab; if (targetTabId) { openMultimediaTab(targetTabId); } });
     });
 
-    // --- Facial Blurring Tab Logic ---
+    // --- JS FOR FACIAL BLURRING ---
     const blurringTabContainer = multimediaFeatureContainer.querySelector('#blurring-tab');
     if (blurringTabContainer) {
         const dropZoneLabel = blurringTabContainer.querySelector('#blur-drop-zone-label');
         const fileInput = blurringTabContainer.querySelector('#blur-file-input');
         const fileNameDisplay = blurringTabContainer.querySelector('#blur-file-name-display');
-        const resultsArea = blurringTabContainer.querySelector('#blurring-results-area');
         const processButton = blurringTabContainer.querySelector('#blur-start-button');
+        const servicesAreReady = !fileInput.disabled;
 
-        if (dropZoneLabel && fileInput && fileNameDisplay && resultsArea && processButton) {
-            setupFileDropZone(
-                dropZoneLabel,
-                fileInput,
-                fileNameDisplay,
-                processButton,
-                (file) => { // onFileValid callback
-                    resultsArea.innerHTML = `<p><i>Loading preview for ${file.name}...</i></p>`;
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const imageDataUrl = e.target.result;
-                        resultsArea.innerHTML = `<div class="processing-result"><div class="blurring-image-results-grid">
-                            <div class="image-result-container">
-                                <h4>Original</h4>
-                                <img src="${imageDataUrl}" alt="Original Image Preview" class="img-fluid result-image">
-                            </div>
-                            <div class="image-result-container">
-                                <h4>Blurred</h4>
-                                <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#888; background:#f0f0f0; border-radius:4px;">
-                                    <p><i>Awaiting processing...</i></p>
-                                </div>
-                            </div>
-                        </div></div>`;
-                    };
-                    reader.readAsDataURL(file);
-                },
-                () => { // onFileRemoved callback
-                    resultsArea.innerHTML = '<p><i>Anonymized images will appear here.</i></p>';
+        function updateBlurButtonState() {
+            if (!processButton) return;
+            processButton.disabled = !(fileInput.files.length > 0 && servicesAreReady);
+        }
+
+        if (dropZoneLabel && fileInput && fileNameDisplay && processButton) {
+            dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); if(servicesAreReady) dropZoneLabel.classList.add('drag-over'); });
+            dropZoneLabel.addEventListener('dragleave', () => dropZoneLabel.classList.remove('drag-over'));
+            dropZoneLabel.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if(servicesAreReady) {
+                    dropZoneLabel.classList.remove('drag-over');
+                    if (e.dataTransfer.files.length > 0) {
+                        fileInput.files = e.dataTransfer.files;
+                        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                 }
-            );
+            });
+
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length > 0) {
+                    fileNameDisplay.textContent = fileInput.files[0].name;
+                    dropZoneLabel.classList.add('file-selected');
+                } else {
+                    fileNameDisplay.textContent = 'No file selected';
+                    dropZoneLabel.classList.remove('file-selected');
+                }
+                updateBlurButtonState();
+            });
+            updateBlurButtonState(); // Initial state
         }
     }
     
-    // --- Image Analytics Tab Logic ---
+    // --- JS FOR IMAGE ANALYTICS ---
     const analyticsTabContainer = multimediaFeatureContainer.querySelector('#analytics-tab');
     if (analyticsTabContainer) {
         const dropZoneLabel = analyticsTabContainer.querySelector('#analytics-drop-zone-label');
         const fileInput = analyticsTabContainer.querySelector('#analytics-file-input');
         const fileNameDisplay = analyticsTabContainer.querySelector('#analytics-file-name-display');
-        const resultsArea = analyticsTabContainer.querySelector('#analytics-results-area');
-        const hiddenDataUrlInput = analyticsTabContainer.querySelector('#analytics-image-data-url');
         const processButton = analyticsTabContainer.querySelector('#analytics-start-button');
-        
-        if (dropZoneLabel && fileInput && fileNameDisplay && resultsArea && hiddenDataUrlInput && processButton) {
-            setupFileDropZone(
-                dropZoneLabel,
-                fileInput,
-                fileNameDisplay,
-                processButton,
-                (file) => { // onFileValid
-                    resultsArea.innerHTML = `<p><i>Loading preview for ${file.name}...</i></p>`;
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const imageDataUrl = e.target.result;
-                        hiddenDataUrlInput.value = imageDataUrl; 
-                        
-                        resultsArea.innerHTML = `<div class="processing-result"><div class="analytics-results-grid">
-                            <div class="image-preview-container">
-                                <img src="${imageDataUrl}" alt="Image Preview" class="img-fluid result-image">
-                            </div>
-                            <div class="analysis-details-container">
-                                <p><i>Awaiting analysis from AI agent...</i></p>
-                            </div>
-                        </div></div>`;
-                    };
-                    reader.readAsDataURL(file);
-                },
-                () => { // onFileRemoved
-                    resultsArea.innerHTML = '<p><i>Your image analysis will appear here.</i></p>';
-                    hiddenDataUrlInput.value = '';
+        const servicesAreReady = !fileInput.disabled;
+
+        function updateAnalyticsButtonState() {
+            if (!processButton) return;
+            processButton.disabled = !(fileInput.files.length > 0 && servicesAreReady);
+        }
+
+        if (dropZoneLabel && fileInput && fileNameDisplay && processButton) {
+            dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); if(servicesAreReady) dropZoneLabel.classList.add('drag-over'); });
+            dropZoneLabel.addEventListener('dragleave', () => dropZoneLabel.classList.remove('drag-over'));
+            dropZoneLabel.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if(servicesAreReady) {
+                    dropZoneLabel.classList.remove('drag-over');
+                    if (e.dataTransfer.files.length > 0) {
+                        fileInput.files = e.dataTransfer.files;
+                        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                 }
-            );
+            });
+
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length > 0) {
+                    fileNameDisplay.textContent = fileInput.files[0].name;
+                    dropZoneLabel.classList.add('file-selected');
+                } else {
+                    fileNameDisplay.textContent = 'No file selected';
+                    dropZoneLabel.classList.remove('file-selected');
+                }
+                updateAnalyticsButtonState();
+            });
+            updateAnalyticsButtonState(); // Initial state
         }
     }
-    
-    // --- Reusable File Drop Zone Handler ---
-    function setupFileDropZone(dropZoneLabel, fileInput, fileNameDisplay, button, onFileValid, onFileRemoved) {
-        dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); if (fileInput.disabled) return; dropZoneLabel.classList.add('drag-over');});
-        dropZoneLabel.addEventListener('dragleave', () => { if (fileInput.disabled) return; dropZoneLabel.classList.remove('drag-over');});
-        dropZoneLabel.addEventListener('drop', (e) => {
-            e.preventDefault(); if (fileInput.disabled) return;
-            dropZoneLabel.classList.remove('drag-over');
-            if (e.dataTransfer.files.length > 0) {
-                fileInput.files = e.dataTransfer.files;
-                fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        });
-
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-                const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-                const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-
-                if (allowedTypes.includes(file.type) || validExtensions.includes(fileExt)) {
-                    fileNameDisplay.innerHTML = `<strong>${file.name}</strong> (${(file.size / 1024 / 1024).toFixed(2)} MB) <span class="remove-file-link" style="cursor:pointer; color:red; margin-left:5px;">× Remove</span>`;
-                    dropZoneLabel.classList.add('file-selected');
-                    button.disabled = false;
-                    fileNameDisplay.querySelector('.remove-file-link')?.addEventListener('click', (e) => {
-                        e.stopPropagation(); 
-                        fileInput.value = '';
-                        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    });
-                    if (typeof onFileValid === 'function') {
-                        onFileValid(file);
-                    }
-                } else {
-                    alert('Invalid file type. Please upload a JPG, PNG, or WEBP image.');
-                    fileInput.value = '';
-                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            } else {
-                fileNameDisplay.textContent = 'No file selected';
-                dropZoneLabel.classList.remove('file-selected');
-                button.disabled = true;
-                if (typeof onFileRemoved === 'function') {
-                    onFileRemoved();
-                }
-            }
-        });
-    }
-
 })();
 
-// Prevent browser from opening dropped files
+// Prevent browser from opening dropped files globally
 window.addEventListener('dragover', (e) => { e.preventDefault(); });
 window.addEventListener('drop', (e) => { e.preventDefault(); });
 </script>

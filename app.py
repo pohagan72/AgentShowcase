@@ -17,7 +17,7 @@ import logging
 
 # --- NEW/MODIFIED: Imports for PPT Builder constants to be added to app.config ---
 try:
-    from features.summarization.ppt_builder_logic.file_processor import MAX_FILES as PPT_MAX_FILES, MAX_FILE_SIZE_BYTES as PPT_MAX_FILE_SIZE_BYTES, DEFAULT_ALLOWED_EXTENSIONS_PPT as PPT_ALLOWED_EXTENSIONS 
+    from features.summarization.ppt_builder_logic.file_processor import MAX_FILES as PPT_MAX_FILES, MAX_FILE_SIZE_BYTES as PPT_MAX_FILE_SIZE_BYTES, DEFAULT_ALLOWED_EXTENSIONS_PPT as PPT_ALLOWED_EXTENSIONS
     from features.summarization.ppt_builder_logic.presentation_generator import TEMPLATES as PPT_TEMPLATES, DEFAULT_TEMPLATE_NAME as PPT_DEFAULT_TEMPLATE_NAME
     PPT_BUILDER_CONSTANTS_LOADED = True
 except ImportError as e:
@@ -25,7 +25,7 @@ except ImportError as e:
     PPT_BUILDER_CONSTANTS_LOADED = False
     PPT_MAX_FILES = 5
     PPT_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
-    PPT_ALLOWED_EXTENSIONS = {'docx', 'pdf', 'py'} 
+    PPT_ALLOWED_EXTENSIONS = {'docx', 'pdf', 'py'}
     PPT_TEMPLATES = {'professional': {}, 'creative': {}, 'minimalist': {}}
     PPT_DEFAULT_TEMPLATE_NAME = 'professional'
 # --- END NEW/MODIFIED ---
@@ -38,7 +38,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 app.jinja_loader = ChoiceLoader([
     app.jinja_loader,
-    FileSystemLoader('features') 
+    FileSystemLoader('features')
 ])
 
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this")
@@ -124,7 +124,7 @@ if PPT_BUILDER_CONSTANTS_LOADED:
     app.config['PPT_ALLOWED_EXTENSIONS_STR'] = ', '.join(sorted(list(f".{ext}" for ext in PPT_ALLOWED_EXTENSIONS)))
     app.config['PPT_TEMPLATES'] = list(PPT_TEMPLATES.keys())
     app.config['PPT_DEFAULT_TEMPLATE_NAME'] = PPT_DEFAULT_TEMPLATE_NAME
-else: 
+else:
     app.config['PPT_MAX_FILES'] = 5
     app.config['PPT_MAX_FILE_SIZE_MB'] = 10
     app.config['PPT_ALLOWED_EXTENSIONS_STR'] = ".docx, .pdf, .py"
@@ -148,10 +148,10 @@ def root_redirect():
     return redirect(url_for('index', feature_key=DEFAULT_FEATURE_KEY))
 
 @app.route('/feature/<feature_key>')
-def index(feature_key): 
+def index(feature_key):
     if feature_key not in FEATURES_DATA:
         feature_key = DEFAULT_FEATURE_KEY
-    
+
     current_feature_data = FEATURES_DATA[feature_key]
     initial_content_template_path = current_feature_data["template"]
 
@@ -159,12 +159,33 @@ def index(feature_key):
         "gcs_available": current_app.config.get('GCS_AVAILABLE', False),
         "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
     }
-    
-    # Pass initial data needed by the template on first load.
-    # This mirrors the context logic in get_feature_content.
+
     if feature_key == "translation":
         template_context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
-        
+    elif feature_key == "summarization":
+        ppt_services_ready = current_app.config.get('GEMINI_CONFIGURED', False) and current_app.config.get('GCS_AVAILABLE', False)
+        template_context["ppt_api_key_configured"] = ppt_services_ready
+        template_context["ppt_max_files"] = current_app.config.get('PPT_MAX_FILES')
+        template_context["ppt_max_file_size_mb"] = current_app.config.get('PPT_MAX_FILE_SIZE_MB')
+        template_context["ppt_allowed_extensions_str"] = current_app.config.get('PPT_ALLOWED_EXTENSIONS_STR')
+        template_context["ppt_default_template"] = current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME')
+        template_context["ppt_config_warning"] = None
+        if not ppt_services_ready:
+            if not current_app.config.get('GEMINI_CONFIGURED'):
+                template_context["ppt_config_warning"] = "Gemini AI service is not configured."
+            elif not current_app.config.get('GCS_AVAILABLE'):
+                template_context["ppt_config_warning"] = "Google Cloud Storage is not configured."
+    # =========================================================================
+    # --- START OF FIX: Add context for the PII Redaction feature ---
+    # =========================================================================
+    elif feature_key == "pii_redaction":
+        template_context["presidio_available"] = current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False)
+        # The services_ready variable in the template depends on both presidio and gcs
+        template_context["services_ready"] = template_context["presidio_available"] and template_context["gcs_available"]
+    # =======================================================================
+    # --- END OF FIX ---
+    # =======================================================================
+
     return render_template(
         'layout.html',
         features=FEATURES_DATA,
@@ -179,31 +200,27 @@ def index(feature_key):
 def get_feature_content(feature_key):
     if feature_key not in FEATURES_DATA:
         return "Feature content not found", 404
-    
+
     feature_data = FEATURES_DATA[feature_key]
     template_to_render = feature_data["template"]
-    
+
     context = {
         "gcs_available": current_app.config.get('GCS_AVAILABLE', False),
         "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
     }
-    
-    # ======================= THE FIX IS HERE =======================
-    # This block ensures that when the Translation feature is loaded via HTMX,
-    # it always receives the list of languages.
+
     if feature_key == "translation":
         context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
-    # ======================= END OF FIX ============================
     elif feature_key == "summarization":
-        context["summary"] = "" 
-        context["hx_target_is_result"] = False 
+        context["summary"] = ""
+        context["hx_target_is_result"] = False
         context["ppt_max_files"] = current_app.config.get('PPT_MAX_FILES')
         context["ppt_max_file_size_mb"] = current_app.config.get('PPT_MAX_FILE_SIZE_MB')
         context["ppt_allowed_extensions_str"] = current_app.config.get('PPT_ALLOWED_EXTENSIONS_STR')
         context["ppt_templates"] = current_app.config.get('PPT_TEMPLATES')
         context["ppt_default_template"] = current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME')
         ppt_services_ready = current_app.config.get('GEMINI_CONFIGURED', False) and current_app.config.get('GCS_AVAILABLE', False)
-        context["ppt_api_key_configured"] = ppt_services_ready 
+        context["ppt_api_key_configured"] = ppt_services_ready
         context["ppt_config_warning"] = None
         if not ppt_services_ready:
             if not current_app.config.get('GEMINI_CONFIGURED'): context["ppt_config_warning"] = "Gemini AI service is not configured."
@@ -214,6 +231,7 @@ def get_feature_content(feature_key):
         context["original_filename"] = None
         context["presidio_available"] = current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False)
         context["hx_target_is_result"] = False
+        context["services_ready"] = context["presidio_available"] and context["gcs_available"]
     elif feature_key == "multimedia":
         pass
 

@@ -931,11 +931,3 @@ body {
     }
 }
 
-/* In your main stylesheet (e.g., static/css/style.css) */
-
-.key-message-item {
-    display: flex;
-    align-items: center; /* This is the magic line that fixes the alignment! */
-    gap: 20px; /* Adjust the space between icon and text as needed */
-    /* ... other styles you may have ... */
-}
