@@ -33,6 +33,7 @@ CLASSIFICATION_CATEGORIES = [
     "Business Plan",
     "SWOT Analysis Document",
     "Press Release",
+    "Investment Analysis / Due Diligence Report", # <-- NEW CATEGORY ADDED
     "System Design Document",
     "User Story / Feature Requirement Document",
     "Medical Journal Article",
@@ -200,13 +201,18 @@ def get_audience_guidance(audience):
     guidance = ""
     if audience == "Executives":
         guidance = """
-**Audience Guidance: Executives**
-*   **Prioritization:** Focus on high-level insights, strategic implications, key performance indicators (KPIs), business impact, future trends, and major risks/opportunities.
-*   **Detail Level:** Keep explanations concise and high-level. Avoid deep technical or minor operational details unless they have significant strategic relevance.
-*   **Language:** Use clear, business-oriented language. Summarize complex topics effectively.
-*   **Key Message:** Each key message should clearly state the core takeaway or strategic significance of the slide's content for decision-makers.
-*   **Elaboration:** Explain the 'so what?' – why is this information important for executives? What are the implications?
-*   **Suggestions:** Suggest visuals that show trends, summaries (tables, dashboards), or strategic concepts. Enhancement/Best Practice tips should focus on strategic context, impact, or next steps for leadership.
+**Audience Guidance: Executives (Strategic Briefing)**
+*   **Mission:** Your primary goal is to create a strategic briefing, not just a summary. Identify the core investment thesis, the primary value drivers, and the most critical risks.
+*   **Prioritization:**
+    1.  **The "Why Now?" Angle:** Scrutinize the text for any unique relationships, timely events, or proprietary information that makes this opportunity compelling *for the presumed reader*. This is the hook.
+    2.  **The Core Narrative:** What is the transformation story? (e.g., "From generalist to specialist," "Turnaround," "Scale-up"). Find concrete evidence (M&A deals, new product launches, leadership changes) to support this narrative.
+    3.  **The #1 Risk:** Identify the single most significant risk or "Achilles' heel" mentioned. Frame its importance accurately (e.g., "This is the primary operational risk that could derail the thesis").
+    4.  **Key Performance Indicators (KPIs):** Extract financial and operational metrics that prove the narrative.
+    5.  **Evidence over Abstraction:** While strategic, every key assertion (e.g., 'strong growth', 'high risk') must be backed by the most compelling piece of evidence from the text (e.g., '70% headcount growth since 2019', 'a specific Reddit comment on compensation'). Avoid summarizing the summaries.
+    6.  **Strategic Recommendations / Next Steps:** Synthesize any stated recommendations or infer logical next steps for a decision-maker.
+*   **Key Message & Elaboration:** Each slide's Key Message must state the "so what?" for an executive. The Elaboration must explain *why this point is strategically important* for an investment or partnership decision.
+*   **Language:** Use strong, direct, and concise business language. Frame points in terms of opportunity, risk, and value creation.
+*   **Enhancement/Best Practice Tips:** Suggestions should be strategic. Examples: "Cross-reference this risk with the M&A strategy to assess integration challenges," or "Model the financial impact of addressing this talent issue."
 """
     elif audience == "Technical Team":
         guidance = """
@@ -258,13 +264,101 @@ def get_tone_guidance(tone):
     # Add guidance for other potential tones here if you expand options
     return guidance
 
+def get_critical_instructions(classification, context_note=""):
+    """
+    Generates a dynamic block of critical instructions tailored to the document classification.
+    This ensures that the "evidence" extracted in bullet points is relevant to the source type.
+    """
+
+    # --- Default, General-Purpose Instructions ---
+    bullet_instruction = "4. **Bullets MUST be informative & concise.** Extract key facts, arguments, or points relevant to the slide's topic *from the extracted text*. Adapt number and length based on guidance."
+    elaboration_instruction = "5. **Elaboration:** Briefly explain the significance or context of the bullet points based *only* on the extracted text. Explain *why* this information matters to the **target audience**."
+
+    # --- Classification-Specific Overrides ---
+    # Group 1: Analytical & Strategic Documents
+    if classification in ["Investment Analysis / Due Diligence Report", "Financial Report (Annual/10-K/10-Q)", "Business Plan", "Case Study / Research Report", "SWOT Analysis Document", "Marketing Plan/Proposal"]:
+        bullet_instruction = """4. **Bullets MUST substantiate the Key Message with specific, compelling evidence from the text.** They must be more than just high-level statements. Extract and include:
+    *   **Quantifiable Data:** Numbers, percentages (especially YoY growth), KPIs, metrics, and counts (e.g., number of acquisitions, employee count, market size).
+    *   **Specific Names:** Names of people (CEO), companies (PE firm, key acquisitions), products, or branded concepts (e.g., "The Buchanan Way").
+    *   **Direct Evidence & Key Findings:** Reference sources of validation (e.g., "Gartner Peer Insights rating"), core findings, or explicitly stated strategic pillars."""
+        elaboration_instruction = """5. **Elaboration:** Explain the strategic significance of the evidence presented in the bullet points. Answer the "so what?" for the target audience. For example, explain *why* a 70% headcount growth validates the M&A strategy, or what a key finding implies for the business."""
+
+    # Group 2: HR / Personal Documents
+    elif classification == "Resume/CV":
+        bullet_instruction = """4. **Bullets MUST highlight specific achievements and responsibilities.** Prioritize quantifiable results and impact over simple duties. Extract and include:
+    *   **Quantifiable Achievements:** Metrics demonstrating success (e.g., "$10M revenue growth", "led team of 15", "improved efficiency by 25%").
+    *   **Key Projects & Technologies:** Specific projects, technologies, or skills applied in the role.
+    *   **Core Responsibilities:** A concise summary of the main function in the role."""
+        elaboration_instruction = "5. **Elaboration:** Explain the significance of the achievement in the bullet point. For example, explain *how* launching a product demonstrates leadership and execution skills valuable to a potential employer."
+
+    # Group 3: Legal & Compliance Documents
+    elif classification in ["Contract/Agreement", "Terms of Service (ToS)", "Service Level Agreement (SLA)", "Privacy Policy", "Legal Case Brief", "Legislative Bill/Regulation", "Patent"]:
+         bullet_instruction = """4. **Bullets MUST be precise and legally/technically accurate.** Extract key definitions, obligations, rights, and limitations directly from the text.
+    *   **Direct Language:** Use or closely paraphrase language from the source for precision, especially for definitions, claims, or liability clauses.
+    *   **Key Terms & Conditions:** Extract critical terms like SLA percentages, payment dates, termination conditions, or specific user rights.
+    *   **Structure:** Clearly list the distinct points, rules, or claims under the relevant section."""
+         elaboration_instruction = "5. **Elaboration:** Explain the practical implication of the point in the bullet. For example, explain how a 'Limitation of Liability' clause shifts risk, what an SLA credit means for the customer, or the scope of a patent claim."
+
+    # Group 4: Technical Documents
+    elif classification in ["Python Source Code", "System Design Document", "Technical Report/Documentation"]:
+        bullet_instruction = """4. **Bullets MUST detail the technical structure and function.** Focus on the "what" and "how". Extract and include:
+    *   **Core Components:** Key functions, classes, modules, or architectural layers and their purpose.
+    *   **Dependencies & Interfaces:** Significant external libraries, APIs, or systems it interacts with.
+    *   **Logic & Data Flow:** Key algorithms, data structures, or the flow of data through the system."""
+        elaboration_instruction = "5. **Elaboration:** Explain the significance of the technical detail for a technical audience. For example, explain the trade-offs of a chosen architecture, or the potential performance implications of a specific function."
+
+    # Group 5: Agile/Product Documents
+    elif classification == "User Story / Feature Requirement Document":
+        bullet_instruction = """4. **Bullets MUST clearly break down the user story components.** The structure is paramount. Extract and include:
+    *   **User/Role, Goal/Need, and Benefit/Value** as distinct points, often from the "As a..., I want..., so that..." format.
+    *   **Acceptance Criteria:** List each acceptance criterion as a separate, clear, and testable point.
+    *   **Dependencies or Notes:** Capture any other critical context provided."""
+        elaboration_instruction = "5. **Elaboration:** Explain the business value or user impact of this specific story/feature. Why is it important in the larger context of the product roadmap?"
+
+    # Group 6: Instructional Documents
+    elif classification == "Informational Guide/Manual":
+        bullet_instruction = """4. **Bullets MUST be comprehensive and action-oriented for the user.** Focus on clarity and completeness for each section. Extract:
+    *   **Step-by-Step Procedures:** List each step in a process clearly.
+    *   **Key Definitions & Rules:** Pull out important terms or rules the user must know.
+    *   **Examples & Scenarios:** Include specific examples provided in the text that illustrate a point."""
+        elaboration_instruction = "5. **Elaboration:** Explain *why* a user needs to follow this step or what the consequence of not doing so is, if mentioned in the text, to reinforce understanding."
+
+    # Group 7: Public/Narrative Content
+    elif classification in ["News Article/Blog Post", "Web Page Content", "Reddit Thread", "Press Release"]:
+        bullet_instruction = """4. **Bullets MUST capture the key arguments, themes, and supporting points of the narrative.** Extract and include:
+    *   **Main Arguments:** The primary points the author or participants are making.
+    *   **Supporting Evidence:** Key facts, statistics, or examples used to back up the arguments.
+    *   **Key Quotes or Sentiments:** Direct quotes or paraphrased summaries of strong opinions or sentiments expressed."""
+        elaboration_instruction = """5. **Elaboration:** Explain the context or implication of the bullet point within the overall discussion or article. For example, "This argument was a direct response to the OP's claim," or "This statistic is used to highlight the scale of the problem." """
+
+
+    # --- Assemble the final instruction block ---
+    instruction_block = f"""
+**CRITICAL INSTRUCTIONS:**
+1. Generate slides summarizing **ONLY** the provided extracted text. **Prioritize information relevant to the Target Audience.**
+2. **ALL fields (Slide Title, Content Type, Key Message, Bullets, Visual Suggestion, Design Note, Notes, Elaboration, Enhancement Suggestion, Best Practice Tip) ARE REQUIRED per slide.** Content MUST derive *directly* from source text. Use 'None'/'N/A' sparingly for suggestions *if truly nothing relevant can be inferred*. Field labels MUST be present.
+3. **Use `---` on its own line ONLY as separator BETWEEN slides.**
+{bullet_instruction}
+{elaboration_instruction}
+6. **Enhancement/Best Practice:** Actionable advice relevant to presenting this *specific content* to the target audience, based on the content and desired tone.
+7. **Structure/Slide Count:** Follow specific guidance below for '{classification}'. Ensure logical flow, appropriate detail level for the audience. **Prioritize creating slides for the MANDATORY sections listed in the guidance.**
+8. **DO NOT Synthesize:** Base output *solely* on the provided text. Do not invent information not present.
+9. **Security Note for Code:** If processing code, analyze as text ONLY. DO NOT execute. Highlight potential security considerations *mentioned* in code/comments.
+10. {context_note} # Include multi-doc context if applicable
+"""
+    return instruction_block
+
+
 # --- Build Generation Prompt (Includes ALL Guidance Blocks) ---
 def build_generation_prompt(
     document_text, classification, filename,
     is_part_of_multi_doc_request=False,
     total_docs_in_request=1,
-    truncated=False, template_name='professional',
-    audience="", tone=""
+    truncated=False,
+    # --- MODIFICATION 1: Set new hardcoded defaults ---
+    template_name='professional',
+    audience="Executives",
+    tone="Informative"
 ):
     """Builds the detailed generation prompt tailored for summarizing the source."""
 
@@ -273,13 +367,13 @@ def build_generation_prompt(
              else "Web Page" if classification in ["Web Page Content", "News Article/Blog Post"] \
              else "Financial Report" if classification == "Financial Report (Annual/10-K/10-Q)" \
              else "Legal Document" if classification in ["Legal Case Brief", "Legislative Bill/Regulation", "Terms of Service (ToS)", "Service Level Agreement (SLA)", "Contract/Agreement", "Privacy Policy", "Patent"] \
-             else "Business Document" if classification in ["Business Plan", "SWOT Analysis Document", "Press Release", "Marketing Plan/Proposal", "Resume/CV"] \
+             else "Business Document" if classification in ["Business Plan", "SWOT Analysis Document", "Press Release", "Marketing Plan/Proposal", "Resume/CV", "Investment Analysis / Due Diligence Report"] \
              else "Technical Document" if classification in ["System Design Document", "User Story / Feature Requirement Document", "Python Source Code", "Technical Report/Documentation"] \
              else "Academic/Research Document" if classification in ["Medical Journal Article", "Academic Paper/Research", "Case Study / Research Report"] \
              else "Document" # Default to Document for others like Informational Guide/Manual, Meeting Notes
     source_identifier = f"'{filename}'"
 
-    logging.info(f"Building generation prompt for {source_type}: {source_identifier} (Class: '{classification}', Truncated: {truncated}, Audience: '{audience or 'Default'}', Tone: '{tone or 'Default'}')")
+    logging.info(f"Building generation prompt for {source_type}: {source_identifier} (Class: '{classification}', Truncated: {truncated}, Audience: '{audience}', Tone: '{tone}')")
 
     # Context note for multi-document requests
     context_note = ""
@@ -296,51 +390,24 @@ def build_generation_prompt(
         truncation_warning = f"**IMPORTANT NOTE: Text extracted from the {source_type} is based on web page content. Discussion context, full comment threads, and vote counts are likely unavailable. Summary must be based *solely on text provided*.**\n"
 
 
-    # --- Define Default Audience/Tone (Used if user doesn't select) ---
-    default_audience = "General Audience"
-    default_tone = "Informative and Objective"
+    # --- MODIFICATION 2: SIMPLIFY and directly use the hardcoded defaults ---
+    # The complex logic with cls_defaults is no longer needed.
+    final_audience_label = audience
+    final_tone_label = tone
 
-    # Classification-specific defaults (used ONLY if user did *not* select)
-    cls_defaults = {
-        "Patent": ("Technical Reviewer, Legal Counsel", "Precise, Technical, Formal"),
-        "Resume/CV": ("Hiring Manager, Recruiter", "Professional, Achievement-Oriented"),
-        "Python Source Code": ("CTO, Engineering Manager", "Technical Summary, Concise"),
-        "Case Study / Research Report": ("Executives, Stakeholders", "Insightful, Data-driven, Clear"),
-        "Informational Guide/Manual": ("Users, Trainees", "Clear, Informative, Structured"),
-        "Terms of Service (ToS)": ("Legal/Business Teams", "Precise, Legally Focused"),
-        "Service Level Agreement (SLA)": ("Operations Teams, Client Reviewers", "Quantitative, Precise"),
-        "Privacy Policy": ("General Users, Legal/Compliance", "Clear, Transparent"),
-        "Contract/Agreement": ("Legal Reviewers, Business Stakeholders", "Formal, Precise, Objective"),
-        "News Article/Blog Post": ("General Reader", "Informative, Engaging"),
-        "Web Page Content": ("General Web Visitor", "Informative, Clear"),
-        "Reddit Thread": ("Someone interested in the discussion", "Objective Summary, Nuanced"),
-        "Financial Report (Annual/10-K/10-Q)": ("Executive Reviewer, Investor", "Concise, Data-Driven, Strategic"),
-        # New Defaults
-        "Legal Case Brief": ("Legal Professionals, Law Students", "Formal, Analytical, Precise"),
-        "Legislative Bill/Regulation": ("Policy Analysts, Affected Parties, Legal Teams", "Formal, Objective, Clear"),
-        "Business Plan": ("Investors, Lenders, Management", "Persuasive, Professional, Clear"),
-        "SWOT Analysis Document": ("Strategic Planners, Management", "Objective, Structured, Concise"),
-        "Press Release": ("Journalists, Public, Investors", "Factual, Clear, Concise"),
-        "System Design Document": ("Engineering Managers, Architects, Developers", "Technical, Precise, Structured"),
-        "User Story / Feature Requirement Document": ("Agile Development Teams, Product Owners", "Clear, Actionable, Concise"),
-        "Medical Journal Article": ("Healthcare Professionals, Researchers", "Scientific, Precise, Objective"),
-    }
-    cls_audience, cls_tone = cls_defaults.get(classification, (default_audience, default_tone))
-
-    # Use user selection if available, otherwise classification default, otherwise general default
-    final_audience_label = audience if audience else cls_audience
-    final_tone_label = tone if tone else cls_tone
-
-    # --- Build Tailoring Instructions Blocks (using user selection if available) ---
-    # Only add specific guidance if a concrete option was selected by the user
-    audience_guidance_block = get_audience_guidance(audience) if audience in ["Executives", "Technical Team", "General"] else ""
-    tone_guidance_block = get_tone_guidance(tone) if tone in ["Formal", "Persuasive", "Informative"] else ""
+    # --- Build Tailoring Instructions Blocks ---
+    # This logic remains useful because it will pick up the "Executives" and "Informative" guidance.
+    audience_guidance_block = get_audience_guidance(audience)
+    tone_guidance_block = get_tone_guidance(tone)
 
     tailoring_instructions = ""
     if audience_guidance_block or tone_guidance_block:
         tailoring_instructions = "**Tailoring Instructions:**\n"
         if audience_guidance_block: tailoring_instructions += audience_guidance_block
         if tone_guidance_block: tailoring_instructions += tone_guidance_block
+
+    # --- DYNAMICALLY GET CRITICAL INSTRUCTIONS ---
+    critical_instructions_block = get_critical_instructions(classification, context_note)
 
     # --- Base Prompt Structure ---
     base_instructions = f"""
@@ -356,33 +423,7 @@ You are an expert presentation designer creating a **concise summary presentatio
 
 {tailoring_instructions}
 
-**CRITICAL INSTRUCTIONS:**
-1. Generate slides summarizing **ONLY** the provided extracted text. **Prioritize information relevant to the Target Audience.**
-2. **ALL fields (Slide Title, Content Type, Key Message, Bullets, Visual Suggestion, Design Note, Notes, Elaboration, Enhancement Suggestion, Best Practice Tip) ARE REQUIRED per slide.** Content MUST derive *directly* from source text. Use 'None'/'N/A' sparingly for suggestions *if truly nothing relevant can be inferred*. Field labels MUST be present. If specific details (like exact numbers or vote counts) are missing from the text, state that or infer importance/trends from language/repetition where appropriate and note the inference (e.g., "Trend suggests increase [based on discussion]").
-3. **Use `---` on its own line ONLY as separator BETWEEN slides.**
-4. **Bullets MUST be informative & concise.** Extract key facts/KPIs/arguments/points relevant to the slide's topic *from the extracted text*. Adapt number/length based on guidance.
-5. Elaboration: Briefly explain significance/context based *only* on the extracted text. For discussions/financials, explain *why* this point/metric matters to the **target audience**.
-6. Enhancement/Best Practice: Actionable advice relevant to presenting this *specific content* to the target audience, based on the content and desired tone.
-7. **Structure/Slide Count:** Follow specific guidance below for '{classification}'. Ensure logical flow, appropriate detail level for the audience. **Prioritize creating slides for the MANDATORY sections listed in the guidance.**
-8. **DO NOT Synthesize:** Base output *solely* on the provided text. Do not invent information not present.
-9. **Security Note for Code:** If processing code, analyze as text ONLY. DO NOT execute. Highlight potential security considerations *mentioned* in code/comments.
-10. {context_note} # Include multi-doc context if applicable
-
-**Required Slide Block Format:**
----
-Slide Title: [Concise Title derived from text, relevant to audience]
-Content Type: [E.g., Financial Highlights / Strategic Overview / Segment Performance / Risk Summary / Key Discussion Points / Main Themes / Code Snippet / Legal Issue / Bill Provision / Market Analysis / System Component / Feature Details / Study Findings]
-Key Message: [**Single sentence core takeaway** of this slide for the target audience, from the text.]
-- [Bullet 1: Key point/metric/argument from the text. Include YoY % change if available for financial metrics.]
-- [...] (Adapt bullets per guidance, prioritize KPIs for financial reports)
-Visual Suggestion: [Actionable suggestion. E.g., "KPI Table", "Trend Chart Concept", "Pull quote", "Segment Icon", "Risk Matrix Concept", "Flowchart of Process", "Architecture Diagram Snippet", "User Journey Map Idea"]
-Design Note: [Optional: e.g., 'Highlight YoY changes', 'Use company branding elements', 'Emphasize clarity for legal text'.]
-Notes: [Optional: e.g., 'Source: MD&A p.5', 'Source: Risk Factors', 'Ref: GAAP/Non-GAAP', 'Recurring comment theme', 'Clause X.Y', 'Section Z', 'Data from Table A'].
-**Elaboration:** [REQUIRED: Explain significance/context based *only* on the text. Why does this matter to the audience?]
-**Enhancement Suggestion:** [REQUIRED: Actionable idea for presenting THIS content. E.g., "Compare YoY", "Add industry benchmark if known", "Link to strategy", "Cross-reference with Clause A.B", "Suggest next steps for development team"].
-**Best Practice Tip:** [REQUIRED: Presentation advice for THIS content/audience. E.g., "Focus on the story", "Keep financial details clear", "Acknowledge assumptions", "Ensure legal precision", "Use visuals to simplify complex systems"].
---- [Separator ONLY between slides]
-...[Next slide]...
+{critical_instructions_block}
 """
 
     # --- Classification-Specific Guidance (Remains largely the same, acts as fallback/structure guide) ---
@@ -708,7 +749,22 @@ Notes: [Optional: e.g., 'Source: MD&A p.5', 'Source: Risk Factors', 'Ref: GAAP/N
 *   **Elaboration/Enhancement:** Explain complex statistical terms simply if possible. Suggest how these findings compare to current guidelines or other research (as an external thought, not from the text itself unless the text discusses it).
 *   **Ethical Consideration Note (for prompt author):** This AI should only summarize provided text. It cannot and should not make medical diagnoses or treatment recommendations. The summary is for informational purposes based on the article content.
         """
-    # --- NEW EXPERT GUIDANCE BLOCKS END HERE ---
+    # --- NEW EXPERT GUIDANCE BLOCKS START HERE ---
+    elif classification == "Investment Analysis / Due Diligence Report":
+        specific_guidance = """
+**Investment Analysis / Due Diligence Report Specific Guidance (Executive/Investor Audience):**
+*   **Goal:** Create a concise, high-impact executive summary for a strategic decision-maker (e.g., an M&A partner, investor). The summary MUST capture the full investment thesis, including the opportunity, key risks, and recommended actions.
+*   **Mandatory Sections (Prioritize creating slides for these):**
+    1.  **Executive Summary & Investment Thesis:** Must synthesize the core opportunity, the target company's transformation, key growth levers, and the most critical risks.
+    2.  **The "Proprietary Angle" / Relationship:** A dedicated slide explaining *why* this opportunity is uniquely available or timely for the reader (e.g., a pre-existing relationship mentioned in the text). This is often the most important slide.
+    3.  **Key Strengths & Differentiators:** Summarize the company's "moat" (e.g., brand, technology, niche expertise).
+    4.  **Financial Profile & Key Metrics:** A high-level overview of revenue scale, growth drivers (organic vs. inorganic), and profitability focus.
+    5.  **Critical Risks & Mitigants:** A slide detailing the **top 2-3 most severe risks** (especially key-person dependency and talent/compensation issues) and any proposed mitigants from the text.
+    6.  **Strategic Recommendation & Next Steps:** Clearly state the recommended course of action (e.g., "Propose strategic advisory," "Initiate diligence") and the critical information gaps to close.
+*   **Content:** Focus on extracting the analytical conclusions, not just descriptive facts. For example, instead of just "The CEO is Jim Buchanan," extract "There is high key-person risk associated with the founder/CEO."
+*   **Visuals:** Suggest concepts like a SWOT matrix, a risk/mitigation table, a timeline of M&A activity, or a strategic roadmap.
+*   **Best Practice Tips:** The summary must be decisive and clear. It should provide a strong point of view based *on the analysis within the source text*. Acknowledge any data confidence levels mentioned (e.g., "Low Confidence" on revenue estimates).
+        """
     else: # Default/General/Other/Mixed
         specific_guidance = """
 **General Presentation Flow Guidance (Adapt based on content):**
