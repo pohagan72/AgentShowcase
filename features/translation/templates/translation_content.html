@@ -38,7 +38,7 @@
     {% if not gcs_available or not gemini_configured %}
         <div class="error-message" style="margin-bottom: 20px;">
             <strong>Configuration Issue:</strong>
-            {% if not gcs_available %}Google Cloud Storage is not available. {% endif %}
+            {% if not gcs_available %}Cloud Storage is not available. {% endif %}
             {% if not gemini_configured %}Google Gemini AI is not configured. {% endif %}
             File processing for translation is disabled. Please check server logs and environment variable settings.
         </div>

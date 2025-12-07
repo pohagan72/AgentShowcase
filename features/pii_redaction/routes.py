@@ -225,7 +225,7 @@ def define_pii_redaction_routes(app_shell):
 
         # --- MODIFICATION: Check for GCS availability for storing redacted file ---
         if not context["gcs_available"]:
-            flash("Google Cloud Storage is not available. Cannot store redacted file.", "error")
+            flash("Cloud Storage is not available. Cannot store redacted file.", "error")
             logging.error(f"[{g.request_id}] GCS not available for PII redaction output.")
             return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
         # --- END MODIFICATION ---
@@ -300,7 +300,7 @@ def define_pii_redaction_routes(app_shell):
     def download_redacted_file_pii(file_id):
         gcs_bucket = current_app.gcs_bucket
         if not current_app.config.get('GCS_AVAILABLE') or not gcs_bucket:
-            flash("Google Cloud Storage is not available for download.", "error")
+            flash("Cloud Storage is not available for download.", "error")
             return redirect(url_for('index', feature_key='pii_redaction'))
 
         file_info = session.get(file_id) # Use get, don't pop yet, in case of download failure

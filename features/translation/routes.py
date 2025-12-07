@@ -272,7 +272,7 @@ def define_translation_routes(app_shell):
         gcs_available = current_app.config.get('GCS_AVAILABLE', False)
         gcs_bucket = current_app.gcs_bucket
         if not gcs_available or not gcs_bucket:
-            flash("Google Cloud Storage is not available. Cannot download file.", "error")
+            flash("Cloud Storage is not available. Cannot download file.", "error")
             return redirect(url_for('index', feature_key='translation'))
 
         gcs_path, filename_for_download = file_info.get('gcs_path'), file_info.get('filename')
