@@ -15,7 +15,6 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 import pandas as pd
 import google.generativeai as genai
-from google.cloud.exceptions import NotFound
 import mistune
 
 try:
@@ -290,7 +289,7 @@ def define_translation_routes(app_shell):
             output_stream = io.BytesIO(translated_blob.download_as_bytes())
             output_stream.seek(0)
             return send_file(output_stream, as_attachment=True, download_name=filename_for_download, mimetype='application/octet-stream')
-        except NotFound:
+        except Exception:
             flash("Error: Translated file not found (it may have expired).", "error")
             session.pop(file_id, None)
             return redirect(url_for('index', feature_key='translation'))
