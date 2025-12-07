@@ -15,8 +15,6 @@ from pptx.util import Pt
 from pptx.enum.dml import MSO_COLOR_TYPE
 import logging
 # We'll need GCS NotFound exception if checking blob existence before download, though not strictly for upload
-from google.cloud.exceptions import NotFound as GCSNotFound
-
 
 # Presidio analyzer is on current_app.presidio_analyzer
 
@@ -339,7 +337,7 @@ def define_pii_redaction_routes(app_shell):
                 download_name=filename_for_download,
                 mimetype=mimetype
             )
-        except GCSNotFound: # More specific exception for GCS
+        except Exception: # More specific exception for GCS
             logging.error(f"GCSNotFound: Blob not found at GCS path: {gcs_path} during download attempt.")
             flash("Error: Redacted file not found in cloud storage during download attempt.", "error")
             session.pop(file_id, None)

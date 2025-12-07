@@ -13,8 +13,6 @@ from urllib.parse import urlparse
 from werkzeug.utils import secure_filename
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
-from google.cloud import storage
-from google.cloud.exceptions import NotFound as GCSNotFound
 
 from docx import Document
 from pptx import Presentation
@@ -405,7 +403,7 @@ def define_summarization_routes(app_shell):
                 download_name=filename,
                 mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation'
             )
-        except GCSNotFound:
+        except Exception:
             logging.error(f"[{file_id}] GCSNotFound when downloading {gcs_path}", exc_info=True, extra=log_extra_ppt)
             flash("The presentation file was not found or has expired. Please try generating it again.", "error")
             return redirect(url_for('display_feature', feature_name='summarization'))

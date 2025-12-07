@@ -10,8 +10,6 @@ from flask import (
     Blueprint, render_template, request, flash, current_app, url_for, g, jsonify, send_file, after_this_request, session
 )
 from werkzeug.utils import secure_filename
-from google.cloud import storage
-from google.cloud.exceptions import NotFound as GCSNotFound
 import google.generativeai as genai
 from PIL import Image, ImageOps
 
@@ -194,7 +192,7 @@ def define_multimedia_routes(app_shell):
 
             return send_file(image_data, mimetype=mimetype)
             
-        except GCSNotFound:
+        except Exception:
             return "Image not found (GCS Error)", 404
         except Exception as e:
             logging.error(f"Error serving image {gcs_path} from GCS: {e}", exc_info=True, extra=log_extra)
