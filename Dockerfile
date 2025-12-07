@@ -1,44 +1,40 @@
-# 1. Use an official Python runtime as a parent image
+# 1. Use Python 3.10 Slim (Good choice)
 FROM python:3.10-slim-bullseye
 
-# 2. Set DEBIAN_FRONTEND to avoid interactive prompts during apt-get
+# 2. Set env variables
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
 
-# 3. Set the working directory in the container
+# 3. Workdir
 WORKDIR /app
 
-# 4. Install OS dependencies needed by Playwright/Chromium
+# 4. Install BASIC system tools only (build-essential is often needed for python libs)
+# We removed the huge list of libs because Playwright installs them later.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 \
-    libatspi2.0-0 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 \
-    libxext6 libxfixes3 libxi6 libxrandr2 libxtst6 libpango-1.0-0 libcairo2 libgbm1 \
-    libasound2 libpangocairo-1.0-0 libxshmfence1 \
-    fonts-liberation \
-    ca-certificates \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# 5. Copy ONLY the requirements file first to leverage Docker caching
+# 5. Copy requirements first (Layer Caching)
 COPY ./requirements.txt /app/requirements.txt
 
 # 6. Install Python dependencies
+# Increased timeout helps with slow network speeds on large files
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --default-timeout=100 -r requirements.txt
 
-# 7. Download the Spacy model AFTER spacy is installed
+# 7. Download Spacy Model
 RUN python -m spacy download en_core_web_lg
 
-# 8. Install Playwright browser binary (Chromium) AFTER Playwright Python package is installed
+# 8. Install Playwright + System Dependencies
+# We use --with-deps so it installs the linux libraries (libnss3, etc) automatically
 RUN playwright install chromium --with-deps
 
-# 9. Copy the rest of your application's code into the container
+# 9. Copy application code
 COPY . /app/
 
-# 10. Make port available (Cloud Run uses $PORT, your run.py listens on it)
+# 10. Expose port (Optional on Railway, but good practice)
 EXPOSE 8080
 
-# 11. Define environment variable for the port (Cloud Run will set this)
-ENV PORT 8080
-
-# 12. Specify the command to run your application
+# 11. Run
 CMD ["python", "run.py"]

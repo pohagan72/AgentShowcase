@@ -1,9 +1,9 @@
-beautifulsoup4 
+--extra-index-url https://download.pytorch.org/whl/cpu
+beautifulsoup4
 Flask
-google-cloud-storage
+boto3
 google-generativeai
 langdetect
-lxml[html_clean]
 lxml_html_clean
 mistune
 mtcnn
@@ -14,7 +14,7 @@ pandas
 playwright
 presidio-analyzer
 presidio-anonymizer
-PyMuPDF 
+PyMuPDF
 PyPDF2
 python-docx
 python-dotenv
@@ -23,9 +23,8 @@ requests
 scikit-learn
 spacy
 stanza
-tensorflow
+tensorflow-cpu
 torch
 trafilatura
 validators
 waitress
-# jsonformatter # If adopting advanced logging
