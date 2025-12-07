@@ -3,16 +3,20 @@ from flask import Flask, render_template, request, url_for, current_app, redirec
 import os
 from jinja2 import ChoiceLoader, FileSystemLoader
 from dotenv import load_dotenv
+import logging
 
 # --- For Translation & Summarization Feature Global Imports ---
 import google.generativeai as genai
-from google.cloud import storage
-from google.cloud.exceptions import NotFound
+
+# --- CHANGED: Swapped Google Storage for S3 Adapter ---
+# from google.cloud import storage <-- Removed
+# from google.cloud.exceptions import NotFound <-- Removed
+from s3_adapter import S3Client  # <-- Added S3 Adapter for Railway
 
 # --- For PII Redaction Feature Global Imports ---
 from presidio_analyzer import AnalyzerEngine
 from presidio_analyzer.nlp_engine import NlpEngineProvider
-import logging
+
 # --- End PII Redaction Imports ---
 
 # --- NEW/MODIFIED: Imports for PPT Builder constants to be added to app.config ---
@@ -45,16 +49,21 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "a_very_strong_default_secre
 if app.secret_key == "a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this" and os.environ.get("FLASK_ENV") != "development":
     print("WARNING: Using default FLASK_SECRET_KEY. Set a strong, unique key in your environment for production!")
 
+# --- Configuration Setup ---
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash-latest")
-GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
-GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")
+
+# CHANGED: Map the Railway S3 bucket variable to the internal GCS_BUCKET_NAME variable
+# This ensures downstream code doesn't break.
+GCS_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME") 
+GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "railway-deployment")
 
 app.config['GOOGLE_API_KEY'] = GOOGLE_API_KEY
 app.config['GEMINI_MODEL_NAME'] = GEMINI_MODEL_NAME
 app.config['GCS_BUCKET_NAME'] = GCS_BUCKET_NAME
 app.config['GOOGLE_CLOUD_PROJECT'] = GOOGLE_CLOUD_PROJECT
 
+# --- Gemini Configuration ---
 app.config['GEMINI_CONFIGURED'] = False
 if GOOGLE_API_KEY:
     try:
@@ -66,27 +75,32 @@ if GOOGLE_API_KEY:
 else:
     logging.warning("Global: GOOGLE_API_KEY not found. Gemini-dependent features may be affected.")
 
+# --- Storage Configuration (Now using S3 Adapter) ---
 app.config['GCS_AVAILABLE'] = False
 app.storage_client = None
 app.gcs_bucket = None
-if GCS_BUCKET_NAME and GOOGLE_CLOUD_PROJECT:
+
+# We check for the Bucket Name and AWS Access Key (standard for Railway S3)
+if GCS_BUCKET_NAME and os.environ.get("AWS_ACCESS_KEY_ID"):
     try:
-        app.storage_client = storage.Client(project=GOOGLE_CLOUD_PROJECT)
+        # Initialize the S3 Client via our Adapter
+        app.storage_client = S3Client()
         app.gcs_bucket = app.storage_client.bucket(GCS_BUCKET_NAME)
-        app.gcs_bucket.reload()
+        
+        # The adapter implements a dummy 'reload' so this call remains safe
+        app.gcs_bucket.reload() 
+        
         app.config['GCS_AVAILABLE'] = True
-        logging.info(f"Global: GCS client initialized (Bucket: gs://{GCS_BUCKET_NAME}).")
-    except NotFound:
-        logging.error(f"Global: GCS Bucket '{GCS_BUCKET_NAME}' not found. GCS-dependent features will fail.")
-        app.storage_client = None; app.gcs_bucket = None
+        logging.info(f"Global: S3 Storage initialized (Bucket: {GCS_BUCKET_NAME}).")
     except Exception as e:
-        logging.error(f"Global: Failed to initialize GCS client: {e}. GCS-dependent features will fail.")
+        logging.error(f"Global: Failed to initialize S3 Storage: {e}. Storage-dependent features will fail.")
         app.storage_client = None; app.gcs_bucket = None
 else:
-    if not GCS_BUCKET_NAME: logging.warning("Global: GCS_BUCKET_NAME env var not found.")
-    if not GOOGLE_CLOUD_PROJECT: logging.warning("Global: GOOGLE_CLOUD_PROJECT env var not found.")
-    logging.warning("Global: GCS client not initialized. GCS-dependent features may be affected.")
+    if not GCS_BUCKET_NAME: logging.warning("Global: S3_BUCKET_NAME env var not found.")
+    if not os.environ.get("AWS_ACCESS_KEY_ID"): logging.warning("Global: AWS_ACCESS_KEY_ID not found (required for Railway S3).")
+    logging.warning("Global: Storage client not initialized. Storage-dependent features may be affected.")
 
+# --- Presidio Analyzer Configuration ---
 app.config['PRESIDIO_ANALYZER_AVAILABLE'] = False
 app.presidio_analyzer = None
 try:
@@ -95,13 +109,14 @@ try:
         "nlp_engine_name": "spacy",
         "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}]
     })
-    app.presidio_analyzer = AnalyzerEngine(nlp_engine=provider.create_engine(), supported_languages=["en"])
+    app.presidio_analyzer = AnalyzerEngine(nlp_engine=provider.create_engine(), supported_languages=["en", "de"])
     app.config['PRESIDIO_ANALYZER_AVAILABLE'] = True
     logging.info("Global: Presidio Analyzer Engine initialized successfully.")
 except Exception as e:
     logging.error(f"Global: Failed to initialize Presidio Analyzer Engine: {e}. PII Redaction feature will be affected.", exc_info=True)
     app.presidio_analyzer = None
 
+# --- Feature Routing & Config ---
 FEATURES_DATA = {
     "welcome": {"name": "Welcome", "icon": "fas fa-home", "template": "partials/_welcome_content.html"},
     "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"},
@@ -174,17 +189,11 @@ def index(feature_key):
             if not current_app.config.get('GEMINI_CONFIGURED'):
                 template_context["ppt_config_warning"] = "Gemini AI service is not configured."
             elif not current_app.config.get('GCS_AVAILABLE'):
-                template_context["ppt_config_warning"] = "Google Cloud Storage is not configured."
-    # =========================================================================
-    # --- START OF FIX: Add context for the PII Redaction feature ---
-    # =========================================================================
+                template_context["ppt_config_warning"] = "Cloud Storage is not configured."
     elif feature_key == "pii_redaction":
         template_context["presidio_available"] = current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False)
         # The services_ready variable in the template depends on both presidio and gcs
         template_context["services_ready"] = template_context["presidio_available"] and template_context["gcs_available"]
-    # =======================================================================
-    # --- END OF FIX ---
-    # =======================================================================
 
     return render_template(
         'layout.html',
@@ -224,7 +233,7 @@ def get_feature_content(feature_key):
         context["ppt_config_warning"] = None
         if not ppt_services_ready:
             if not current_app.config.get('GEMINI_CONFIGURED'): context["ppt_config_warning"] = "Gemini AI service is not configured."
-            elif not current_app.config.get('GCS_AVAILABLE'): context["ppt_config_warning"] = "Google Cloud Storage is not configured."
+            elif not current_app.config.get('GCS_AVAILABLE'): context["ppt_config_warning"] = "Cloud Storage is not configured."
             else: context["ppt_config_warning"] = "Core services for PPT generation are unavailable."
     elif feature_key == "pii_redaction":
         context["redacted_file_url"] = None
