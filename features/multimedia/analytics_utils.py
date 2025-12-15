@@ -75,37 +75,35 @@ def analyze_image_with_gemini(image_bytes: bytes, gemini_model) -> dict | None:
 
 def extract_dominant_colors(image_bytes: bytes, num_colors: int = 5) -> list[str]:
     """
-    Extracts a palette of the most dominant colors from an image using K-Means clustering.
-    This method finds the most representative colors, not just the most frequent.
-
-    Returns:
-        A list of hex color strings.
+    Extracts dominant colors using Pillow's built-in quantization (Lighter than Scikit-Learn).
     """
     try:
-        # Open the image and convert to RGB
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
         
-        # Resize to a small thumbnail for performance.
-        thumbnail = image.resize((100, 100))
+        # Resize for speed
+        image.thumbnail((150, 150))
         
-        # Convert the image data to a numpy array of pixels
-        np_array = np.array(thumbnail)
-        pixels = np_array.reshape(-1, 3)
+        # Reduce colors to 'num_colors' using generic quantization
+        # This groups similar colors automatically
+        quantized = image.quantize(colors=num_colors, method=2) 
         
-        # Use K-Means to find the 'num_colors' most dominant colors
-        kmeans = KMeans(n_clusters=num_colors, n_init='auto', random_state=42)
-        kmeans.fit(pixels)
+        # Get the palette
+        palette = quantized.getpalette()
         
-        # The cluster centers are the dominant colors. They are in float, so convert to int.
-        dominant_rgb_colors = kmeans.cluster_centers_.astype(int)
-        
-        # Convert the RGB colors to HEX format
-        palette = []
-        for rgb_color in dominant_rgb_colors:
-            hex_color = '#{:02x}{:02x}{:02x}'.format(*rgb_color)
-            palette.append(hex_color)
-            
-        return palette
+        # The palette comes as [r,g,b, r,g,b, ...], we need to chunk it
+        colors_found = []
+        if palette:
+            # We only want the first 'num_colors' chunks (RGB triplets)
+            for i in range(num_colors):
+                idx = i * 3
+                # Ensure we don't go out of bounds if image has fewer colors
+                if idx + 2 < len(palette):
+                    r, g, b = palette[idx], palette[idx+1], palette[idx+2]
+                    hex_color = '#{:02x}{:02x}{:02x}'.format(r, g, b)
+                    # Filter out straight black/white if desired, or keep all
+                    colors_found.append(hex_color)
+                    
+        return colors_found
     except Exception as e:
-        logging.error(f"Could not extract dominant colors with K-Means: {e}", exc_info=True)
-        return [] # Return empty list on failure
+        logging.error(f"Could not extract dominant colors: {e}", exc_info=True)
+        return []

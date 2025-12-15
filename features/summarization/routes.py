@@ -18,7 +18,8 @@ from docx import Document
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 import pandas as pd
-import PyPDF2
+# import PyPDF2
+import fitz
 
 # --- Imports for PPT Builder Logic ---
 try:
@@ -125,15 +126,18 @@ def read_text_from_excel(file_stream):
 def read_text_from_pdf(file_stream):
     try:
         file_stream.seek(0)
-        reader = PyPDF2.PdfReader(file_stream)
+        # PyMuPDF expects a byte stream
+        doc = fitz.open(stream=file_stream.read(), filetype="pdf")
         text_list = []
-        if reader.pages:
-            for page in reader.pages:
-                extracted = page.extract_text()
-                if extracted and extracted.strip(): 
-                    text_list.append(extracted.strip())
-        return "\n".join(text_list) if text_list else ""
-    except Exception as e: logging.error(f"Error reading PDF: {e}", exc_info=True); raise
+        for page in doc:
+            text = page.get_text()
+            if text and text.strip():
+                text_list.append(text.strip())
+        doc.close()
+        return "\n".join(text_list)
+    except Exception as e:
+        logging.error(f"Error reading PDF: {e}", exc_info=True)
+        raise
 
 # --- HELPER FUNCTIONS FOR "CREATE TEXT SUMMARY" TAB ---
 def get_classification_prompt_for_text_summary(text_excerpt):
