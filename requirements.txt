@@ -13,16 +13,16 @@ openpyxl
 pandas
 playwright
 presidio-analyzer
-presidio-anonymizer
+# presidio-anonymizer
 PyMuPDF
-PyPDF2
+# PyPDF2
 python-docx
 python-dotenv
 python-pptx
 requests
-scikit-learn
+# scikit-learn
 spacy
-stanza
+# stanza
 tensorflow-cpu
 # torch
 trafilatura
