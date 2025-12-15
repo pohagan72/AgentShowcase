@@ -2,16 +2,12 @@
 import google.generativeai as genai
 import json
 import logging
-from PIL import Image # type: ignore
+from PIL import Image
 import io
-import numpy as np
-from sklearn.cluster import KMeans
 
 def build_analytics_prompt():
     """
     Creates a robust, structured prompt for the Gemini vision model.
-    This prompt establishes a persona and provides strict, evidence-based
-    guidelines to improve accuracy and reduce false positives.
     """
     return """
     You are a strict, literal-minded content safety analyst. Your task is to analyze the attached image and provide a factual, evidence-based analysis based ONLY on the visual information present. Do not make inferences, assumptions, or judgments based on historical, cultural, or symbolic context.
@@ -37,9 +33,6 @@ def build_analytics_prompt():
 def analyze_image_with_gemini(image_bytes: bytes, gemini_model) -> dict | None:
     """
     Sends the image and a structured prompt to the Gemini model for analysis.
-    
-    Returns:
-        A dictionary with the parsed analysis results, or None if an error occurs.
     """
     if not image_bytes:
         return None
@@ -75,35 +68,43 @@ def analyze_image_with_gemini(image_bytes: bytes, gemini_model) -> dict | None:
 
 def extract_dominant_colors(image_bytes: bytes, num_colors: int = 5) -> list[str]:
     """
-    Extracts dominant colors using Pillow's built-in quantization (Lighter than Scikit-Learn).
+    Extracts a palette of the most dominant colors from an image using Pillow (PIL).
+    Replaces the heavy scikit-learn dependency.
+
+    Returns:
+        A list of hex color strings.
     """
     try:
+        # Open the image and convert to RGB
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
         
-        # Resize for speed
+        # Resize to a small thumbnail for speed
         image.thumbnail((150, 150))
         
-        # Reduce colors to 'num_colors' using generic quantization
-        # This groups similar colors automatically
-        quantized = image.quantize(colors=num_colors, method=2) 
+        # Use Pillow's built-in quantization to reduce the image to 'num_colors'
+        # Method 2 = Fast Octree
+        quantized = image.quantize(colors=num_colors, method=2)
         
-        # Get the palette
+        # Get the palette (comes as a flat list [r, g, b, r, g, b, ...])
         palette = quantized.getpalette()
         
-        # The palette comes as [r,g,b, r,g,b, ...], we need to chunk it
-        colors_found = []
+        hex_colors = []
         if palette:
-            # We only want the first 'num_colors' chunks (RGB triplets)
+            # We only want the first 'num_colors' RGB triplets
             for i in range(num_colors):
                 idx = i * 3
-                # Ensure we don't go out of bounds if image has fewer colors
+                # Safety check to ensure we don't go out of bounds
                 if idx + 2 < len(palette):
-                    r, g, b = palette[idx], palette[idx+1], palette[idx+2]
-                    hex_color = '#{:02x}{:02x}{:02x}'.format(r, g, b)
-                    # Filter out straight black/white if desired, or keep all
-                    colors_found.append(hex_color)
+                    r = palette[idx]
+                    g = palette[idx+1]
+                    b = palette[idx+2]
                     
-        return colors_found
+                    # Convert RGB to Hex
+                    hex_color = '#{:02x}{:02x}{:02x}'.format(r, g, b)
+                    hex_colors.append(hex_color)
+            
+        return hex_colors
+
     except Exception as e:
         logging.error(f"Could not extract dominant colors: {e}", exc_info=True)
         return []
