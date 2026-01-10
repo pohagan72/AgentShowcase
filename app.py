@@ -117,13 +117,38 @@ except Exception as e:
     app.presidio_analyzer = None
 
 # --- Feature Routing & Config ---
+# REBRANDING UPDATE: Renamed features to 'Personas' and updated icons per CMO request.
 FEATURES_DATA = {
-    "welcome": {"name": "Welcome", "icon": "fas fa-home", "template": "partials/_welcome_content.html"},
-    "translation": {"name": "Translation", "icon": "fas fa-language", "template": "translation/templates/translation_content.html"},
-    "summarization": {"name": "Summarization", "icon": "fas fa-file-alt", "template": "summarization/templates/summarization_content.html"},
-    "pii_redaction": {"name": "PII Redaction", "icon": "fas fa-user-shield", "template": "pii_redaction/templates/pii_redaction_content.html"},
-    "multimedia": {"name": "Multimedia", "icon": "fas fa-photo-video", "template": "multimedia/templates/multimedia_content.html"},
-    "info": {"name": "About", "icon": "fas fa-info-circle", "template": "info/templates/info_content.html"},
+    "welcome": {
+        "name": "Welcome", 
+        "icon": "fas fa-home", 
+        "template": "partials/_welcome_content.html"
+    },
+    "summarization": {
+        "name": "The Executive Briefer", 
+        "icon": "fas fa-briefcase",  # Updated to reflect business value
+        "template": "summarization/templates/summarization_content.html"
+    },
+    "translation": {
+        "name": "The Global Localizer", 
+        "icon": "fas fa-globe",      # Updated to reflect global reach
+        "template": "translation/templates/translation_content.html"
+    },
+    "pii_redaction": {
+        "name": "The Compliance Guardian", 
+        "icon": "fas fa-user-shield", # Kept as it fits perfectly
+        "template": "pii_redaction/templates/pii_redaction_content.html"
+    },
+    "multimedia": {
+        "name": "The Visual Analyst", 
+        "icon": "fas fa-eye",         # Updated to reflect computer vision/analysis
+        "template": "multimedia/templates/multimedia_content.html"
+    },
+    "info": {
+        "name": "Meet the Architect", 
+        "icon": "fas fa-user-tie",    # Updated to a more personal/professional icon
+        "template": "info/templates/info_content.html"
+    },
 }
 DEFAULT_FEATURE_KEY = "welcome"
 
