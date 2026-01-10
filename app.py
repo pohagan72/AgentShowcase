@@ -51,7 +51,10 @@ if app.secret_key == "a_very_strong_default_secret_key_for_dev_only_32_chars_lon
 
 # --- Configuration Setup ---
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite")
+GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL")
+
+if not GEMINI_MODEL_NAME:
+    logging.warning("CRITICAL: GEMINI_MODEL not set in environment. App may not function correctly.")
 
 # CHANGED: Map the Railway S3 bucket variable to the internal GCS_BUCKET_NAME variable
 # This ensures downstream code doesn't break.
