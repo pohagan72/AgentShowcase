@@ -1,13 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ current_feature.name if current_feature else "My App" }} - AI Agents</title>
+    
+    <!-- ADD THIS SECTION -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- END ADD SECTION -->
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script> 
 </head>
+
 <body>
     <!-- Mobile-only overlay for closing the sidebar when clicking outside of it -->
     <div class="mobile-overlay" onclick="toggleSidebar()"></div>
@@ -21,10 +30,11 @@
             <ul>
                 {% for key, feature_item in features.items() %}
                 <li>
-                    <a href="{{ url_for('index', feature_key=key) }}"
-                       hx-get="{{ url_for('get_feature_content', feature_key=key) }}"
+                    <!-- UPDATED: Added 'main.' prefix to endpoints -->
+                    <a href="{{ url_for('main.index', feature_key=key) }}"
+                       hx-get="{{ url_for('main.get_feature_content', feature_key=key) }}"
                        hx-target="#main-content"
-                       hx-push-url="{{ url_for('index', feature_key=key) }}"
+                       hx-push-url="{{ url_for('main.index', feature_key=key) }}"
                        hx-indicator=".global-loader"
                        class="sidebar-link {{ 'active' if key == active_feature_key else '' }}"
                        onclick="closeSidebarIfMobile()">
@@ -50,7 +60,7 @@
                     <p style="margin-top: 12px; color: #555; font-size: 1.1em;">Loading Content...</p>
                 </div>
                 <div id="main-content">
-                    {# This will now render the path from FEATURES_DATA, e.g., partials/_welcome_content.html #}
+                    {# This will now render the path from FEATURES_DATA #}
                     {% include initial_content_template %}
                 </div>
             </div>
@@ -58,24 +68,19 @@
     </div>
 
     <script>
-        // --- NEW: Mobile Sidebar Logic ---
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('show');
             document.querySelector('.mobile-overlay').classList.toggle('show');
         }
 
         function closeSidebarIfMobile() {
-            // Only close if the sidebar is actually in its mobile state (has the 'show' class)
             const sidebar = document.getElementById('sidebar');
             if (sidebar.classList.contains('show')) {
                 toggleSidebar();
             }
         }
 
-
-        // --- Existing JavaScript for Sidebar and Title ---
         document.body.addEventListener('htmx:afterSwap', function(event) {
-            // Update sidebar active state
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
                 link.classList.remove('active');
             });
@@ -91,21 +96,13 @@
                 }
             });
 
-            // --- Existing code for Drop Zones, etc. ---
             const swappedElement = event.detail.target; 
             if (swappedElement && (swappedElement.querySelector('.drop-zone') || swappedElement.classList.contains('drop-zone'))) {
                 initDropZones();
             }
         });
 
-        // Your other existing JS functions (openTab, displayFileName, initDropZones) go here
-        // No changes are needed for them, so I am omitting them for brevity.
-        // Copy them from your original file and paste them below.
-
-        // --- PASTE your existing openTab, displayFileName, and initDropZones functions here ---
-        // --- START OF PASTED CODE ---
         document.addEventListener('DOMContentLoaded', function() {
-            // Initial sidebar active state and title
             const currentPath = window.location.pathname;
             let activeFoundOnLoad = false;
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
@@ -120,10 +117,11 @@
                 }
             });
             if (!activeFoundOnLoad && currentPath === '/') {
-                 const defaultLinkQuery = 'a.sidebar-link[href$="/feature/{{ DEFAULT_FEATURE_KEY }}"]'; // DEFAULT_FEATURE_KEY from Flask context
+                 // UPDATED: Added 'main.' prefix
+                 const defaultLinkQuery = 'a.sidebar-link[href$="/feature/{{ DEFAULT_FEATURE_KEY }}"]'; 
                  let defaultLink = document.querySelector(defaultLinkQuery);
-                 if (!defaultLink) { // Fallback if DEFAULT_FEATURE_KEY link not found
-                     defaultLink = document.querySelector('a.sidebar-link[href="/"]'); // Check for root path link
+                 if (!defaultLink) { 
+                     defaultLink = document.querySelector('a.sidebar-link[href="/"]'); 
                  }
                  if (defaultLink) {
                      defaultLink.classList.add('active');
@@ -131,13 +129,12 @@
                      document.title = featureName + " - AI Agents";
                  }
             }
-
-            // --- NEW: Initialize Drop Zones and Tabs on initial load ---
             initDropZones();
         });
+
         function openTab(event, tabId, tabContentClass) {
             var i, tabcontent, tablinks;
-            var currentTabContainer = document.getElementById(tabId).closest('.feature-container') || document.body; // Scope tab operations
+            var currentTabContainer = document.getElementById(tabId).closest('.feature-container') || document.body;
             tabcontent = currentTabContainer.getElementsByClassName(tabContentClass);
             for (i = 0; i < tabcontent.length; i++) { tabcontent[i].style.display = "none"; tabcontent[i].classList.remove("active-content"); }
             if (event && event.currentTarget) {
@@ -151,12 +148,14 @@
             document.getElementById(tabId).style.display = "block";
             document.getElementById(tabId).classList.add("active-content");
         }
+
         function displayFileName(inputId, displayId) {
             const input = document.getElementById(inputId);
             const display = document.getElementById(displayId);
             if (!input || !display) { return; }
             if (input.files && input.files.length > 0) { display.textContent = input.files[0].name; display.style.display = 'block'; } else { display.textContent = ''; display.style.display = 'none'; }
         }
+
         function initDropZones() {
             const dropZones = document.querySelectorAll('.drop-zone');
             dropZones.forEach(zone => {
@@ -183,8 +182,6 @@
                 }
             });
         }
-        // --- END OF PASTED CODE ---
-
     </script>
 </body>
 </html>

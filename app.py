@@ -1,279 +1,93 @@
-# app.py
-from flask import Flask, render_template, request, url_for, current_app, redirect
 import os
-from jinja2 import ChoiceLoader, FileSystemLoader
-from dotenv import load_dotenv
 import logging
-
-# --- For Translation & Summarization Feature Global Imports ---
 import google.generativeai as genai
+from flask import Flask
+from jinja2 import ChoiceLoader, FileSystemLoader
 
-# --- CHANGED: Swapped Google Storage for S3 Adapter ---
-# from google.cloud import storage <-- Removed
-# from google.cloud.exceptions import NotFound <-- Removed
-from s3_adapter import S3Client  # <-- Added S3 Adapter for Railway
+# Import Config
+from config import Config
 
-# --- For PII Redaction Feature Global Imports ---
+# Import S3 Adapter and Presidio
+from s3_adapter import S3Client
 from presidio_analyzer import AnalyzerEngine
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 
-# --- End PII Redaction Imports ---
+# Import Blueprints
+from main_routes import bp as main_bp
+from features.info.routes import bp as info_bp
+from features.multimedia.routes import bp as multimedia_bp
+from features.pii_redaction.routes import bp as pii_bp
+from features.summarization.routes import bp as summarization_bp
+from features.translation.routes import bp as translation_bp
 
-# --- NEW/MODIFIED: Imports for PPT Builder constants to be added to app.config ---
-try:
-    from features.summarization.ppt_builder_logic.file_processor import MAX_FILES as PPT_MAX_FILES, MAX_FILE_SIZE_BYTES as PPT_MAX_FILE_SIZE_BYTES, DEFAULT_ALLOWED_EXTENSIONS_PPT as PPT_ALLOWED_EXTENSIONS
-    from features.summarization.ppt_builder_logic.presentation_generator import TEMPLATES as PPT_TEMPLATES, DEFAULT_TEMPLATE_NAME as PPT_DEFAULT_TEMPLATE_NAME
-    PPT_BUILDER_CONSTANTS_LOADED = True
-except ImportError as e:
-    logging.warning(f"Could not import PPT Builder constants for app.config: {e}. 'Create Executive PowerPoint' tab might have missing options.")
-    PPT_BUILDER_CONSTANTS_LOADED = False
-    PPT_MAX_FILES = 5
-    PPT_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
-    PPT_ALLOWED_EXTENSIONS = {'docx', 'pdf', 'py'}
-    PPT_TEMPLATES = {'professional': {}, 'creative': {}, 'minimalist': {}}
-    PPT_DEFAULT_TEMPLATE_NAME = 'professional'
-# --- END NEW/MODIFIED ---
-
-load_dotenv()
-
-app = Flask(__name__)
-
+# Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-app.jinja_loader = ChoiceLoader([
-    app.jinja_loader,
-    FileSystemLoader('features')
-])
+def create_app(config_class=Config):
+    app = Flask(__name__)
+    app.config.from_object(config_class)
 
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this")
-if app.secret_key == "a_very_strong_default_secret_key_for_dev_only_32_chars_long_replace_this" and os.environ.get("FLASK_ENV") != "development":
-    print("WARNING: Using default FLASK_SECRET_KEY. Set a strong, unique key in your environment for production!")
+    # 1. Configure Jinja Loader (Preserves your folder structure)
+    app.jinja_loader = ChoiceLoader([
+        app.jinja_loader,
+        FileSystemLoader('features')
+    ])
 
-# --- Configuration Setup ---
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL")
+    # 2. Initialize Google Gemini
+    if app.config['GOOGLE_API_KEY']:
+        try:
+            genai.configure(api_key=app.config['GOOGLE_API_KEY'])
+            app.config['GEMINI_CONFIGURED'] = True
+            logging.info("Global: Google Gemini API configured successfully.")
+        except Exception as e:
+            logging.error(f"Global: Failed to configure Google Gemini API: {e}")
+            app.config['GEMINI_CONFIGURED'] = False
+    else:
+        app.config['GEMINI_CONFIGURED'] = False
+        logging.warning("Global: GOOGLE_API_KEY not found.")
 
-if not GEMINI_MODEL_NAME:
-    logging.warning("CRITICAL: GEMINI_MODEL not set in environment. App may not function correctly.")
+    # 3. Initialize S3 Storage
+    app.config['GCS_AVAILABLE'] = False
+    app.storage_client = None
+    app.gcs_bucket = None
+    
+    if app.config['GCS_BUCKET_NAME'] and app.config['AWS_ACCESS_KEY_ID']:
+        try:
+            app.storage_client = S3Client()
+            app.gcs_bucket = app.storage_client.bucket(app.config['GCS_BUCKET_NAME'])
+            app.gcs_bucket.reload() # Dummy call for adapter compatibility
+            app.config['GCS_AVAILABLE'] = True
+            logging.info(f"Global: S3 Storage initialized (Bucket: {app.config['GCS_BUCKET_NAME']}).")
+        except Exception as e:
+            logging.error(f"Global: Failed to initialize S3 Storage: {e}")
+    else:
+        logging.warning("Global: S3 Credentials or Bucket Name missing.")
 
-# CHANGED: Map the Railway S3 bucket variable to the internal GCS_BUCKET_NAME variable
-# This ensures downstream code doesn't break.
-GCS_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME") 
-GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "railway-deployment")
-
-app.config['GOOGLE_API_KEY'] = GOOGLE_API_KEY
-app.config['GEMINI_MODEL_NAME'] = GEMINI_MODEL_NAME
-app.config['GCS_BUCKET_NAME'] = GCS_BUCKET_NAME
-app.config['GOOGLE_CLOUD_PROJECT'] = GOOGLE_CLOUD_PROJECT
-
-# --- Gemini Configuration ---
-app.config['GEMINI_CONFIGURED'] = False
-if GOOGLE_API_KEY:
-    try:
-        genai.configure(api_key=GOOGLE_API_KEY)
-        app.config['GEMINI_CONFIGURED'] = True
-        logging.info("Global: Google Gemini API configured successfully.")
-    except Exception as e:
-        logging.error(f"Global: Failed to configure Google Gemini API: {e}")
-else:
-    logging.warning("Global: GOOGLE_API_KEY not found. Gemini-dependent features may be affected.")
-
-# --- Storage Configuration (Now using S3 Adapter) ---
-app.config['GCS_AVAILABLE'] = False
-app.storage_client = None
-app.gcs_bucket = None
-
-# We check for the Bucket Name and AWS Access Key (standard for Railway S3)
-if GCS_BUCKET_NAME and os.environ.get("AWS_ACCESS_KEY_ID"):
-    try:
-        # Initialize the S3 Client via our Adapter
-        app.storage_client = S3Client()
-        app.gcs_bucket = app.storage_client.bucket(GCS_BUCKET_NAME)
-        
-        # The adapter implements a dummy 'reload' so this call remains safe
-        app.gcs_bucket.reload() 
-        
-        app.config['GCS_AVAILABLE'] = True
-        logging.info(f"Global: S3 Storage initialized (Bucket: {GCS_BUCKET_NAME}).")
-    except Exception as e:
-        logging.error(f"Global: Failed to initialize S3 Storage: {e}. Storage-dependent features will fail.")
-        app.storage_client = None; app.gcs_bucket = None
-else:
-    if not GCS_BUCKET_NAME: logging.warning("Global: S3_BUCKET_NAME env var not found.")
-    if not os.environ.get("AWS_ACCESS_KEY_ID"): logging.warning("Global: AWS_ACCESS_KEY_ID not found (required for Railway S3).")
-    logging.warning("Global: Storage client not initialized. Storage-dependent features may be affected.")
-
-# --- Presidio Analyzer Configuration ---
-app.config['PRESIDIO_ANALYZER_AVAILABLE'] = False
-app.presidio_analyzer = None
-try:
-    logging.info("Global: Initializing Presidio Analyzer Engine...")
-    provider = NlpEngineProvider(nlp_configuration={
-        "nlp_engine_name": "spacy",
-        "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}]
-    })
-    app.presidio_analyzer = AnalyzerEngine(nlp_engine=provider.create_engine(), supported_languages=["en", "de"])
-    app.config['PRESIDIO_ANALYZER_AVAILABLE'] = True
-    logging.info("Global: Presidio Analyzer Engine initialized successfully.")
-except Exception as e:
-    logging.error(f"Global: Failed to initialize Presidio Analyzer Engine: {e}. PII Redaction feature will be affected.", exc_info=True)
+    # 4. Initialize Presidio (PII)
+    app.config['PRESIDIO_ANALYZER_AVAILABLE'] = False
     app.presidio_analyzer = None
+    try:
+        logging.info("Global: Initializing Presidio Analyzer Engine...")
+        provider = NlpEngineProvider(nlp_configuration={
+            "nlp_engine_name": "spacy",
+            "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}]
+        })
+        app.presidio_analyzer = AnalyzerEngine(nlp_engine=provider.create_engine(), supported_languages=["en"])
+        app.config['PRESIDIO_ANALYZER_AVAILABLE'] = True
+    except Exception as e:
+        logging.error(f"Global: Failed to initialize Presidio: {e}")
 
-# --- Feature Routing & Config ---
-# REBRANDING UPDATE: Renamed features to 'Personas' and updated icons per CMO request.
-FEATURES_DATA = {
-    "welcome": {
-        "name": "Welcome", 
-        "icon": "fas fa-home", 
-        "template": "partials/_welcome_content.html"
-    },
-    "summarization": {
-        "name": "The Executive Briefer", 
-        "icon": "fas fa-briefcase",  # Updated to reflect business value
-        "template": "summarization/templates/summarization_content.html"
-    },
-    "translation": {
-        "name": "The Global Localizer", 
-        "icon": "fas fa-globe",      # Updated to reflect global reach
-        "template": "translation/templates/translation_content.html"
-    },
-    "pii_redaction": {
-        "name": "The Compliance Guardian", 
-        "icon": "fas fa-user-shield", # Kept as it fits perfectly
-        "template": "pii_redaction/templates/pii_redaction_content.html"
-    },
-    "multimedia": {
-        "name": "The Visual Analyst", 
-        "icon": "fas fa-eye",         # Updated to reflect computer vision/analysis
-        "template": "multimedia/templates/multimedia_content.html"
-    },
-    "info": {
-        "name": "Meet the Architect", 
-        "icon": "fas fa-user-tie",    # Updated to a more personal/professional icon
-        "template": "info/templates/info_content.html"
-    },
-}
-DEFAULT_FEATURE_KEY = "welcome"
+    # 5. Register Blueprints
+    app.register_blueprint(main_bp)
+    app.register_blueprint(info_bp)
+    app.register_blueprint(multimedia_bp)
+    app.register_blueprint(pii_bp)
+    app.register_blueprint(summarization_bp)
+    app.register_blueprint(translation_bp)
 
-app.config['TRANSLATION_LANGUAGES'] = [
-    "English", "Spanish", "French", "German", "Chinese", "Japanese",
-    "Hindi", "Bengali", "Marathi", "Telugu", "Tamil"
-]
-app.config['PII_ALLOWED_EXTENSIONS'] = {'docx', 'pptx'}
+    return app
 
-if PPT_BUILDER_CONSTANTS_LOADED:
-    app.config['PPT_MAX_FILES'] = PPT_MAX_FILES
-    app.config['PPT_MAX_FILE_SIZE_MB'] = int(PPT_MAX_FILE_SIZE_BYTES / (1024*1024))
-    app.config['PPT_ALLOWED_EXTENSIONS_STR'] = ', '.join(sorted(list(f".{ext}" for ext in PPT_ALLOWED_EXTENSIONS)))
-    app.config['PPT_TEMPLATES'] = list(PPT_TEMPLATES.keys())
-    app.config['PPT_DEFAULT_TEMPLATE_NAME'] = PPT_DEFAULT_TEMPLATE_NAME
-else:
-    app.config['PPT_MAX_FILES'] = 5
-    app.config['PPT_MAX_FILE_SIZE_MB'] = 10
-    app.config['PPT_ALLOWED_EXTENSIONS_STR'] = ".docx, .pdf, .py"
-    app.config['PPT_TEMPLATES'] = ['professional', 'creative', 'minimalist']
-    app.config['PPT_DEFAULT_TEMPLATE_NAME'] = 'professional'
-
-from features.translation.routes import define_translation_routes
-from features.summarization.routes import define_summarization_routes
-from features.pii_redaction.routes import define_pii_redaction_routes
-from features.multimedia.routes import define_multimedia_routes
-from features.info.routes import define_info_routes
-
-define_translation_routes(app)
-define_summarization_routes(app)
-define_pii_redaction_routes(app)
-define_multimedia_routes(app)
-define_info_routes(app)
-
-@app.route('/')
-def root_redirect():
-    return redirect(url_for('index', feature_key=DEFAULT_FEATURE_KEY))
-
-@app.route('/feature/<feature_key>')
-def index(feature_key):
-    if feature_key not in FEATURES_DATA:
-        feature_key = DEFAULT_FEATURE_KEY
-
-    current_feature_data = FEATURES_DATA[feature_key]
-    initial_content_template_path = current_feature_data["template"]
-
-    template_context = {
-        "gcs_available": current_app.config.get('GCS_AVAILABLE', False),
-        "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
-    }
-
-    if feature_key == "translation":
-        template_context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
-    elif feature_key == "summarization":
-        ppt_services_ready = current_app.config.get('GEMINI_CONFIGURED', False) and current_app.config.get('GCS_AVAILABLE', False)
-        template_context["ppt_api_key_configured"] = ppt_services_ready
-        template_context["ppt_max_files"] = current_app.config.get('PPT_MAX_FILES')
-        template_context["ppt_max_file_size_mb"] = current_app.config.get('PPT_MAX_FILE_SIZE_MB')
-        template_context["ppt_allowed_extensions_str"] = current_app.config.get('PPT_ALLOWED_EXTENSIONS_STR')
-        template_context["ppt_default_template"] = current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME')
-        template_context["ppt_config_warning"] = None
-        if not ppt_services_ready:
-            if not current_app.config.get('GEMINI_CONFIGURED'):
-                template_context["ppt_config_warning"] = "Gemini AI service is not configured."
-            elif not current_app.config.get('GCS_AVAILABLE'):
-                template_context["ppt_config_warning"] = "Cloud Storage is not configured."
-    elif feature_key == "pii_redaction":
-        template_context["presidio_available"] = current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False)
-        # The services_ready variable in the template depends on both presidio and gcs
-        template_context["services_ready"] = template_context["presidio_available"] and template_context["gcs_available"]
-
-    return render_template(
-        'layout.html',
-        features=FEATURES_DATA,
-        current_feature=current_feature_data,
-        active_feature_key=feature_key,
-        initial_content_template=initial_content_template_path,
-        DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY,
-        **template_context
-    )
-
-@app.route('/content/<feature_key>')
-def get_feature_content(feature_key):
-    if feature_key not in FEATURES_DATA:
-        return "Feature content not found", 404
-
-    feature_data = FEATURES_DATA[feature_key]
-    template_to_render = feature_data["template"]
-
-    context = {
-        "gcs_available": current_app.config.get('GCS_AVAILABLE', False),
-        "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
-    }
-
-    if feature_key == "translation":
-        context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
-    elif feature_key == "summarization":
-        context["summary"] = ""
-        context["hx_target_is_result"] = False
-        context["ppt_max_files"] = current_app.config.get('PPT_MAX_FILES')
-        context["ppt_max_file_size_mb"] = current_app.config.get('PPT_MAX_FILE_SIZE_MB')
-        context["ppt_allowed_extensions_str"] = current_app.config.get('PPT_ALLOWED_EXTENSIONS_STR')
-        context["ppt_templates"] = current_app.config.get('PPT_TEMPLATES')
-        context["ppt_default_template"] = current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME')
-        ppt_services_ready = current_app.config.get('GEMINI_CONFIGURED', False) and current_app.config.get('GCS_AVAILABLE', False)
-        context["ppt_api_key_configured"] = ppt_services_ready
-        context["ppt_config_warning"] = None
-        if not ppt_services_ready:
-            if not current_app.config.get('GEMINI_CONFIGURED'): context["ppt_config_warning"] = "Gemini AI service is not configured."
-            elif not current_app.config.get('GCS_AVAILABLE'): context["ppt_config_warning"] = "Cloud Storage is not configured."
-            else: context["ppt_config_warning"] = "Core services for PPT generation are unavailable."
-    elif feature_key == "pii_redaction":
-        context["redacted_file_url"] = None
-        context["original_filename"] = None
-        context["presidio_available"] = current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False)
-        context["hx_target_is_result"] = False
-        context["services_ready"] = context["presidio_available"] and context["gcs_available"]
-    elif feature_key == "multimedia":
-        pass
-
-    return render_template(template_to_render, **context)
-
+# For local development compatibility
 if __name__ == '__main__':
-    logging.info(f"Starting Flask development server on http://localhost:5001")
+    app = create_app()
     app.run(host="0.0.0.0", port=5001, debug=True)

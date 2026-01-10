@@ -1,6 +1,5 @@
 {# features/translation/templates/translation_content.html #}
 <style>
-    /* styles... */
     .translation-feature-container .feature-note { margin-top: 2rem; margin-bottom: 1.5rem; padding: 0.8rem 1rem; background-color: #f0f9ff; border: 1px solid #e0f2fe; border-left: 5px solid var(--primary-color, #3b82f6); border-radius: 6px; font-size: 0.95em; color: #0c4a6e; display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
     .translation-feature-container .feature-note i { margin-right: 1rem; font-size: 1.6em; color: var(--primary-color, #3b82f6); opacity: 0.85; flex-shrink: 0; }
     .translation-feature-container .feature-note p { margin: 0; line-height: 1.6; }
@@ -43,8 +42,9 @@
             File processing for translation is disabled. Please check server logs and environment variable settings.
         </div>
     {% endif %}
-    <form method="POST" action="{{ url_for('process_translate_document') }}" enctype="multipart/form-data"
-          hx-post="{{ url_for('process_translate_document') }}"
+    <!-- UPDATED: 'translation.' prefix -->
+    <form method="POST" action="{{ url_for('translation.process_translate_document') }}" enctype="multipart/form-data"
+          hx-post="{{ url_for('translation.process_translate_document') }}"
           hx-target="#translation-results-area"
           hx-swap="innerHTML"
           hx-encoding="multipart/form-data"

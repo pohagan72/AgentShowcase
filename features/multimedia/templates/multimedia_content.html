@@ -1,6 +1,5 @@
 {# features/multimedia/templates/multimedia_content.html #}
 <style>
-    /* Styles are consistent with other features */
     .multimedia-feature-container .feature-description { margin-bottom: 2rem; }
     .multimedia-feature-container .feature-grid { display: grid; grid-template-columns: 1fr; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); margin-bottom: 2rem; }
     @media (min-width: 992px) { .multimedia-feature-container .feature-grid { grid-template-columns: repeat(3, 1fr); } }
@@ -12,22 +11,9 @@
     .multimedia-feature-container .feature-note { margin-top: 2rem; margin-bottom: 1.5rem; padding: 0.8rem 1rem; background-color: #f0f9ff; border: 1px solid #e0f2fe; border-left: 5px solid var(--primary-color, #3b82f6); border-radius: 6px; display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
     .multimedia-feature-container .feature-note i { margin-right: 1rem; font-size: 1.6em; color: var(--primary-color, #3b82f6); }
     .multimedia-feature-container .blur-slider-group label { display: block; margin-bottom: 0.5rem; }
-
-    /* --- NEW: CSS for the slider with labels --- */
-    .multimedia-feature-container .slider-container {
-        display: flex;
-        align-items: center;
-        gap: 1rem; /* Space between label, slider, and label */
-    }
-    .multimedia-feature-container .slider-container .form-range {
-        flex-grow: 1; /* Make the slider take up available space */
-    }
-    .multimedia-feature-container .slider-container .slider-label {
-        font-size: 0.9em;
-        color: #5a6a7b;
-        flex-shrink: 0; /* Prevent labels from shrinking */
-    }
-    /* --- END NEW CSS --- */
+    .multimedia-feature-container .slider-container { display: flex; align-items: center; gap: 1rem; }
+    .multimedia-feature-container .slider-container .form-range { flex-grow: 1; }
+    .multimedia-feature-container .slider-container .slider-label { font-size: 0.9em; color: #5a6a7b; flex-shrink: 0; }
 </style>
 
 <div class="feature-container multimedia-feature-container">
@@ -69,8 +55,9 @@
             </div>
         {% endif %}
 
+        <!-- UPDATED: 'multimedia.' prefix -->
         <form id="blur-upload-form" 
-              hx-post="{{ url_for('process_multimedia_blur_image_route') }}"
+              hx-post="{{ url_for('multimedia.process_multimedia_blur_image_route') }}"
               hx-target="#blurring-results-area"
               hx-swap="innerHTML"
               hx-encoding="multipart/form-data"
@@ -85,7 +72,6 @@
                        {% if not gcs_available %}disabled{% endif %}>
             </div>
 
-            {# --- MODIFIED: Slider wrapped with labels --- #}
             <div class="form-group blur-slider-group">
                 <label for="blur_strength_slider">Anonymization Strength:</label>
                 <div class="slider-container">
@@ -96,7 +82,6 @@
                     <span class="slider-label">Opaque</span>
                 </div>
             </div>
-            {# --- END MODIFICATION --- #}
             
             <button type="submit" id="blur-start-button" class="submit-button" disabled>
                 <i class="fas fa-cogs"></i> Anonymize Image
@@ -128,11 +113,6 @@
                 <p>Proactively audits images for sensitive material to ensure brand safety, flag inappropriate content, and identify potential compliance risks.</p>
             </div>
         </div>
-        
-        <!-- <div class="feature-note">
-            <i class="fas fa-server"></i>
-            <p>This agent showcases analysis on a single image, but its architecture is built for high-throughput pipelines, processing millions of images for large-scale content moderation and cataloging.</p>
-        </div> -->
 
         {% if not gemini_configured %}
             <div class="message-item category-error" role="alert">
@@ -141,8 +121,9 @@
             </div>
         {% endif %}
 
+        <!-- UPDATED: 'multimedia.' prefix -->
         <form id="analytics-upload-form"
-              hx-post="{{ url_for('process_multimedia_analyze_image_route') }}"
+              hx-post="{{ url_for('multimedia.process_multimedia_analyze_image_route') }}"
               hx-target="#analytics-results-area"
               hx-swap="innerHTML"
               hx-encoding="multipart/form-data"
@@ -177,7 +158,6 @@
     const multimediaFeatureContainer = document.querySelector('.multimedia-feature-container');
     if (!multimediaFeatureContainer) return;
 
-    // --- Tab Switching Logic ---
     const tabLinks = multimediaFeatureContainer.querySelectorAll('.feature-tabs .tab-link');
     const tabContents = multimediaFeatureContainer.querySelectorAll('.feature-tab-content');
     function openMultimediaTab(targetTabId) {
@@ -192,7 +172,6 @@
         link.addEventListener('click', function(event) { event.preventDefault(); const targetTabId = this.dataset.targetTab; if (targetTabId) { openMultimediaTab(targetTabId); } });
     });
 
-    // --- JS FOR FACIAL BLURRING ---
     const blurringTabContainer = multimediaFeatureContainer.querySelector('#blurring-tab');
     if (blurringTabContainer) {
         const dropZoneLabel = blurringTabContainer.querySelector('#blur-drop-zone-label');
@@ -230,11 +209,10 @@
                 }
                 updateBlurButtonState();
             });
-            updateBlurButtonState(); // Initial state
+            updateBlurButtonState();
         }
     }
     
-    // --- JS FOR IMAGE ANALYTICS ---
     const analyticsTabContainer = multimediaFeatureContainer.querySelector('#analytics-tab');
     if (analyticsTabContainer) {
         const dropZoneLabel = analyticsTabContainer.querySelector('#analytics-drop-zone-label');
@@ -272,12 +250,11 @@
                 }
                 updateAnalyticsButtonState();
             });
-            updateAnalyticsButtonState(); // Initial state
+            updateAnalyticsButtonState();
         }
     }
 })();
 
-// Prevent browser from opening dropped files globally
 window.addEventListener('dragover', (e) => { e.preventDefault(); });
 window.addEventListener('drop', (e) => { e.preventDefault(); });
 </script>

@@ -18,7 +18,8 @@
 
 {% if file_id %}
     <div class="translation-download-link" style="margin-bottom: 1.5rem;">
-        <a href="{{ url_for('download_translated_file', file_id=file_id) }}" 
+        <!-- UPDATED: 'translation.' prefix -->
+        <a href="{{ url_for('translation.download_translated_file', file_id=file_id) }}" 
            class="submit-button">
            <i class="fas fa-download"></i> Download Translated File
         </a>
