@@ -65,15 +65,9 @@ CLASSIFICATION_CATEGORIES_TEXT_SUMMARY = [
     "Academic Paper/Research", "General Business Document", "Other",
 ]
 
-# --- DEFAULT Constants for PPT Builder (used if not in app.config) ---
-DEFAULT_PPT_MODEL_INPUT_TOKEN_LIMITS = {
-    "gemini-1.0-pro": 30720, "gemini-pro": 30720,
-    "gemini-1.5-pro-latest": 1048576, "gemini-1.5-flash-latest": 1048576,
-    "gemini-1.5-flash-001": 1048576, "gemini-2.0-flash": 1048576,
-    "gemini-2.0-flash-001": 1048576,
-    "gemini-2.5-flash-lite": 1048576,
-}
-DEFAULT_PPT_DEFAULT_INPUT_TOKEN_LIMIT = 30000
+# --- REFACTORED: Configuration for PPT Builder ---
+# We removed the hardcoded model dictionary.
+# The limit is now dynamic based on the environment variable GEMINI_INPUT_TOKEN_LIMIT.
 DEFAULT_PPT_MAX_CONCURRENT_REQUESTS = 3
 
 ppt_processing_semaphore = threading.Semaphore(DEFAULT_PPT_MAX_CONCURRENT_REQUESTS)
@@ -168,7 +162,6 @@ def build_expert_text_summary_prompt(text_to_summarize, classification):
     if classification == "Resume/CV": expert_focus = "Focus on the candidate's key skills, experiences, and quantifiable achievements relevant to a potential employer."
     elif classification == "Patent": expert_focus = "Focus on the core invention, its novelty, the problem it solves, and the essence of its main claims."
     elif classification == "Financial Report (Annual/10-K/10-Q)": expert_focus = "Focus on key financial highlights (like revenue, net income), major trends, and any stated outlook or significant risk factors mentioned."
-    # (You would add more elif blocks here for other document types from CLASSIFICATION_CATEGORIES_TEXT_SUMMARY)
     else: expert_focus = f"Given this is a '{classification}', focus on extracting its primary purpose and most critical information."
 
     prompt = f"""SYSTEM: You are an expert summarization AI. The document has been identified as a '{classification}'.
@@ -263,22 +256,28 @@ def classify_and_summarize_with_gemini(text_content, model_name_from_config, fil
 
     return classification, final_summary, error_occurred
 
-# --- Helper: call_llm function for PPT Builder ---
+# --- REFACTORED Helper: call_llm function for PPT Builder ---
 def call_llm_for_ppt_builder(prompt_text, max_output_tokens=8192, req_id="PPT_LLM_Call"):
+    # 1. Get Model Name from Config (Environment)
     gemini_model_name = current_app.config.get('GEMINI_MODEL_NAME')
+    
+    # 2. Get Token Limit from Env (Default to 1M for Flash models if not set)
+    # This removes the need to hardcode model names/dicts in the code.
+    token_limit = int(os.environ.get("GEMINI_INPUT_TOKEN_LIMIT", 1048576))
+
     if not current_app.config.get('GEMINI_CONFIGURED') or not gemini_model_name:
         logging.error(f"[{req_id}] LLM call failed for PPT: Gemini not configured.", extra={'event': 'ppt_llm_error_shell_config'})
         raise ValueError("AI service (Gemini) is not configured for PPT generation.")
+    
     try:
         model_instance = genai.GenerativeModel(gemini_model_name)
-        ppt_model_limits_config = current_app.config.get('PPT_MODEL_TOKEN_LIMITS', DEFAULT_PPT_MODEL_INPUT_TOKEN_LIMITS)
-        ppt_default_token_limit_config = current_app.config.get('PPT_DEFAULT_TOKEN_LIMIT', DEFAULT_PPT_DEFAULT_INPUT_TOKEN_LIMIT)
 
+        # Count tokens to ensure we don't exceed the limit
         token_count_response = model_instance.count_tokens(prompt_text)
         input_token_count = token_count_response.total_tokens
-        current_model_limit = ppt_model_limits_config.get(gemini_model_name, ppt_default_token_limit_config)
-        if input_token_count > current_model_limit:
-            raise ValueError(f"Input prompt ({input_token_count} tokens) for PPT exceeds model '{gemini_model_name}' limit ({current_model_limit}).")
+
+        if input_token_count > token_limit:
+            raise ValueError(f"Input prompt ({input_token_count} tokens) for PPT exceeds configured limit ({token_limit}) for model '{gemini_model_name}'.")
 
         generation_config = genai.types.GenerationConfig(max_output_tokens=max_output_tokens, temperature=0.5, top_p=0.95)
         # Ensure all HarmCategory members are used for safety settings
@@ -317,12 +316,12 @@ def define_summarization_routes(app_shell):
         text_content_from_file = ""
         filename_for_context = ""
         
-        # --- NEW: Check for Sample Flag ---
+        # --- Zero-Click: Check for Sample Flag ---
         use_sample = request.form.get("use_sample") == "true"
         file_input = request.files.get("file") 
 
         if use_sample:
-            # LOGIC FOR LOCAL SAMPLE
+            # LOGIC FOR LOCAL SAMPLE (IBM Report)
             filename_for_context = "IBM-2024-annual-report.pdf"
             sample_path = os.path.join(current_app.root_path, 'static', 'files', filename_for_context)
             logging.info(f"[{g.request_id}] Loading sample file: {sample_path}")
@@ -332,7 +331,7 @@ def define_summarization_routes(app_shell):
                     with open(sample_path, 'rb') as f:
                         file_content = f.read()
                         file_stream = io.BytesIO(file_content)
-                        # Reuse your existing PDF reader
+                        # Reuse existing PDF reader
                         text_content_from_file = read_text_from_pdf(file_stream)
                         flash(f"Loaded sample: {filename_for_context}", "info")
                 except Exception as e:
@@ -342,7 +341,7 @@ def define_summarization_routes(app_shell):
                 flash("Sample file not found on server.", "error")
                 return render_template("summarization/templates/summarization_content.html", **context)
 
-        # --- EXISTING LOGIC FOR UPLOADS ---
+        # --- Standard Logic for Uploads ---
         elif file_input and file_input.filename:
             filename_for_context = secure_filename(file_input.filename)
             
@@ -377,7 +376,7 @@ def define_summarization_routes(app_shell):
         content_to_process = text_content_from_file if text_content_from_file and text_content_from_file.strip() else request.form.get("text_to_summarize", "").strip()
         
         if not content_to_process:
-            flash("Please upload a file to summarize, or ensure the uploaded file contains extractable text and is not empty.", "warning")
+            flash("Please upload a file or use the sample.", "warning")
             return render_template("summarization/templates/summarization_content.html", **context)
         
         model_name = current_app.config.get('GEMINI_MODEL_NAME')
@@ -483,7 +482,7 @@ def define_summarization_routes(app_shell):
 
         try:
             input_type = request.form.get('inputType')
-            # --- NEW: Check for Sample Flag ---
+            # --- Zero-Click: Check for Sample Flag ---
             use_sample = request.form.get("use_sample") == "true"
 
             template_style = request.form.get('template', current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME', 'professional')).lower()
@@ -524,7 +523,7 @@ def define_summarization_routes(app_shell):
                 allowed_ext_set_config = set(ext.strip().lower() for ext in allowed_ext_str_config.replace('.', '').split(','))
 
                 if use_sample:
-                    # LOGIC FOR LOCAL SAMPLE
+                    # LOGIC FOR LOCAL SAMPLE (IBM Report)
                     filename = "IBM-2024-annual-report.pdf"
                     sample_path = os.path.join(current_app.root_path, 'static', 'files', filename)
                     if os.path.exists(sample_path):
