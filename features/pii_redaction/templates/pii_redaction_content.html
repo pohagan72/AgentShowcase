@@ -1,8 +1,6 @@
 <!-- features/pii_redaction/templates/pii_redaction_content.html -->
 
-{# Check if this is an HTMX request specifically for the result part #}
 {% if request.headers.get('HX-Request') and hx_target_is_result %}
-    {# --- This block is ONLY for HTMX swapping the result --- #}
     {% if redacted_file_url %}
         <h2>Redaction Complete!</h2>
         <p>Your document '{{ original_filename or "file" }}' has been processed for PII redaction.</p>
@@ -25,11 +23,7 @@
     {% else %}
         <p><i>No PII redaction performed yet or an issue occurred.</i></p>
     {% endif %}
-    {# --- End of HTMX result block --- #}
 {% else %}
-    {# --- This is the FULL initial rendering of the feature --- #}
-
-    {# --- NEW: Styles for visual consistency --- #}
     <style>
         .pii-redaction-feature-container .feature-description { margin-bottom: 2rem; }
         .pii-redaction-feature-container .feature-grid { display: grid; grid-template-columns: 1fr; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
@@ -45,7 +39,6 @@
     <div class="feature-container pii-redaction-tile-container pii-redaction-feature-container">
         <h1><i class="fas fa-user-shield"></i> Intelligent PII Redaction Engine</h1>
 
-        {# --- REPLACED old feature-explanation div with this new structure --- #}
         <p class="feature-description">
             This <strong>AI Agent</strong> provides robust, automated PII (Personally Identifiable Information) redaction to secure sensitive data within documents, ensuring compliance and mitigating risk without manual intervention.
         </p>
@@ -72,12 +65,12 @@
                 Please check server configuration.
             </div>
         {% endif %}
-        {# --- END of replacement --- #}
 
         {% set services_ready = presidio_available and gcs_available %}
 
+        <!-- UPDATED: 'pii_redaction.' prefix -->
         <form id="pii-upload-form"
-              hx-post="{{ url_for('process_redact') }}"
+              hx-post="{{ url_for('pii_redaction.process_redact') }}"
               hx-target="#pii-redaction-result"
               hx-swap="innerHTML"
               hx-encoding="multipart/form-data"
@@ -93,7 +86,6 @@
                    style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;"
                    {% if not services_ready %}disabled{% endif %}>
 
-            {# --- MODIFICATION: Added disabled attribute to be controlled by JS --- #}
             <button type="submit" class="submit-button" id="pii-submit-button" style="width: 100%; margin-top: 15px;" disabled>
                 <i class="fas fa-user-secret"></i> Upload and Redact
                 <span class="htmx-indicator spinner"></span>
@@ -128,7 +120,6 @@
             
             const servicesAreReady = {{ services_ready|default(false)|tojson }};
 
-            // --- NEW: Function to control button state ---
             function updatePiiButtonState() {
                 if (!piiSubmitButton) return;
                 const isReady = fileInputPii.files.length > 0 && servicesAreReady;
@@ -177,11 +168,9 @@
                         dropZoneLabel.style.borderColor = servicesAreReady ? '#007bff' : '#ced4da';
                     }
                 }
-                // --- Call the button state updater ---
                 updatePiiButtonState();
             });
 
-            // --- Set initial button state on page load ---
             updatePiiButtonState();
         }
     })();

@@ -1,6 +1,6 @@
 # features/pii_redaction/routes.py
 from flask import (
-    render_template, request, flash, current_app, url_for, g, redirect, send_file, session
+    Blueprint, render_template, request, flash, current_app, url_for, g, redirect, send_file, session
 )
 import os
 import io
@@ -14,19 +14,15 @@ from pptx.dml.color import RGBColor as PptxRGBColor
 from pptx.util import Pt
 from pptx.enum.dml import MSO_COLOR_TYPE
 import logging
-# We'll need GCS NotFound exception if checking blob existence before download, though not strictly for upload
 
-# Presidio analyzer is on current_app.presidio_analyzer
+# Define the Blueprint
+bp = Blueprint('pii_redaction', __name__)
 
 def allowed_file_pii(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in current_app.config.get('PII_ALLOWED_EXTENSIONS', {'docx', 'pptx'})
 
-# --- Redaction Logic (Adapted from your standalone app - REMAINS THE SAME) ---
-# ... (redact_word_document_pii function - NO CHANGES NEEDED HERE) ...
-# ... (redact_powerpoint_document_pii function - NO CHANGES NEEDED HERE) ...
 def redact_word_document_pii(file_stream, analyzer):
-    # (Your existing Word redaction logic - keep as is)
     try:
         document = Document(file_stream)
         redacted_runs_count = 0
@@ -120,7 +116,6 @@ def redact_word_document_pii(file_stream, analyzer):
 
 
 def redact_powerpoint_document_pii(file_stream, analyzer):
-    # (Your existing PowerPoint redaction logic - keep as is)
     try:
         presentation = Presentation(file_stream)
         redacted_runs_count = 0
@@ -200,150 +195,139 @@ def redact_powerpoint_document_pii(file_stream, analyzer):
         logging.error(f"[{req_id_tag}] Error processing PowerPoint document for PII: {e}", exc_info=True)
         return None
 
-# --- Routes for PII Redaction Feature ---
-def define_pii_redaction_routes(app_shell):
+@bp.route("/process/pii_redaction/redact", methods=["POST"])
+def process_redact():
+    g.request_id = uuid.uuid4().hex
+    logging.info(f"Processing PII redaction request {g.request_id}...")
 
-    @app_shell.route("/process/pii_redaction/redact", methods=["POST"])
-    def process_redact():
-        g.request_id = uuid.uuid4().hex
-        logging.info(f"Processing PII redaction request {g.request_id}...")
+    context = {
+        "redacted_file_url": None,
+        "original_filename": None,
+        "presidio_available": current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False),
+        "gcs_available": current_app.config.get('GCS_AVAILABLE', False),
+        "hx_target_is_result": True
+    }
 
-        context = {
-            "redacted_file_url": None,
-            "original_filename": None,
-            "presidio_available": current_app.config.get('PRESIDIO_ANALYZER_AVAILABLE', False),
-            "gcs_available": current_app.config.get('GCS_AVAILABLE', False), # Add GCS availability check
-            "hx_target_is_result": True
-        }
-
-        if not context["presidio_available"]:
-            flash("PII Redaction service (Presidio Analyzer) is not available.", "error")
-            logging.error(f"[{g.request_id}] Presidio Analyzer not available.")
-            return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
-
-        # --- MODIFICATION: Check for GCS availability for storing redacted file ---
-        if not context["gcs_available"]:
-            flash("Cloud Storage is not available. Cannot store redacted file.", "error")
-            logging.error(f"[{g.request_id}] GCS not available for PII redaction output.")
-            return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
-        # --- END MODIFICATION ---
-
-        if 'file_to_redact' not in request.files:
-            flash('No file part selected for redaction.', 'error')
-            return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
-
-        file = request.files['file_to_redact']
-        if file.filename == '':
-            flash('No file selected for redaction.', 'error')
-            return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
-
-        if file and allowed_file_pii(file.filename):
-            original_filename = secure_filename(file.filename)
-            context["original_filename"] = original_filename
-            file_ext = original_filename.rsplit('.', 1)[1].lower()
-            
-            logging.info(f"[{g.request_id}] File received: {original_filename} (Type: {file_ext})")
-
-            file_stream = io.BytesIO(file.read()) # Read the uploaded file into memory
-            output_stream = None # This will hold the BytesIO stream of the redacted document
-            
-            analyzer = current_app.presidio_analyzer
-            gcs_bucket = current_app.gcs_bucket # Get GCS bucket from app context
-
-            try:
-                if file_ext == 'docx':
-                    output_stream = redact_word_document_pii(file_stream, analyzer)
-                elif file_ext == 'pptx':
-                    output_stream = redact_powerpoint_document_pii(file_stream, analyzer)
-                
-                if output_stream:
-                    # --- MODIFICATION: Upload redacted file to GCS ---
-                    redacted_gcs_path = f"pii_redaction_results/{g.request_id}/redacted_{original_filename}"
-                    redacted_blob = gcs_bucket.blob(redacted_gcs_path)
-                    
-                    output_stream.seek(0) # Ensure stream is at the beginning before upload
-                    redacted_blob.upload_from_file(output_stream)
-                    logging.info(f"[{g.request_id}] Redacted file '{original_filename}' uploaded to GCS: gs://{gcs_bucket.name}/{redacted_gcs_path}")
-                    # --- END MODIFICATION ---
-
-                    # --- MODIFICATION: Store GCS path in session for download link ---
-                    session_file_id = f"redacted_gcs_{g.request_id}" # Make session key more specific
-                    session[session_file_id] = {
-                        'gcs_path': redacted_gcs_path,
-                        'filename': f"redacted_{original_filename}",
-                        # Mimetype can be determined by extension or set generically
-                        'mimetype': f'application/vnd.openxmlformats-officedocument.{"wordprocessingml.document" if file_ext == "docx" else "presentationml.presentation"}'
-                    }
-                    context["redacted_file_url"] = url_for('download_redacted_file_pii', file_id=session_file_id)
-                    flash(f"Document '{original_filename}' processed for PII redaction. Click link to download.", "success")
-                    # --- END MODIFICATION ---
-                else:
-                    flash(f"PII redaction process failed for '{original_filename}'. Output stream was empty. Check logs.", "error")
-                    logging.error(f"[{g.request_id}] Redaction output_stream was None for {original_filename}.")
-
-            except Exception as e:
-                flash(f'An error occurred during PII redaction of "{original_filename}": {str(e)}', "error")
-                logging.error(f"[{g.request_id}] Error during PII redaction route for '{original_filename}': {e}", exc_info=True)
-            finally:
-                file_stream.close()
-                if output_stream: # Close the BytesIO stream we created for redaction output
-                    output_stream.close()
-        else:
-            flash('Invalid file type for PII redaction. Please upload .docx or .pptx files.', 'error')
-            logging.warning(f"[{g.request_id}] Invalid file type: {file.filename if file else 'No file'}")
-
+    if not context["presidio_available"]:
+        flash("PII Redaction service (Presidio Analyzer) is not available.", "error")
+        logging.error(f"[{g.request_id}] Presidio Analyzer not available.")
         return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
 
-    @app_shell.route("/process/pii_redaction/download/<file_id>")
-    def download_redacted_file_pii(file_id):
-        gcs_bucket = current_app.gcs_bucket
-        if not current_app.config.get('GCS_AVAILABLE') or not gcs_bucket:
-            flash("Cloud Storage is not available for download.", "error")
-            return redirect(url_for('index', feature_key='pii_redaction'))
+    if not context["gcs_available"]:
+        flash("Cloud Storage is not available. Cannot store redacted file.", "error")
+        logging.error(f"[{g.request_id}] GCS not available for PII redaction output.")
+        return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
 
-        file_info = session.get(file_id) # Use get, don't pop yet, in case of download failure
+    if 'file_to_redact' not in request.files:
+        flash('No file part selected for redaction.', 'error')
+        return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
+
+    file = request.files['file_to_redact']
+    if file.filename == '':
+        flash('No file selected for redaction.', 'error')
+        return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
+
+    if file and allowed_file_pii(file.filename):
+        original_filename = secure_filename(file.filename)
+        context["original_filename"] = original_filename
+        file_ext = original_filename.rsplit('.', 1)[1].lower()
         
-        if not file_info or 'gcs_path' not in file_info:
-            flash("Redacted file information not found or link expired.", "error")
-            session.pop(file_id, None) # Clean up invalid session entry
-            return redirect(url_for('index', feature_key='pii_redaction'))
+        logging.info(f"[{g.request_id}] File received: {original_filename} (Type: {file_ext})")
 
-        gcs_path = file_info['gcs_path']
-        filename_for_download = file_info.get('filename', 'redacted_file')
-        mimetype = file_info.get('mimetype', 'application/octet-stream')
+        file_stream = io.BytesIO(file.read())
+        output_stream = None
+        
+        analyzer = current_app.presidio_analyzer
+        gcs_bucket = current_app.gcs_bucket
 
         try:
-            logging.info(f"Attempting to download redacted file from GCS: gs://{gcs_bucket.name}/{gcs_path}")
-            blob = gcs_bucket.blob(gcs_path)
+            if file_ext == 'docx':
+                output_stream = redact_word_document_pii(file_stream, analyzer)
+            elif file_ext == 'pptx':
+                output_stream = redact_powerpoint_document_pii(file_stream, analyzer)
             
-            if not blob.exists():
-                logging.error(f"Blob not found at GCS path: {gcs_path}")
-                flash("Error: Redacted file no longer found in cloud storage (it may have expired).", "error")
-                session.pop(file_id, None) # Clean up session entry
-                return redirect(url_for('index', feature_key='pii_redaction'))
+            if output_stream:
+                redacted_gcs_path = f"pii_redaction_results/{g.request_id}/redacted_{original_filename}"
+                redacted_blob = gcs_bucket.blob(redacted_gcs_path)
+                
+                output_stream.seek(0)
+                redacted_blob.upload_from_file(output_stream)
+                logging.info(f"[{g.request_id}] Redacted file '{original_filename}' uploaded to GCS: gs://{gcs_bucket.name}/{redacted_gcs_path}")
 
-            output_stream = io.BytesIO()
-            blob.download_to_file(output_stream)
-            output_stream.seek(0)
-            
-            logging.info(f"Successfully downloaded '{filename_for_download}' from GCS for serving.")
-            
-            # Important: Pop from session AFTER successful retrieval preparation
-            session.pop(file_id, None) 
+                session_file_id = f"redacted_gcs_{g.request_id}"
+                session[session_file_id] = {
+                    'gcs_path': redacted_gcs_path,
+                    'filename': f"redacted_{original_filename}",
+                    'mimetype': f'application/vnd.openxmlformats-officedocument.{"wordprocessingml.document" if file_ext == "docx" else "presentationml.presentation"}'
+                }
+                context["redacted_file_url"] = url_for('pii_redaction.download_redacted_file_pii', file_id=session_file_id)
+                flash(f"Document '{original_filename}' processed for PII redaction. Click link to download.", "success")
+            else:
+                flash(f"PII redaction process failed for '{original_filename}'. Output stream was empty. Check logs.", "error")
+                logging.error(f"[{g.request_id}] Redaction output_stream was None for {original_filename}.")
 
-            return send_file(
-                output_stream,
-                as_attachment=True,
-                download_name=filename_for_download,
-                mimetype=mimetype
-            )
-        except Exception: # More specific exception for GCS
-            logging.error(f"GCSNotFound: Blob not found at GCS path: {gcs_path} during download attempt.")
-            flash("Error: Redacted file not found in cloud storage during download attempt.", "error")
-            session.pop(file_id, None)
-            return redirect(url_for('index', feature_key='pii_redaction'))
         except Exception as e:
-            logging.error(f"Error serving redacted file from GCS '{gcs_path}': {e}", exc_info=True)
-            flash(f"An error occurred while trying to serve the redacted file: {str(e)}", "error")
-            session.pop(file_id, None) # Clean up session on error
-            return redirect(url_for('index', feature_key='pii_redaction'))
+            flash(f'An error occurred during PII redaction of "{original_filename}": {str(e)}', "error")
+            logging.error(f"[{g.request_id}] Error during PII redaction route for '{original_filename}': {e}", exc_info=True)
+        finally:
+            file_stream.close()
+            if output_stream:
+                output_stream.close()
+    else:
+        flash('Invalid file type for PII redaction. Please upload .docx or .pptx files.', 'error')
+        logging.warning(f"[{g.request_id}] Invalid file type: {file.filename if file else 'No file'}")
+
+    return render_template("pii_redaction/templates/pii_redaction_content.html", **context)
+
+@bp.route("/process/pii_redaction/download/<file_id>")
+def download_redacted_file_pii(file_id):
+    gcs_bucket = current_app.gcs_bucket
+    if not current_app.config.get('GCS_AVAILABLE') or not gcs_bucket:
+        flash("Cloud Storage is not available for download.", "error")
+        return redirect(url_for('main.index', feature_key='pii_redaction'))
+
+    file_info = session.get(file_id)
+    
+    if not file_info or 'gcs_path' not in file_info:
+        flash("Redacted file information not found or link expired.", "error")
+        session.pop(file_id, None)
+        return redirect(url_for('main.index', feature_key='pii_redaction'))
+
+    gcs_path = file_info['gcs_path']
+    filename_for_download = file_info.get('filename', 'redacted_file')
+    mimetype = file_info.get('mimetype', 'application/octet-stream')
+
+    try:
+        logging.info(f"Attempting to download redacted file from GCS: gs://{gcs_bucket.name}/{gcs_path}")
+        blob = gcs_bucket.blob(gcs_path)
+        
+        if not blob.exists():
+            logging.error(f"Blob not found at GCS path: {gcs_path}")
+            flash("Error: Redacted file no longer found in cloud storage (it may have expired).", "error")
+            session.pop(file_id, None)
+            return redirect(url_for('main.index', feature_key='pii_redaction'))
+
+        output_stream = io.BytesIO()
+        blob.download_to_file(output_stream)
+        output_stream.seek(0)
+        
+        logging.info(f"Successfully downloaded '{filename_for_download}' from GCS for serving.")
+        
+        session.pop(file_id, None) 
+
+        return send_file(
+            output_stream,
+            as_attachment=True,
+            download_name=filename_for_download,
+            mimetype=mimetype
+        )
+    except Exception:
+        logging.error(f"GCSNotFound: Blob not found at GCS path: {gcs_path} during download attempt.")
+        flash("Error: Redacted file not found in cloud storage during download attempt.", "error")
+        session.pop(file_id, None)
+        return redirect(url_for('main.index', feature_key='pii_redaction'))
+    except Exception as e:
+        logging.error(f"Error serving redacted file from GCS '{gcs_path}': {e}", exc_info=True)
+        flash(f"An error occurred while trying to serve the redacted file: {str(e)}", "error")
+        session.pop(file_id, None)
+        return redirect(url_for('main.index', feature_key='pii_redaction'))

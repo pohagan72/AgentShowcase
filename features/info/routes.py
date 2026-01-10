@@ -1,8 +1,7 @@
-# from flask import render_template # Not needed if only serving static content via /content/ route
+# features/info/routes.py
+from flask import Blueprint
 
-def define_info_routes(app):
-    # This feature is currently just static content loaded via the
-    # /content/info route handled in the main app.py.
-    # If you had specific backend logic or forms for the info page,
-    # you would add @app.route decorators here.
-    pass # No specific routes needed for now beyond what main app handles for content loading
+bp = Blueprint('info', __name__)
+
+# This feature serves static content via main_routes, 
+# but we keep the blueprint structure for consistency.

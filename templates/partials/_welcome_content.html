@@ -1,238 +1,119 @@
 <!-- templates/partials/_welcome_content.html -->
-<style>
-    /* ---------------------------------------------------- */
-    /* --- Scoped Styles for a "Sexier" Welcome Content --- */
-    /* ---------------------------------------------------- */
+
+<div class="welcome-container" style="max-width: 1000px; margin: 0 auto; text-align: left;">
     
-    /* These styles are designed to only affect elements inside .welcome-container */
-    .welcome-container {
-        max-width: 1100px;
-        margin: 40px auto;
-        padding: 20px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        text-align: center;
-    }
+    <!-- Hero Section: Cleaner, Darker, More Serious -->
+    <div class="welcome-header" style="
+        background: radial-gradient(circle at top right, #1e293b, #0f172a); 
+        padding: 5rem 3rem; 
+        border-radius: 12px; 
+        margin-bottom: 3rem; 
+        color: white; 
+        border: 1px solid rgba(255,255,255,0.1);
+        position: relative;
+        overflow: hidden;">
+        
+        <!-- Subtle glow effect behind text -->
+        <div style="position: absolute; top: -50px; right: -50px; width: 300px; height: 300px; background: rgba(99, 102, 241, 0.15); filter: blur(60px); border-radius: 50%;"></div>
 
-    /* --- Header & Intro --- */
-    .welcome-header h2 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1a2b48;
-        margin-bottom: 8px;
-    }
-
-    .welcome-header .welcome-subtitle {
-        font-size: 1.2rem;
-        color: #5a6a7b;
-        margin-top: 0;
-        margin-bottom: 40px;
-    }
-
-    .welcome-intro p {
-        font-size: 1.1rem;
-        line-height: 1.6;
-        color: #333;
-        max-width: 800px;
-        margin: 0 auto 20px auto;
-    }
-
-    .welcome-intro .intro-emphasis {
-        font-size: 1.1rem;
-        font-style: italic;
-        color: #5a6a7b; /* Matches the subtitle color for consistency */
-        max-width: 800px;
-        margin: 5px auto 20px auto; /* Tighter top margin to connect to the paragraph above */
-    }
-
-    /* --- Highlighted Guidance Block --- */
-    .welcome-guidance {
-        background-color: #e9f5fd; /* Light blue accent */
-        border-left: 4px solid #3498db;
-        padding: 20px 25px;
-        margin: 30px auto;
-        max-width: 750px;
-        border-radius: 8px;
-        text-align: center;
-    }
-
-    .welcome-guidance p {
-        margin: 0;
-        font-size: 1.1rem;
-        font-weight: 500;
-        color: #2c3e50;
-        line-height: 1.6;
-    }
-
-    /* --- Elegant Divider --- */
-    .welcome-divider {
-        height: 1px;
-        width: 100px;
-        background-color: #e0e0e0;
-        border: none;
-        margin: 60px auto;
-    }
-
-    /* --- Key Feature Cards --- */
-    .key-messages {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 30px;
-        text-align: left;
-    }
-
-    .key-message-item {
-        background: #ffffff;
-        padding: 30px;
-        border-radius: 12px;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        display: flex; /* Using flex for alignment */
-        flex-direction: column; /* Stack icon/text vertically */
-        gap: 20px; /* Space between icon and text */
-    }
-
-    .key-message-item:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    }
-
-    /* --- Polished Icons --- */
-    .key-message-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background-color: #e9f5fd;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .key-message-icon .fas {
-        font-size: 1.5rem;
-        color: #3498db;
-    }
-
-    .key-message-text h3 {
-        margin: 0 0 10px 0;
-        font-size: 1.3rem;
-        color: #2c3e50;
-    }
-
-    .key-message-text p {
-        margin: 0;
-        font-size: 1rem;
-        line-height: 1.6;
-        color: #5a6a7b;
-    }
-
-    /* --- Privacy Section --- */
-    .privacy-commitment-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 20px;
-    }
-    .privacy-icon .fas {
-        font-size: 2rem;
-        color: #27ae60; /* Green for trust */
-    }
-    .privacy-text h3 {
-        margin: 0 0 10px 0;
-        font-size: 1.5rem;
-    }
-    .privacy-text p {
-        margin: 0;
-        max-width: 600px;
-        color: #5a6a7b;
-        line-height: 1.6;
-    }
-
-    /* --- Footer --- */
-    .welcome-footer p {
-        margin-top: 0;
-        color: #7f8c8d;
-        font-style: italic;
-    }
-</style>
-
-
-<div class="welcome-container">
-    <div class="welcome-header">
-        <!-- The headline has been updated to "Agentic AI Innovation Zone" -->
-        <h2>Agentic AI Innovation Zone</h2>
-        <!-- The subtitle has been updated to match your screenshot -->
-        <p class="welcome-subtitle">
-            By Paul O'Hagan - AI Inventor and Product Leader
+        <h2 style="font-size: 2.75rem; font-weight: 700; margin-bottom: 1rem; color: white; letter-spacing: -0.03em; position: relative; z-index: 1;">
+            Agentic AI Innovation Zone
+        </h2>
+        <p style="font-size: 1.2rem; color: #94a3b8; max-width: 650px; line-height: 1.6; position: relative; z-index: 1;">
+            A production-grade demonstration of multi-agent architecture, secure PII handling, and generative workflows. Built by Paul O'Hagan.
         </p>
     </div>
 
-    <div class="welcome-intro">
-        <p>
-            Each of these AI Agents is a result of my 20-year (and continuing!) journey in AI leadership. This is the "art of the possible" made real, designed to engage your imagination and ignite ideas about creating new ways of working.
-        </p>
-        <p class="intro-emphasis">
-            <!-- Moving beyond AI integrated to existing workflows, to AI-first ways of thinking and working. -->
-        </p>
-    </div>
+    <!-- Section Title -->
+    <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; font-weight: 600; margin-bottom: 1.5rem;">
+        Core Capabilities
+    </h3>
 
-    <div class="welcome-guidance">
-        <p>
-            <strong>I believe in AI-First strategic initiatives to maximize the business value of AI</strong>
-        </p>
-    </div>
-
-    <div class="welcome-divider"></div>
-
-    <div class="key-messages">
-        <div class="key-message-item">
-            <div class="key-message-icon">
+    <!-- Key Features Grid: The "Professional" Tiles -->
+    <div class="key-messages" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        
+        <!-- Card 1 -->
+        <div class="key-message-item" style="
+            background: white; 
+            padding: 2rem; 
+            border-radius: 8px; 
+            border: 1px solid #e2e8f0; 
+            transition: all 0.2s ease;">
+            
+            <div style="margin-bottom: 1.25rem; color: #0f172a; font-size: 1.5rem;">
                 <i class="fas fa-robot"></i>
             </div>
-            <div class="key-message-text">
-                <h3>Task-Specific AI Agents</h3>
-                <p>Explore custom AI models designed to automate complex tasks, from legal analysis to PowerPoint creation. Built using GenAI to showcase the opportunity of an AI-native development strategy.</p>
-            </div>
+            <h3 style="margin-bottom: 0.75rem; color: #0f172a; font-size: 1.1rem; font-weight: 600;">Task-Specific Agents</h3>
+            <p style="color: #475569; font-size: 0.95rem; line-height: 1.6; margin: 0;">
+                Specialized models for legal analysis and content generation, demonstrating strict context adherence.
+            </p>
         </div>
 
-        <div class="key-message-item">
-            <div class="key-message-icon">
-                <i class="fas fa-layer-group"></i>
+        <!-- Card 2 -->
+        <div class="key-message-item" style="
+            background: white; 
+            padding: 2rem; 
+            border-radius: 8px; 
+            border: 1px solid #e2e8f0; 
+            transition: all 0.2s ease;">
+            
+            <div style="margin-bottom: 1.25rem; color: #0f172a; font-size: 1.5rem;">
+                <i class="fas fa-server"></i>
             </div>
-            <div class="key-message-text">
-                <h3>Enterprise-Grade Architecture</h3>
-                <p>While demonstrated with single documents, the underlying architecture is engineered for enterprise-level volume, security, and scalability—ready to handle real business demands.</p>
-            </div>
+            <h3 style="margin-bottom: 0.75rem; color: #0f172a; font-size: 1.1rem; font-weight: 600;">Enterprise Architecture</h3>
+            <p style="color: #475569; font-size: 0.95rem; line-height: 1.6; margin: 0;">
+                Engineered with stateless processing, session-based cleanup, and scalable cloud storage integration.
+            </p>
         </div>
         
-        <div class="key-message-item">
-            <div class="key-message-icon">
-                <i class="fas fa-bullseye"></i>
+        <!-- Card 3 -->
+        <div class="key-message-item" style="
+            background: white; 
+            padding: 2rem; 
+            border-radius: 8px; 
+            border: 1px solid #e2e8f0; 
+            transition: all 0.2s ease;">
+            
+            <div style="margin-bottom: 1.25rem; color: #0f172a; font-size: 1.5rem;">
+                <i class="fas fa-shield-alt"></i> <!-- Changed icon to Shield for clarity -->
             </div>
-            <div class="key-message-text">
-                <h3>Practical Application & Vision</h3>
-                <p>This is more than a tech demo. It's a strategic showcase of how to identify business needs and rapidly deploy secure, valuable, and practical AI solutions that deliver a competitive edge.</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="welcome-divider"></div>
-
-    <div class="privacy-commitment-section">
-        <div class="privacy-icon">
-            <i class="fas fa-user-secret"></i>
-        </div>
-        <div class="privacy-text">
-            <h3>Your Data is Your Data. Period.</h3>
-            <p>
-                Confidentiality is non-negotiable. <strong>Your content is never stored, retained, or used to train any AI models.</strong> This platform is a secure sandbox for innovation.
+            <h3 style="margin-bottom: 0.75rem; color: #0f172a; font-size: 1.1rem; font-weight: 600;">Security & Compliance</h3>
+            <p style="color: #475569; font-size: 0.95rem; line-height: 1.6; margin: 0;">
+                Data is processed in-memory and ephemeral storage only. Zero-retention policy for model training.
             </p>
         </div>
     </div>
 
-    <div class="welcome-divider"></div>
-
-    <div class="welcome-footer">
-        <p>Explore the features, learn more about my journey, and let's discuss how AI can transform your business.</p>
+    <!-- Trust Footer -->
+    <div style="
+        margin-top: 4rem; 
+        padding-top: 2rem; 
+        border-top: 1px solid #e2e8f0; 
+        color: #64748b; 
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;">
+        
+        <i class="fas fa-lock" style="color: #10b981;"></i>
+        <span><strong>Privacy Commitment:</strong> Your content is never stored, retained, or used to train AI models.</span>
     </div>
+
 </div>
+
+<!-- "Tech" Hover Effect Script -->
+<script>
+    document.querySelectorAll('.key-message-item').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            // Subtle lift and darker border - The "Stripe" feel
+            card.style.transform = 'translateY(-2px)';
+            card.style.borderColor = '#94a3b8';
+            card.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = 'translateY(0)';
+            card.style.borderColor = '#e2e8f0';
+            card.style.boxShadow = 'none';
+        });
+    });
+</script>
