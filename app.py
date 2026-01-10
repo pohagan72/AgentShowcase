@@ -90,4 +90,4 @@ def create_app(config_class=Config):
 # For local development compatibility
 if __name__ == '__main__':
     app = create_app()
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True, use_reloader=False) # Add use_reloader=False
