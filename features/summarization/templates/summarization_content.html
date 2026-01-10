@@ -49,7 +49,6 @@
         {% if messages %}
             {% for category, message in messages %}
                 <div class="message-item category-{{ category|default('info') }}" role="alert">
-                     {# Note: icon logic was missing here in prev snippet, re-adding #}
                     {% if category == 'error' %}<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
                     {% elif category == 'success' %}<i class="fas fa-check-circle" style="margin-right: 8px;"></i>
                     {% elif category == 'warning' %}<i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i>
@@ -76,12 +75,17 @@
 {% elif request.headers.get('HX-Request') and hx_target_is_ppt_status_result %}
     {# --- This block is for HTMX swapping PPT status --- #}
     {% if ppt_error_message %}
-        <div id="ppt-builder-status" class="ppt-builder-error">{{ ppt_error_message }}</div>
+        <div id="ppt-builder-status" class="ppt-builder-error" style="color: #dc2626; background-color: #fee2e2; padding: 10px; border-radius: 5px; border: 1px solid #fca5a5;">
+            <i class="fas fa-exclamation-circle"></i> {{ ppt_error_message }}
+        </div>
     {% elif ppt_success_message and ppt_download_url %}
-        <div id="ppt-builder-status" class="ppt-builder-success">
+        <div id="ppt-builder-status" class="ppt-builder-success" style="color: #065f46; background-color: #d1fae5; padding: 15px; border-radius: 5px; border: 1px solid #6ee7b7; text-align: center;">
+            <i class="fas fa-check-circle" style="font-size: 1.2em;"></i> <strong>Success!</strong><br>
             {{ ppt_success_message }}
             <br>
-            <a href="{{ ppt_download_url }}" id="download-btn" class="submit-button" style="margin-top: 1rem; display: inline-block; width: auto;">Download Presentation</a>
+            <a href="{{ ppt_download_url }}" id="download-btn" class="submit-button" style="margin-top: 1rem; display: inline-block; width: auto; background-color: #059669;">
+                <i class="fas fa-download"></i> Download Presentation
+            </a>
         </div>
     {% elif get_flashed_messages(with_categories=true) %}
          {% with messages = get_flashed_messages(with_categories=true) %}
@@ -92,12 +96,11 @@
             {% endfor %}
         {% endwith %}
     {% else %}
-        <p><i>PPT generation status updates might appear here if configured for HTMX.</i></p>
+        <p><i>PPT generation status updates might appear here.</i></p>
     {% endif %}
 {% else %}
     {# --- This is the FULL initial rendering of the feature --- #}
 
-    {# --- NEW: Styles copied from translation feature for visual consistency --- #}
     <style>
         .summarization-feature-container .feature-description { margin-bottom: 2rem; }
         .summarization-feature-container .feature-grid { display: grid; grid-template-columns: 1fr; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
@@ -110,9 +113,8 @@
         .summarization-feature-container .feature-item p { font-family: Georgia, "Times New Roman", Times, serif; color: #5a6a7b; line-height: 1.6; margin: 0; font-size: 0.95em; }
     </style>
 
-    {# --- NEW: Added summarization-feature-container class for style scoping --- #}
     <div class="feature-container summarization-tile-container summarization-feature-container">
-        <h1><i class="fas fa-file-alt"></i> Intelligent Document Summarization</h1>
+        <h1><i class="fas fa-briefcase"></i> The Executive Briefer</h1>
 
         <div class="feature-tabs">
             <button class="tab-link active" data-target-tab="text-summary-tab">
@@ -142,6 +144,25 @@
                     <p>The final summary is delivered in a structured brief format with key highlights, making it easy to consume and act upon instantly.</p>
                 </div>
             </div>
+
+            <!-- NEW: FLASH DEMO SECTION FOR TEXT -->
+            <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 15px; border-radius: 8px; border: 1px solid #bae6fd; margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
+                <div>
+                    <strong style="color: #0369a1; font-size: 1.1em;">🚀 Speed Demo:</strong>
+                    <span style="color: #555; margin-left: 5px;">See the agent analyze a complex financial report in seconds.</span>
+                </div>
+                <button hx-post="{{ url_for('process_summarize') }}" 
+                        hx-target="#text-summarization-result" 
+                        hx-vals='{"use_sample": "true"}'
+                        hx-indicator="#text-summary-sample-spinner"
+                        class="submit-button" 
+                        style="margin: 0; background-color: #0284c7; font-size: 0.9em; padding: 8px 15px; width: auto;">
+                    <i class="fas fa-bolt"></i> Load IBM 2024 Report
+                    <span id="text-summary-sample-spinner" class="htmx-indicator spinner"></span>
+                </button>
+            </div>
+            <!-- END NEW SECTION -->
+
             <form id="text-summary-form" hx-post="{{ url_for('process_summarize') }}" hx-target="#text-summarization-result" hx-swap="innerHTML" enctype="multipart/form-data" hx-indicator="#text-summary-submit-btn .spinner">
                 <div class="form-group">
                     <label for="text-summary-file-input" id="text-summary-drop-zone-label" class="drop-zone-style"
@@ -152,7 +173,6 @@
                     <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf"
                            style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">
                 </div>
-                {# --- CHANGE 1: Added ID and disabled attribute --- #}
                 <button type="submit" id="text-summary-submit-btn" class="submit-button" disabled>
                     <i class="fas fa-file-alt"></i> Summarize Text
                     <span class="htmx-indicator spinner"></span>
@@ -190,20 +210,20 @@
         <!-- Tab Content for PPT Summary -->
         <div id="ppt-summary-tab" class="feature-tab-content">
             <p class="feature-description">
-                This <strong>AI Agent</strong> is a strategic communications partner that uses a custom AI model to transform raw documents into compelling, executive-ready presentations by understanding not just the content, but the audience and intent
+                This <strong>AI Agent</strong> is a strategic communications partner that uses a custom AI model to transform raw documents into compelling, executive-ready presentations by understanding not just the content, but the audience and intent.
             </p>
             <div class="feature-grid">
                 <div class="feature-item">
                     <h4>Multi-Faceted Content Analysis</h4>
-                    <p>20+ custom AI Agents analyze the document's core themes, structure, and classification to build a coherent, logical narrative outline for the presentation</p>
+                    <p>20+ custom AI Agents analyze the document's core themes, structure, and classification to build a coherent, logical narrative outline for the presentation.</p>
                 </div>
                 <div class="feature-item">
                     <h4>Dynamic Content Crafting</h4>
-                    <p>A multi-vector prompt engine tailors slide content for a specific audience (e.g., Executive, Technical) and tone, ensuring maximum impact and relevance</p>
+                    <p>A multi-vector prompt engine tailors slide content for a specific audience (e.g., Executive, Technical) and tone, ensuring maximum impact and relevance.</p>
                 </div>
                 <div class="feature-item">
                     <h4>Executive-Ready Deck Generation</h4>
-                    <p>Custom AI model generates a complete PowerPoint file with structured slides, speaker notes, and design suggestions</p>
+                    <p>Custom AI model generates a complete PowerPoint file with structured slides, speaker notes, and design suggestions.</p>
                 </div>
             </div>
             {% if not ppt_api_key_configured %}
@@ -211,6 +231,24 @@
                 <strong>Configuration Notice:</strong> {% if ppt_config_warning %}{{ ppt_config_warning }}{% else %}Core AI or Storage services may be unavailable. Presentation generation might fail.{% endif %}
             </div>
             {% endif %}
+
+            <!-- NEW: FLASH DEMO SECTION FOR PPT -->
+            <div style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); padding: 15px; border-radius: 8px; border: 1px solid #fecdd3; margin-bottom: 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
+                <div>
+                    <strong style="color: #9f1239; font-size: 1.1em;">✨ Magic Demo:</strong>
+                    <span style="color: #555; margin-left: 5px;">Generate a full Executive Deck from the IBM Report instantly.</span>
+                </div>
+                <button hx-post="{{ url_for('process_create_ppt') }}" 
+                        hx-target="#ppt-builder-status-container" 
+                        hx-vals='{"use_sample": "true", "inputType": "file"}'
+                        hx-indicator="#ppt-sample-spinner"
+                        class="submit-button" 
+                        style="margin: 0; background-color: #e11d48; font-size: 0.9em; padding: 8px 15px; width: auto;">
+                    <i class="fas fa-magic"></i> Create Deck (Zero-Click)
+                    <span id="ppt-sample-spinner" class="htmx-indicator spinner"></span>
+                </button>
+            </div>
+            <!-- END NEW SECTION -->
 
             <form id="ppt-builder-upload-form" method="POST" enctype="multipart/form-data"
                   hx-post="{{ url_for('process_create_ppt') }}"
@@ -307,11 +345,9 @@
             const TEXT_SUMMARY_MAX_FILE_SIZE_MB = 10;
             const TEXT_SUMMARY_MAX_FILE_SIZE_BYTES = TEXT_SUMMARY_MAX_FILE_SIZE_MB * 1024 * 1024;
             
-            // --- CHANGE 2: Get a reference to the button and configuration status ---
             const textSummarySubmitBtn = textSummaryTab.querySelector('#text-summary-submit-btn');
             const geminiIsConfigured = {{ gemini_configured|default(false)|tojson }};
 
-            // --- CHANGE 3: Create a function to update the button's state ---
             function updateTextSummaryButtonState() {
                 if (!textSummarySubmitBtn) return;
                 const isReady = textSummaryFileInput.files.length > 0 && geminiIsConfigured;
@@ -335,7 +371,6 @@
                     } else {
                         textSummaryFileNameDisplay.textContent = 'No file selected'; textSummaryDropZoneLabel.classList.remove('file-selected'); textSummaryDropZoneLabel.style.borderColor = '#007bff';
                     }
-                    // --- CHANGE 4: Call the state update function ---
                     updateTextSummaryButtonState(); 
                 }
                 
@@ -343,7 +378,6 @@
                 textSummaryFileInput.addEventListener('change', handleTextSummaryFileChange);
                 textSummaryForm.addEventListener('submit', function(event) { if (textSummaryFileInput.files.length === 0) { alert('Please upload a file to summarize.'); event.preventDefault(); } });
             }
-            // --- CHANGE 5: Set initial button state on load ---
             updateTextSummaryButtonState();
         }
 
@@ -423,7 +457,14 @@
                 }
                 if(pptBuilderForm && pptFileInput) {
                      pptBuilderForm.addEventListener('htmx:submit', function(event) {
-                        const files = pptFileInput.files; let isValidSelection = true; let validationMessage = '';
+                        const files = pptFileInput.files;
+                        // --- NEW: Bypass validation if 'use_sample' is present in request values
+                        // We check event.detail.requestConfig.parameters because htmx puts vals there
+                        const isSample = event.detail.requestConfig && event.detail.requestConfig.parameters && event.detail.requestConfig.parameters.use_sample === "true";
+                        
+                        if (isSample) return; // Skip file validation for sample
+
+                        let isValidSelection = true; let validationMessage = '';
                         if (files.length === 0) { isValidSelection = false; validationMessage = 'Please select a file(s) to generate a presentation.';
                         } else if (files.length > PPT_MAX_FILES) { isValidSelection = false; validationMessage = `Too many files selected (${files.length}). Maximum allowed is ${PPT_MAX_FILES}.`;
                         } else {

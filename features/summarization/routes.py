@@ -1,3 +1,4 @@
+# features/summarization/routes.py
 from flask import (
     render_template, request, flash, current_app, url_for, g, redirect, send_file, jsonify, after_this_request
 )
@@ -18,8 +19,7 @@ from docx import Document
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 import pandas as pd
-# import PyPDF2
-import fitz
+import fitz  # PyMuPDF
 
 # --- Imports for PPT Builder Logic ---
 try:
@@ -49,7 +49,6 @@ except ImportError as e:
     ppt_translate = type('DummyTranslate', (), {'translate_slide_data': dummy_ppt_func})()
 
 # --- Constants for Text Summarization ---
-# MAX_CONTENT_LENGTH_TEXT_SUMMARY = 1000000 # REMOVED - File size limit is the primary control now
 MAX_CLASSIFICATION_EXCERPT_TEXT_SUMMARY = 15000 # Max chars for classifying text summary input
 TEXT_SUMMARY_MAX_FILE_SIZE_MB = 10 
 TEXT_SUMMARY_MAX_FILE_SIZE_BYTES = TEXT_SUMMARY_MAX_FILE_SIZE_MB * 1024 * 1024
@@ -72,6 +71,7 @@ DEFAULT_PPT_MODEL_INPUT_TOKEN_LIMITS = {
     "gemini-1.5-pro-latest": 1048576, "gemini-1.5-flash-latest": 1048576,
     "gemini-1.5-flash-001": 1048576, "gemini-2.0-flash": 1048576,
     "gemini-2.0-flash-001": 1048576,
+    "gemini-2.5-flash-lite": 1048576,
 }
 DEFAULT_PPT_DEFAULT_INPUT_TOKEN_LIMIT = 30000
 DEFAULT_PPT_MAX_CONCURRENT_REQUESTS = 3
@@ -310,16 +310,40 @@ def define_summarization_routes(app_shell):
         logging.info(f"Received text summarization request {g.request_id}")
         context = {"summary": "", "classification_used": None, "hx_target_is_text_summary_result": True}
 
-
         if not current_app.config.get('GEMINI_CONFIGURED'):
             flash("Gemini API not configured. Summarization service unavailable.", "error")
             return render_template("summarization/templates/summarization_content.html", **context)
 
         text_content_from_file = ""
         filename_for_context = ""
+        
+        # --- NEW: Check for Sample Flag ---
+        use_sample = request.form.get("use_sample") == "true"
         file_input = request.files.get("file") 
 
-        if file_input and file_input.filename:
+        if use_sample:
+            # LOGIC FOR LOCAL SAMPLE
+            filename_for_context = "IBM-2024-annual-report.pdf"
+            sample_path = os.path.join(current_app.root_path, 'static', 'files', filename_for_context)
+            logging.info(f"[{g.request_id}] Loading sample file: {sample_path}")
+            
+            if os.path.exists(sample_path):
+                try:
+                    with open(sample_path, 'rb') as f:
+                        file_content = f.read()
+                        file_stream = io.BytesIO(file_content)
+                        # Reuse your existing PDF reader
+                        text_content_from_file = read_text_from_pdf(file_stream)
+                        flash(f"Loaded sample: {filename_for_context}", "info")
+                except Exception as e:
+                    flash(f"Error loading sample file: {str(e)}", "error")
+                    return render_template("summarization/templates/summarization_content.html", **context)
+            else:
+                flash("Sample file not found on server.", "error")
+                return render_template("summarization/templates/summarization_content.html", **context)
+
+        # --- EXISTING LOGIC FOR UPLOADS ---
+        elif file_input and file_input.filename:
             filename_for_context = secure_filename(file_input.filename)
             
             file_input.seek(0, os.SEEK_END)
@@ -356,11 +380,6 @@ def define_summarization_routes(app_shell):
             flash("Please upload a file to summarize, or ensure the uploaded file contains extractable text and is not empty.", "warning")
             return render_template("summarization/templates/summarization_content.html", **context)
         
-        # REMOVED: Extracted text length check - file size limit is primary
-        # if len(content_to_process) > MAX_CONTENT_LENGTH_TEXT_SUMMARY: 
-        #      flash(f"Extracted text for summary (length: {len(content_to_process):,}) exceeds internal processing limit of {MAX_CONTENT_LENGTH_TEXT_SUMMARY:,} characters.", "error")
-        #      return render_template("summarization/templates/summarization_content.html", **context)
-
         model_name = current_app.config.get('GEMINI_MODEL_NAME')
         classification_used, summary_text, error_occurred = classify_and_summarize_with_gemini(
             content_to_process, model_name, filename_for_context
@@ -370,7 +389,7 @@ def define_summarization_routes(app_shell):
 
         return render_template("summarization/templates/summarization_content.html", **context)
 
-    # NEW ROUTE FOR DOWNLOADING GENERATED PPTX
+    # ROUTE FOR DOWNLOADING GENERATED PPTX
     @app_shell.route("/download/ppt/<file_id>/<filename>", methods=["GET"])
     def download_generated_ppt(file_id, filename):
         """
@@ -384,14 +403,14 @@ def define_summarization_routes(app_shell):
         if not current_app.config.get('GCS_AVAILABLE'):
             logging.error(f"[{file_id}] GCS not available for download.", extra=log_extra_ppt)
             flash("Download service currently unavailable (Cloud Storage not configured).", "error")
-            return redirect(url_for('home')) # Redirect to a safe page if GCS is down
+            return redirect(url_for('root_redirect')) # Redirect to a safe page if GCS is down
 
         try:
             blob = current_app.gcs_bucket.blob(gcs_path)
             if not blob.exists():
                 logging.warning(f"[{file_id}] Attempted to download non-existent PPTX: {gcs_path}", extra=log_extra_ppt)
                 flash("The presentation file was not found or has expired. Please try generating it again.", "error")
-                return redirect(url_for('display_feature', feature_name='summarization')) # Redirect to the summarization feature
+                return redirect(url_for('index', feature_key='summarization')) # Redirect to the summarization feature
 
             # Read blob content into a BytesIO buffer
             buffer = io.BytesIO()
@@ -410,11 +429,11 @@ def define_summarization_routes(app_shell):
         except Exception:
             logging.error(f"[{file_id}] GCSNotFound when downloading {gcs_path}", exc_info=True, extra=log_extra_ppt)
             flash("The presentation file was not found or has expired. Please try generating it again.", "error")
-            return redirect(url_for('display_feature', feature_name='summarization'))
+            return redirect(url_for('index', feature_key='summarization'))
         except Exception as e:
             logging.error(f"[{file_id}] Error serving generated PPTX from GCS ({gcs_path}): {e}", exc_info=True, extra=log_extra_ppt)
             flash("An unexpected error occurred while preparing your download.", "error")
-            return redirect(url_for('display_feature', feature_name='summarization'))
+            return redirect(url_for('index', feature_key='summarization'))
 
     @app_shell.route("/process/summarization/create_ppt", methods=["POST"])
     def process_create_ppt():
@@ -464,6 +483,9 @@ def define_summarization_routes(app_shell):
 
         try:
             input_type = request.form.get('inputType')
+            # --- NEW: Check for Sample Flag ---
+            use_sample = request.form.get("use_sample") == "true"
+
             template_style = request.form.get('template', current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME', 'professional')).lower()
             audience = request.form.get('audience', '').strip()
             tone = request.form.get('tone', '').strip()
@@ -493,29 +515,52 @@ def define_summarization_routes(app_shell):
                     context = {"ppt_error_message": f"Failed to process URL: {str(e_url_proc)}", "hx_target_is_ppt_status_result": True}
                     return render_template("summarization/templates/summarization_content.html", **context), 500
             
-            elif input_type == 'file':
-                uploaded_files = request.files.getlist('file')
+            elif input_type == 'file' or use_sample:
+                valid_files_for_processing = []
                 
                 max_files_config = current_app.config.get('PPT_MAX_FILES', 5)
                 max_file_size_config_ppt = current_app.config.get('PPT_MAX_FILE_SIZE_MB', 10) * 1024 * 1024 
                 allowed_ext_str_config = current_app.config.get('PPT_ALLOWED_EXTENSIONS_STR', '.docx,.pdf,.py')
                 allowed_ext_set_config = set(ext.strip().lower() for ext in allowed_ext_str_config.replace('.', '').split(','))
 
-                if not uploaded_files or all(f.filename == '' for f in uploaded_files):
-                    context = {"ppt_error_message": "No files selected for presentation generation.", "hx_target_is_ppt_status_result": True}
-                    return render_template("summarization/templates/summarization_content.html", **context), 400
-                if len(uploaded_files) > max_files_config:
-                    context = {"ppt_error_message": f"Too many files. Maximum allowed: {max_files_config}.", "hx_target_is_ppt_status_result": True}
-                    return render_template("summarization/templates/summarization_content.html", **context), 400
-
-                valid_files_for_processing = []
-                for f_obj in uploaded_files:
-                    filename_check = secure_filename(f_obj.filename)
-                    f_obj.seek(0, os.SEEK_END); file_size = f_obj.tell(); f_obj.seek(0)
-                    if ppt_allowed_file_util(filename_check, allowed_ext_set_config) and file_size <= max_file_size_config_ppt: 
-                        valid_files_for_processing.append(f_obj)
+                if use_sample:
+                    # LOGIC FOR LOCAL SAMPLE
+                    filename = "IBM-2024-annual-report.pdf"
+                    sample_path = os.path.join(current_app.root_path, 'static', 'files', filename)
+                    if os.path.exists(sample_path):
+                        with open(sample_path, 'rb') as f:
+                            file_content = f.read()
+                        
+                        # Mock file object for internal processing
+                        class MockFile(io.BytesIO):
+                            def __init__(self, content, name, content_type):
+                                super().__init__(content)
+                                self.filename = name
+                                self.content_type = content_type
+                        
+                        mock_file = MockFile(file_content, filename, 'application/pdf')
+                        valid_files_for_processing.append(mock_file)
+                        logging.info(f"[{g.request_id}] Using Sample File for PPT: {filename}")
                     else:
-                        logging.warning(f"[{g.request_id}] Ignored file for PPT: {filename_check} (size: {file_size}, type_valid: {ppt_allowed_file_util(filename_check, allowed_ext_set_config)}, size_valid: {file_size <= max_file_size_config_ppt})", extra=log_extra_ppt)
+                         context = {"ppt_error_message": "Sample file not found on server.", "hx_target_is_ppt_status_result": True}
+                         return render_template("summarization/templates/summarization_content.html", **context), 400
+                else:
+                    # LOGIC FOR UPLOAD
+                    uploaded_files = request.files.getlist('file')
+                    if not uploaded_files or all(f.filename == '' for f in uploaded_files):
+                        context = {"ppt_error_message": "No files selected for presentation generation.", "hx_target_is_ppt_status_result": True}
+                        return render_template("summarization/templates/summarization_content.html", **context), 400
+                    if len(uploaded_files) > max_files_config:
+                        context = {"ppt_error_message": f"Too many files. Maximum allowed: {max_files_config}.", "hx_target_is_ppt_status_result": True}
+                        return render_template("summarization/templates/summarization_content.html", **context), 400
+
+                    for f_obj in uploaded_files:
+                        filename_check = secure_filename(f_obj.filename)
+                        f_obj.seek(0, os.SEEK_END); file_size = f_obj.tell(); f_obj.seek(0)
+                        if ppt_allowed_file_util(filename_check, allowed_ext_set_config) and file_size <= max_file_size_config_ppt: 
+                            valid_files_for_processing.append(f_obj)
+                        else:
+                            logging.warning(f"[{g.request_id}] Ignored file for PPT: {filename_check} (size: {file_size}, type_valid: {ppt_allowed_file_util(filename_check, allowed_ext_set_config)}, size_valid: {file_size <= max_file_size_config_ppt})", extra=log_extra_ppt)
                 
                 if not valid_files_for_processing:
                     context = {"ppt_error_message": f"No valid files provided (check type/size). Allowed: {allowed_ext_str_config}, Max Size: {current_app.config.get('PPT_MAX_FILE_SIZE_MB', 10)}MB", "hx_target_is_ppt_status_result": True}
@@ -565,7 +610,7 @@ def define_summarization_routes(app_shell):
             if input_type == 'url':
                 try: parsed_url = urlparse(first_src_key); base_name = parsed_url.netloc.replace('www.','').replace('.','_') or "webpage"
                 except: base_name = "webpage"
-            elif input_type == 'file':
+            elif input_type == 'file' or use_sample:
                 base_name = os.path.splitext(first_src_key)[0] if len(all_slides_data) == 1 else f"{len(all_slides_data)}_docs"
             safe_name = re.sub(r'[^\w\-]+', '_', base_name).strip('_')[:50] or "presentation"
             lang_sfx = f"_{language.lower().replace(' (simplified)', '_simplified')}" if language and language.lower() != 'english' else ""
