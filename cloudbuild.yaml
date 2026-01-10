@@ -45,7 +45,7 @@ steps:
 
     # --- Environment Variables ---
     # Set non-sensitive environment variables directly
-    - '--update-env-vars=GEMINI_MODEL=gemini-2.0-flash,GOOGLE_CLOUD_PROJECT=pauls-ai-agents,GCS_BUCKET_NAME=temp-paul-ai-agents'
+    - '--update-env-vars=GEMINI_MODEL=gemini-2.5-flash-lite,GOOGLE_CLOUD_PROJECT=pauls-ai-agents,GCS_BUCKET_NAME=temp-paul-ai-agents'
 
     # Securely reference the GOOGLE_API_KEY from Secret Manager
     # This makes an environment variable named GOOGLE_API_KEY available to your application,
