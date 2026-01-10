@@ -1,63 +1,122 @@
 {# features/translation/templates/translation_content.html #}
 <style>
-    .translation-feature-container .feature-note { margin-top: 2rem; margin-bottom: 1.5rem; padding: 0.8rem 1rem; background-color: #f0f9ff; border: 1px solid #e0f2fe; border-left: 5px solid var(--primary-color, #3b82f6); border-radius: 6px; font-size: 0.95em; color: #0c4a6e; display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
-    .translation-feature-container .feature-note i { margin-right: 1rem; font-size: 1.6em; color: var(--primary-color, #3b82f6); opacity: 0.85; flex-shrink: 0; }
-    .translation-feature-container .feature-note p { margin: 0; line-height: 1.6; }
-    .translation-feature-container .feature-note strong { font-weight: 600; color: var(--primary-color-dark, #2563eb); }
-    .translation-feature-container .feature-description { margin-bottom: 2rem; }
-    .translation-feature-container .feature-grid { display: grid; grid-template-columns: 1fr; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
-    @media (min-width: 992px) { .translation-feature-container .feature-grid { grid-template-columns: repeat(3, 1fr); } }
-    .translation-feature-container .feature-item { background: #ffffff; padding: 2rem; text-align: center; transition: background-color 0.2s ease-in-out; }
-    @media (min-width: 992px) { .translation-feature-container .feature-item:not(:last-child) { border-right: 1px solid #e5e7eb; } }
-    @media (max-width: 991.98px) { .translation-feature-container .feature-item:not(:last-child) { border-bottom: 1px solid #e5e7eb; } }
-    .translation-feature-container .feature-item:hover { background-color: #f9fafb; }
-    .translation-feature-container .feature-item h4 { margin: 0 0 0.75rem 0; font-family: Georgia, "Times New Roman", Times, serif; font-size: 1.1em; color: #1a2b48; font-weight: 600; }
-    .translation-feature-container .feature-item p { font-family: Georgia, "Times New Roman", Times, serif; color: #5a6a7b; line-height: 1.6; margin: 0; font-size: 0.95em; }
+    /* Scoped styles for Translation feature specifics */
+    .translation-feature-container .feature-description { 
+        margin-bottom: 2rem; 
+        color: var(--text-secondary);
+        font-size: 1.05rem;
+        line-height: 1.6;
+    }
+    
+    .translation-feature-container .feature-grid { 
+        display: grid; 
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+        gap: 1.5rem; 
+        margin-bottom: 2.5rem; 
+    }
+    
+    .translation-feature-container .feature-item { 
+        background: #ffffff; 
+        padding: 1.5rem; 
+        border-radius: var(--radius-md); 
+        border: 1px solid var(--border-subtle); 
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .translation-feature-container .feature-item:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--brand-primary);
+    }
+
+    .translation-feature-container .feature-item h4 { 
+        margin: 0 0 0.5rem 0; 
+        font-family: var(--font-sans); 
+        font-size: 1rem; 
+        color: var(--text-primary); 
+        font-weight: 600; 
+        letter-spacing: normal;
+        text-transform: none;
+    }
+    
+    .translation-feature-container .feature-item p { 
+        font-family: var(--font-sans); 
+        color: var(--text-secondary); 
+        line-height: 1.5; 
+        margin: 0; 
+        font-size: 0.9rem; 
+    }
+
+    /* Adjust spacing for form elements */
+    .translation-feature-container .form-group {
+        margin-bottom: 1.5rem;
+    }
 </style>
+
 <div class="feature-container translation-feature-container">
     <h1><i class="fas fa-language"></i> Intelligent Document Translation</h1>
     <p class="feature-description">
-        This <strong>AI Agent</strong> executes a sophisticated, AI-First processing pipeline to translate complex documents while preserving the original layout and formatting integrity. Designed and architected to be integrated into existing applications and workflows for automated language translation and file preservation in over 200 language pairs.
+        This <strong>AI Agent</strong> executes a sophisticated processing pipeline to translate complex documents while preserving original layout and formatting. Designed for automated language translation in over 200 language pairs.
     </p>
+    
     <div class="feature-grid">
         <div class="feature-item">
-            <h4>Intelligent Ingestion</h4>
-            <p>Custom AI model automatically detects source language and parses complex Word, PowerPoint and Excel documents</p>
+            <h4><i class="fas fa-file-import" style="color: var(--brand-primary); margin-right: 8px;"></i> Intelligent Ingestion</h4>
+            <p>Automatically detects source language and parses complex Word, PowerPoint, and Excel structures.</p>
         </div>
         <div class="feature-item">
-            <h4>Prompt Engineering</h4>
-            <p>Multi-layered prompt instructs the LLM and ensures accuracy of translation regardless of document content</p>
+            <h4><i class="fas fa-magic" style="color: var(--brand-primary); margin-right: 8px;"></i> Contextual AI</h4>
+            <p>Uses advanced prompt engineering to ensure translation accuracy and nuance preservation.</p>
         </div>
         <div class="feature-item">
-            <h4>Native Formatting</h4>
-            <p>The AI reassembles the translated document, preserving layouts, styles, and structure. And a preview is generated</p>
+            <h4><i class="fas fa-print" style="color: var(--brand-primary); margin-right: 8px;"></i> Native Formatting</h4>
+            <p>Reassembles the translated document, preserving layouts, fonts, and styles perfectly.</p>
         </div>
     </div>
 
     {% if not gcs_available or not gemini_configured %}
-        <div class="error-message" style="margin-bottom: 20px;">
-            <strong>Configuration Issue:</strong>
-            {% if not gcs_available %}Cloud Storage is not available. {% endif %}
-            {% if not gemini_configured %}Google Gemini AI is not configured. {% endif %}
-            File processing for translation is disabled. Please check server logs and environment variable settings.
+        <div class="message-item category-error" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <strong>Configuration Issue:</strong>
+                {% if not gcs_available %}Cloud Storage is not available. {% endif %}
+                {% if not gemini_configured %}Google Gemini AI is not configured. {% endif %}
+                File processing is disabled.
+            </div>
         </div>
     {% endif %}
-    <!-- UPDATED: 'translation.' prefix -->
+
     <form method="POST" action="{{ url_for('translation.process_translate_document') }}" enctype="multipart/form-data"
           hx-post="{{ url_for('translation.process_translate_document') }}"
           hx-target="#translation-results-area"
           hx-swap="innerHTML"
           hx-encoding="multipart/form-data"
           hx-indicator="#translation-submit-button .spinner">
+        
+        <!-- Pro Drop Zone -->
         <div class="form-group">
             <label for="translation-file-input" id="translation-drop-zone-label" class="drop-zone-style">
-                <p>Drop .docx, .pptx, .xlsx file here, or click to select.</p>
-                <p id="translation-file-name-display">No file selected</p>
+                <!-- Icon -->
+                <i class="fas fa-cloud-upload-alt"></i>
+                
+                <!-- Main Text -->
+                <div>
+                    <p>Click to upload or drag and drop</p>
+                    <p class="file-info" id="translation-file-name-display">Maximum file size 10MB</p>
+                </div>
+
+                <!-- Format Badges -->
+                <div class="format-badges">
+                    <span class="format-badge">DOCX</span>
+                    <span class="format-badge">PPTX</span>
+                    <span class="format-badge">XLSX</span>
+                </div>
             </label>
             <input type="file" id="translation-file-input" name="file" accept=".docx,.pptx,.xlsx" required style="display: none;">
         </div>
+
         <div class="form-group">
-            <label for="translation-target-language">Target Language:</label>
+            <label for="translation-target-language">Target Language</label>
             <select id="translation-target-language" name="target_language" required
                     {% if not gemini_configured %}disabled{% endif %}>
                 {% if not languages and gemini_configured %}
@@ -65,100 +124,89 @@
                 {% elif not gemini_configured %}
                      <option value="" disabled selected>Gemini Service Not Configured</option>
                 {% else %}
+                    <option value="" disabled selected>Select a language...</option>
                     {% for lang in languages %}
                         <option value="{{ lang }}">{{ lang }}</option>
                     {% endfor %}
                 {% endif %}
             </select>
         </div>
+
         <div class="submit-area">
             <button type="submit" class="submit-button" id="translation-submit-button"
                     {% if not gcs_available or not gemini_configured %}disabled aria-disabled="true" title="Translation service is not fully configured." {% endif %}>
-                <i class="fas fa-cogs"></i> Translate File
+                <i class="fas fa-cogs"></i> Translate Document
                 <span class="htmx-indicator spinner"></span>
             </button>
         </div>
     </form>
+
     <div id="translation-results-area" class="processing-result" style="margin-top: 1.5rem; border: none; padding: 0; background-color: transparent; min-height: 0;">
+        <!-- Results will load here -->
     </div>
 </div>
+
 <script>
+// Ensure global markdown renderer exists (fallback)
 if (typeof window.renderMarkdownSummary !== 'function') {
     window.renderMarkdownSummary = function(markdownText, containerElement) {
         if (!markdownText || markdownText.trim() === "") {
             containerElement.innerHTML = '<p><i>No content to display.</i></p>';
             return;
         }
-        let html = "";
-        const lines = markdownText.split('\n');
-        let inList = false;
-        let currentParagraph = "";
-        function flushParagraph() {
-            if (currentParagraph.trim() !== "") {
-                currentParagraph = currentParagraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                html += `<p>${currentParagraph.trim()}</p>\n`;
-            }
-            currentParagraph = "";
-        }
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-            if (line === "") {
-                flushParagraph();
-                if (inList) { html += "</ul>\n"; inList = false; }
-                continue;
-            }
-            const headingMatch = line.match(/^\s*\*\*(.+?)\:\*\*\s*$/);
-            if (headingMatch) {
-                flushParagraph();
-                if (inList) { html += "</ul>\n"; inList = false; }
-                html += `<h4>${headingMatch[1].trim()}</h4>\n`;
-                continue;
-            }
-            const listItemMatch = line.match(/^\s*-\s+(.+)/);
-            if (listItemMatch) {
-                flushParagraph();
-                if (!inList) { html += "<ul>\n"; inList = true; }
-                let listItemContent = listItemMatch[1];
-                listItemContent = listItemContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                html += `  <li>${listItemContent}</li>\n`;
-                continue;
-            }
-            if (inList) {
-                html += "</ul>\n";
-                inList = false;
-            }
-            currentParagraph += (currentParagraph === "" ? "" : " ") + line;
-        }
-        flushParagraph();
-        if (inList) { html += "</ul>\n"; }
-        containerElement.innerHTML = html;
+        // Basic line-break renderer if the complex one isn't loaded
+        containerElement.innerHTML = markdownText.replace(/\n/g, '<br>');
     };
 }
+
 (function() {
     const translationFeatureContainer = document.querySelector('.translation-feature-container');
     if (!translationFeatureContainer) return;
+
     const dropZoneLabel = translationFeatureContainer.querySelector('#translation-drop-zone-label');
     const fileInput = translationFeatureContainer.querySelector('#translation-file-input');
     const fileNameDisplay = translationFeatureContainer.querySelector('#translation-file-name-display');
+
     if (dropZoneLabel && fileInput && fileNameDisplay) {
-        dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneLabel.classList.add('drag-over'); });
-        dropZoneLabel.addEventListener('dragleave', () => { dropZoneLabel.classList.remove('drag-over'); });
+        
+        // Drag over visual cue
+        dropZoneLabel.addEventListener('dragover', (e) => { 
+            e.preventDefault(); 
+            dropZoneLabel.classList.add('drag-over'); 
+        });
+
+        // Drag leave visual cue
+        dropZoneLabel.addEventListener('dragleave', () => { 
+            dropZoneLabel.classList.remove('drag-over'); 
+        });
+
+        // Drop handler
         dropZoneLabel.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZoneLabel.classList.remove('drag-over');
+            
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 fileInput.files = files;
+                // Trigger change event manually
                 const event = new Event('change', { bubbles: true });
                 fileInput.dispatchEvent(event);
             }
         });
+
+        // File selection handler
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
+                // Update text to show filename
                 fileNameDisplay.textContent = fileInput.files[0].name;
+                fileNameDisplay.style.color = 'var(--brand-primary)';
+                fileNameDisplay.style.fontWeight = '600';
                 dropZoneLabel.classList.add('file-selected');
             } else {
-                fileNameDisplay.textContent = 'No file selected';
+                // Reset text
+                fileNameDisplay.textContent = 'Maximum file size 10MB';
+                fileNameDisplay.style.color = '';
+                fileNameDisplay.style.fontWeight = '';
                 dropZoneLabel.classList.remove('file-selected');
             }
         });
