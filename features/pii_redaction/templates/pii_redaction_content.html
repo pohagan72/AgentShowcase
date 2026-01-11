@@ -1,74 +1,167 @@
 <!-- features/pii_redaction/templates/pii_redaction_content.html -->
 
+{# HTMX Partial Check: If returning a result, just show the success state #}
 {% if request.headers.get('HX-Request') and hx_target_is_result %}
     {% if redacted_file_url %}
-        <h2>Redaction Complete!</h2>
-        <p>Your document '{{ original_filename or "file" }}' has been processed for PII redaction.</p>
-        <a href="{{ redacted_file_url }}" class="submit-button" style="display: inline-block; width: auto; margin-top: 10px;">
-            <i class="fas fa-download"></i> Download Redacted File
-        </a>
+        <div style="text-align: center; padding: 2rem; animation: fadeIn 0.5s;">
+            <div style="background: #dcfce7; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+                <i class="ph ph-check" style="font-size: 32px; color: #16a34a;"></i>
+            </div>
+            <h3 style="margin-bottom: 0.5rem; color: #166534;">Redaction Complete</h3>
+            <p style="color: #15803d; margin-bottom: 2rem;">'{{ original_filename }}' has been processed and secured.</p>
+            
+            <a href="{{ redacted_file_url }}" class="submit-button" style="background: #16a34a; display: inline-flex; gap: 8px;">
+                <i class="ph ph-download-simple"></i> Download Redacted File
+            </a>
+            
+            <button onclick="location.reload()" class="btn-secondary" style="margin-left: 10px;">
+                Process Another
+            </button>
+        </div>
     {% elif get_flashed_messages(with_categories=true) %}
          {% with messages = get_flashed_messages(with_categories=true) %}
             {% for category, message in messages %}
                 <div class="message-item category-{{ category|default('info') }}" role="alert">
-                    {% if category == 'error' %}<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
-                    {% elif category == 'success' %}<i class="fas fa-check-circle" style="margin-right: 8px;"></i>
-                    {% elif category == 'warning' %}<i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i>
-                    {% else %}<i class="fas fa-info-circle" style="margin-right: 8px;"></i>
-                    {% endif %}
-                    {{ message }}
+                    <i class="ph ph-info"></i> {{ message }}
                 </div>
             {% endfor %}
         {% endwith %}
     {% else %}
-        <p><i>No PII redaction performed yet or an issue occurred.</i></p>
+        <p style="color: var(--text-secondary); text-align: center;"><i>No redaction performed yet.</i></p>
     {% endif %}
+
+{# Main Page View #}
 {% else %}
     <style>
-        .pii-redaction-feature-container .feature-description { margin-bottom: 2rem; }
-        .pii-redaction-feature-container .feature-grid { display: grid; grid-template-columns: 1fr; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); }
-        @media (min-width: 992px) { .pii-redaction-feature-container .feature-grid { grid-template-columns: repeat(3, 1fr); } }
-        .pii-redaction-feature-container .feature-item { background: #ffffff; padding: 2rem; text-align: center; transition: background-color 0.2s ease-in-out; }
-        @media (min-width: 992px) { .pii-redaction-feature-container .feature-item:not(:last-child) { border-right: 1px solid #e5e7eb; } }
-        @media (max-width: 991.98px) { .pii-redaction-feature-container .feature-item:not(:last-child) { border-bottom: 1px solid #e5e7eb; } }
-        .pii-redaction-feature-container .feature-item:hover { background-color: #f9fafb; }
-        .pii-redaction-feature-container .feature-item h4 { margin: 0 0 0.75rem 0; font-family: Georgia, "Times New Roman", Times, serif; font-size: 1.1em; color: #1a2b48; font-weight: 600; }
-        .pii-redaction-feature-container .feature-item p { font-family: Georgia, "Times New Roman", Times, serif; color: #5a6a7b; line-height: 1.6; margin: 0; font-size: 0.95em; }
+        /* --- SCOPED CSS FOR PII FEATURE --- */
+        .pii-wrapper { max-width: 900px; margin: 0 auto; }
+
+        /* Header */
+        .pii-header { margin-bottom: 2.5rem; }
+        .pii-header h1 { display: flex; align-items: center; gap: 12px; font-size: 1.8rem; margin-bottom: 1rem; }
+        .pii-header p { font-size: 1.05rem; color: var(--text-secondary); max-width: 700px; line-height: 1.6; }
+
+        /* Info Grid (Copied from Translation for Consistency) */
+        .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 3rem; }
+        .info-card { padding: 0; }
+        .info-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem; }
+        .info-card-header i { font-size: 1.25rem; color: var(--brand-primary); display: flex; flex-shrink: 0; }
+        .info-card-header span { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); }
+        .info-card p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; padding-left: 30px; }
+
+        /* Control Panel Container */
+        .control-panel {
+            background: #ffffff;
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Upload Area */
+        .cp-upload-area {
+            background: #f8fafc;
+            padding: 2.5rem 2rem;
+            border-bottom: 1px solid var(--border-subtle);
+            transition: background 0.2s;
+            display: block; width: 100%;
+        }
+        .drop-zone-active { background: #eff6ff !important; }
+
+        .upload-label {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+            box-sizing: border-box;
+        }
+        .upload-label:hover { border-color: var(--brand-primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+        
+        .upload-label i { font-size: 3rem; color: #94a3b8; margin-bottom: 1rem; display: block; transition: color 0.2s; }
+        .upload-label h5 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; margin-top: 0; }
+        .upload-label .subtext { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; display: block; }
+
+        .file-badges { display: flex; justify-content: center; gap: 8px; width: 100%; }
+        .f-badge { font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; }
+
+        /* Bottom Action Bar */
+        .cp-action-bar {
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: flex-end; /* Align button right */
+            align-items: center;
+            background: white;
+            gap: 1rem;
+        }
+        
+        .status-text { font-size: 0.9rem; color: var(--text-secondary); margin-right: auto; }
+
+        .redact-btn { height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; }
+
+        @media (max-width: 768px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .cp-action-bar { flex-direction: column; align-items: stretch; }
+            .status-text { margin-bottom: 1rem; text-align: center; }
+        }
     </style>
 
-    <div class="feature-container pii-redaction-tile-container pii-redaction-feature-container">
-        <h1><i class="fas fa-user-shield"></i> Intelligent PII Redaction Engine</h1>
+    <div class="pii-wrapper">
+        
+        <!-- 1. Header -->
+        <div class="pii-header">
+            <h1><i class="ph ph-shield-check" style="color: var(--brand-primary);"></i> Intelligent PII Redaction</h1>
+            <p>
+                A privacy-first agent that automatically identifies and redacts Sensitive Personal Information (SPI) from documents. 
+                Designed for GDPR & CCPA compliance, it processes files in-memory without retention.
+            </p>
+        </div>
 
-        <p class="feature-description">
-            This <strong>AI Agent</strong> provides robust, automated PII (Personally Identifiable Information) redaction to secure sensitive data within documents, ensuring compliance and mitigating risk without manual intervention.
-        </p>
-        <div class="feature-grid">
-            <div class="feature-item">
-                <h4>Native Document Parsing</h4>
-                <p>The AI Agent ingests complex Word and PowerPoint files, preserving the original structure and layout for high-fidelity processing</p>
+        <!-- 2. Info Grid -->
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="ph ph-file-search"></i>
+                    <span>Native Parsing</span>
+                </div>
+                <p>Ingests complex Word and PowerPoint files, preserving structure for high-fidelity processing.</p>
             </div>
-            <div class="feature-item">
-                <h4>Precision PII Recognition</h4>
-                <p>Custom AI model identifies a comprehensive set of entities, from names and locations to country-specific identifiers like SSNs</p>
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="ph ph-scan"></i>
+                    <span>Precision Recognition</span>
+                </div>
+                <p>Identifies names, locations, SSNs, and other entities using a specialized NLP model.</p>
             </div>
-            <div class="feature-item">
-                <h4>Secure Format Reconstruction</h4>
-                <p>Identified PII is securely redacted in-place, and a new, clean version of the document is generated in its original native format</p>
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="ph ph-lock-key"></i>
+                    <span>Secure Output</span>
+                </div>
+                <p>Generates a clean, redacted version of the original file, ready for safe distribution.</p>
             </div>
         </div>
 
         {% if not presidio_available or not gcs_available %}
-            <div class="error-message" style="margin-top: 2rem; text-align:center;">
-                <strong>Warning:</strong>
-                {% if not presidio_available %}The PII Redaction Analyzer is not currently available. {% endif %}
-                {% if not gcs_available %}Cloud Storage is not available, so redacted files cannot be saved. {% endif %}
-                Please check server configuration.
+            <div class="message-item category-error" style="margin-bottom: 2rem;">
+                <i class="ph ph-warning-circle"></i>
+                <div>
+                    <strong>System Unavailable:</strong>
+                    {% if not presidio_available %}NLP Engine missing. {% endif %}
+                    {% if not gcs_available %}Cloud Storage missing. {% endif %}
+                </div>
             </div>
         {% endif %}
 
         {% set services_ready = presidio_available and gcs_available %}
 
-        <!-- UPDATED: 'pii_redaction.' prefix -->
+        <!-- 3. Control Panel -->
         <form id="pii-upload-form"
               hx-post="{{ url_for('pii_redaction.process_redact') }}"
               hx-target="#pii-redaction-result"
@@ -76,102 +169,115 @@
               hx-encoding="multipart/form-data"
               hx-indicator="#pii-submit-button .spinner">
 
-            <label for="pii-file-input" id="pii-drop-zone-label" class="drop-zone-style {% if not services_ready %}disabled-drop-zone{% endif %}"
-                   style="display: block; border: 2px dashed #007bff; padding: 30px 20px; text-align: center; cursor: pointer; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 15px; margin-top: 1.5rem;">
-                <p style="margin:0 0 10px 0; font-size: 1.1em; color: #333;">Drop .docx or .pptx file here, or click to select.</p>
-                <p id="pii-file-name" class="file-name-display" style="margin-top:10px; font-weight: bold; color: #555;">No file selected</p>
-            </label>
+            <div class="control-panel">
+                
+                <!-- Upload Zone -->
+                <div class="cp-upload-area" id="cp-upload-area">
+                    <label for="pii-file-input" class="upload-label" id="pii-drop-zone">
+                        <i class="ph ph-file-lock"></i>
+                        <h5 id="pii-file-name">Click to upload or drag and drop</h5>
+                        <span class="subtext">Secure document processing (Max 10MB)</span>
+                        <div class="file-badges">
+                            <span class="f-badge">DOCX</span>
+                            <span class="f-badge">PPTX</span>
+                        </div>
+                    </label>
+                    <input type="file" id="pii-file-input" name="file_to_redact" accept=".docx,.pptx" required 
+                           style="display: none;"
+                           {% if not services_ready %}disabled{% endif %}>
+                </div>
 
-            <input type="file" id="pii-file-input" name="file_to_redact" accept=".docx,.pptx" required
-                   style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;"
-                   {% if not services_ready %}disabled{% endif %}>
-
-            <button type="submit" class="submit-button" id="pii-submit-button" style="width: 100%; margin-top: 15px;" disabled>
-                <i class="fas fa-user-secret"></i> Upload and Redact
-                <span class="htmx-indicator spinner"></span>
-            </button>
+                <!-- Action Bar -->
+                <div class="cp-action-bar">
+                    <div class="status-text">
+                        <i class="ph ph-shield" style="vertical-align: middle; margin-right: 5px;"></i>
+                        Ready to secure
+                    </div>
+                    <button type="submit" class="submit-button redact-btn" id="pii-submit-button" disabled>
+                        <i class="ph ph-eraser"></i> Redact Document
+                        <span class="htmx-indicator spinner"></span>
+                    </button>
+                </div>
+            </div>
         </form>
 
-        <div id="pii-redaction-result" class="processing-result">
-            {% if redacted_file_url %}
-                <h2>Redaction Complete!</h2>
-                <p>Your document '{{ original_filename or "file" }}' has been processed.</p>
-                <a href="{{ redacted_file_url }}" class="submit-button" style="display: inline-block; width: auto;">
-                    <i class="fas fa-download"></i> Download Redacted File
-                </a>
-            {% else %}
-                <p><i>No PII redaction performed yet. Submit a file above.</i></p>
-            {% endif %}
-        </div>
+        <!-- 4. Result Area -->
+        <div id="pii-redaction-result" style="margin-top: 2rem;"></div>
     </div>
 
     <script>
     (function() {
-        const piiFeatureContainer = document.querySelector('.pii-redaction-feature-container');
-        if (!piiFeatureContainer) return;
+        const wrapper = document.querySelector('.pii-wrapper');
+        if (!wrapper) return;
 
-        const dropZoneLabel = piiFeatureContainer.querySelector('#pii-drop-zone-label');
-        const fileInputPii = piiFeatureContainer.querySelector('#pii-file-input');
-        const fileNameDisplayPii = piiFeatureContainer.querySelector('#pii-file-name');
-        const piiUploadForm = piiFeatureContainer.querySelector('#pii-upload-form');
-        const piiSubmitButton = piiFeatureContainer.querySelector('#pii-submit-button');
+        const dropArea = document.getElementById('cp-upload-area');
+        const dropLabel = document.getElementById('pii-drop-zone');
+        const fileInput = document.getElementById('pii-file-input');
+        const nameDisplay = document.getElementById('pii-file-name');
+        const submitBtn = document.getElementById('pii-submit-button');
+        
+        const servicesReady = {{ services_ready|default(false)|tojson }};
 
-        if (dropZoneLabel && fileInputPii && fileNameDisplayPii && piiUploadForm && piiSubmitButton) {
+        if (dropLabel && fileInput && servicesReady) {
             
-            const servicesAreReady = {{ services_ready|default(false)|tojson }};
-
-            function updatePiiButtonState() {
-                if (!piiSubmitButton) return;
-                const isReady = fileInputPii.files.length > 0 && servicesAreReady;
-                piiSubmitButton.disabled = !isReady;
-            }
-
-            if (servicesAreReady) {
-                dropZoneLabel.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneLabel.classList.add('drag-over'); dropZoneLabel.style.borderColor = '#28a745'; });
-                dropZoneLabel.addEventListener('dragleave', () => { dropZoneLabel.classList.remove('drag-over'); dropZoneLabel.style.borderColor = '#007bff'; });
-                dropZoneLabel.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    dropZoneLabel.classList.remove('drag-over');
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        fileInputPii.files = files;
-                        const event = new Event('change', { bubbles: true });
-                        fileInputPii.dispatchEvent(event);
-                    }
-                });
-                piiUploadForm.addEventListener('submit', function(event) {
-                    if (fileInputPii.files.length === 0) {
-                        alert('Please select a .docx or .pptx file to redact before submitting.');
-                        event.preventDefault();
-                        return false;
-                    }
-                });
-            } else {
-                dropZoneLabel.style.cursor = 'not-allowed';
-                dropZoneLabel.title = 'PII Redaction Service is currently unavailable or not fully configured.';
-                dropZoneLabel.style.borderColor = '#ced4da';
-                dropZoneLabel.style.backgroundColor = '#e9ecef';
-                dropZoneLabel.style.color = '#6c757d';
-            }
-
-            fileInputPii.addEventListener('change', () => {
-                if (fileInputPii.files.length > 0) {
-                    fileNameDisplayPii.textContent = fileInputPii.files[0].name;
-                    if (dropZoneLabel) {
-                        dropZoneLabel.classList.add('file-selected');
-                        dropZoneLabel.style.borderColor = servicesAreReady ? '#28a745' : '#ced4da';
-                    }
-                } else {
-                    fileNameDisplayPii.textContent = 'No file selected';
-                    if (dropZoneLabel) {
-                        dropZoneLabel.classList.remove('file-selected');
-                        dropZoneLabel.style.borderColor = servicesAreReady ? '#007bff' : '#ced4da';
-                    }
-                }
-                updatePiiButtonState();
+            // Drag Effects
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropLabel.addEventListener(eventName, (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    dropArea.classList.add('drop-zone-active');
+                    dropLabel.style.borderColor = 'var(--brand-primary)';
+                }, false);
             });
 
-            updatePiiButtonState();
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropLabel.addEventListener(eventName, (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    dropArea.classList.remove('drop-zone-active');
+                    dropLabel.style.borderColor = '';
+                }, false);
+            });
+
+            // Drop Handler
+            dropLabel.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                if (dt.files.length > 0) {
+                    fileInput.files = dt.files;
+                    fileInput.dispatchEvent(new Event('change'));
+                }
+            });
+
+            // Change Handler
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length > 0) {
+                    nameDisplay.textContent = fileInput.files[0].name;
+                    nameDisplay.style.color = 'var(--brand-primary)';
+                    
+                    // Update Icon to File type
+                    const icon = dropLabel.querySelector('i');
+                    if(icon) {
+                        icon.className = 'ph ph-file-doc'; // Phosphor file icon
+                        icon.style.color = 'var(--brand-primary)';
+                    }
+                    
+                    submitBtn.disabled = false;
+                } else {
+                    nameDisplay.textContent = 'Click to upload or drag and drop';
+                    nameDisplay.style.color = '';
+                    
+                    const icon = dropLabel.querySelector('i');
+                    if(icon) {
+                        icon.className = 'ph ph-file-lock';
+                        icon.style.color = '';
+                    }
+
+                    submitBtn.disabled = true;
+                }
+            });
+        } else if (!servicesReady && dropLabel) {
+            // Disabled State Visuals
+            dropLabel.style.opacity = '0.6';
+            dropLabel.style.cursor = 'not-allowed';
+            nameDisplay.textContent = 'Service Unavailable';
         }
     })();
     </script>
