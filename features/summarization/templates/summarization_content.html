@@ -29,7 +29,7 @@
         box-shadow: 0 20px 40px rgba(0,0,0,0.2);
         overflow: hidden;
         font-family: 'JetBrains Mono', 'Courier New', monospace;
-        flex-direction: column;
+        flex-direction: column !important; /* Force column layout */
         width: 100%;
         animation: slideUp 0.3s ease-out;
         color: #c9d1d9;
@@ -48,8 +48,9 @@
     .dw-title { 
         color: #e6edf3; font-weight: 700; font-size: 0.85rem; 
         display: flex; gap: 10px; align-items: center; 
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .dw-status { color: #58a6ff; font-size: 0.8rem; letter-spacing: 0.5px; }
+    .dw-status { color: #58a6ff; font-size: 0.8rem; letter-spacing: 0.5px; white-space: nowrap; }
 
     /* The 3-Column Grid */
     .dw-grid {
@@ -58,6 +59,7 @@
         min-height: 300px;
         max-height: 450px;
         background: #0d1117;
+        width: 100%; /* Ensure full width */
     }
 
     .dw-col {
@@ -100,33 +102,23 @@
         border-radius: 4px;
         color: #c9d1d9;
         transition: all 0.5s ease;
-        opacity: 0;
-        animation: fadeIn 0.5s forwards;
         line-height: 1.4;
     }
     .hypo-item.active { border-color: #58a6ff; background: rgba(56, 139, 253, 0.1); }
-    .hypo-item.rejected { text-decoration: line-through; opacity: 0.5; border-color: #30363d; }
-    .hypo-item.confirmed { border-color: #238636; background: rgba(46, 160, 67, 0.1); }
-
+    
     .evidence-item {
         color: #8b949e;
         border-left: 3px solid #30363d;
         padding-left: 12px;
-        opacity: 0;
-        animation: fadeIn 0.5s forwards;
         line-height: 1.4;
     }
-    .evidence-item strong { color: #e6edf3; display: block; margin-bottom: 3px;}
     .evidence-item.positive { border-color: #238636; }
-    .evidence-item.negative { border-color: #da3633; }
-
+    
     .decision-item {
         background: rgba(255,255,255,0.05);
         padding: 12px;
         border-radius: 4px;
         border-left: 4px solid #58a6ff;
-        opacity: 0;
-        animation: slideInRight 0.5s forwards;
         color: #ffffff !important;
         line-height: 1.4;
     }
@@ -138,6 +130,7 @@
         border-top: 1px solid #30363d;
         background: #161b22;
         flex-shrink: 0;
+        width: 100%;
     }
     .analyst-note-title { color: #d29922; font-size: 0.75rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
     .analyst-note-body { color: #8b949e; font-size: 0.85rem; line-height: 1.5; }
@@ -160,8 +153,6 @@
     .ppt-log-line i { color: #22c55e; }
 
     /* Animations */
-    @keyframes fadeIn { to { opacity: 1; } }
-    @keyframes slideInRight { from { transform: translateX(-10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     @keyframes pulse-green-glow {
         0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
@@ -198,13 +189,13 @@
         <!-- INPUT PANEL -->
         <div id="input-panel-text">
             <p class="feature-description">
-                This <strong>AI Agent</strong> employs a multi-stage architecture. It classifies the document type (Legal, Financial, Technical) and routes it to a specific "Expert Persona."
+                This <strong>AI Agent</strong> operates on <strong>Decision Mandates</strong>. It classifies your document and adopts the specific responsibility of an executive role (e.g., CFO, General Counsel).
             </p>
             
             <div class="feature-grid">
-                <div class="feature-item"><h4><i class="fas fa-sitemap" style="color:var(--brand-primary)"></i> Smart Routing</h4><p>Identifies Contract vs. 10-K vs. Resume.</p></div>
-                <div class="feature-item"><h4><i class="fas fa-user-tie" style="color:var(--brand-primary)"></i> Expert Analysis</h4><p>Simulates CFO or General Counsel personas.</p></div>
-                <div class="feature-item"><h4><i class="fas fa-list-check" style="color:var(--brand-primary)"></i> Actionable Brief</h4><p>Outputs structured, formatted intelligence.</p></div>
+                <div class="feature-item"><h4><i class="fas fa-sitemap" style="color:var(--brand-primary)"></i> Smart Classification</h4><p>Identifies the exact document type to select the right expert mandate.</p></div>
+                <div class="feature-item"><h4><i class="fas fa-gavel" style="color:var(--brand-primary)"></i> Decision Focused</h4><p>Produces "Go/No-Go" judgments, not just descriptions.</p></div>
+                <div class="feature-item"><h4><i class="fas fa-list-check" style="color:var(--brand-primary)"></i> Structured Brief</h4><p>Outputs a strict Hypotheses → Evidence → Decision format.</p></div>
             </div>
 
             <div id="error-display-text" class="error-banner"></div>
@@ -238,7 +229,7 @@
                 
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <div class="dw-status status-text">INITIALIZING...</div>
-                    <button class="btn-reveal-result submit-button" style="display:none; padding: 6px 14px; font-size: 0.8rem; background: #22c55e; border: none; box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.4);" onclick="revealFinalResult('text')">
+                    <button class="btn-reveal-result submit-button" style="display:none; padding: 6px 14px; font-size: 0.8rem; background: #22c55e; border: none; box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.4); white-space: nowrap;" onclick="revealFinalResult('text')">
                         View Final Brief <i class="fas fa-arrow-right" style="margin-left: 5px;"></i>
                     </button>
                 </div>
@@ -262,7 +253,7 @@
                 </button>
             </div>
             <div id="persona-badge-text" class="model-used-info" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #eff6ff; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; color: #6366f1; border: 1px solid #bfdbfe; margin-bottom: 1.5rem;">
-                <i class="fas fa-microchip"></i> Agent Persona: <strong>Loading...</strong>
+                <i class="fas fa-user-shield"></i> Active Mandate: <strong>Loading...</strong>
             </div>
             <div id="summary-output-container" class="summary-display-box" style="background-color: #ffffff; border: 1px solid #e2e8f0; padding: 2.5rem; border-radius: 8px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); font-family: 'Inter', sans-serif; color: #0f172a; line-height: 1.7;"></div>
         </div>
@@ -273,7 +264,7 @@
         
         <!-- INPUT PANEL -->
         <div id="input-panel-ppt">
-            <p class="feature-description">This <strong>AI Agent</strong> is a strategic communications partner. It transforms raw documents into compelling, executive-ready presentations.</p>
+            <p class="feature-description">This <strong>AI Agent</strong> is a strategic communications partner. It transforms raw documents into compelling, executive-ready presentations, adhering to the same strict decision mandates as the text agent.</p>
             
             <div id="error-display-ppt" class="error-banner"></div>
 
@@ -282,7 +273,6 @@
                 <button onclick="submitPPTStream(true)" class="submit-button" style="margin: 0; background: #e11d48; font-size: 0.9em; padding: 8px 15px; width: auto; box-shadow: none;"><i class="fas fa-magic"></i> Create Deck</button>
             </div>
             
-            <!-- REMOVED HTMX ATTRIBUTES TO FIX JSON RENDERING -->
             <form id="ppt-form" onsubmit="event.preventDefault(); submitPPTStream(false);">
                 <input type="hidden" name="inputType" value="file">
                 <div class="form-group" style="margin-bottom: 1.5rem;">
@@ -310,23 +300,26 @@
 
 <script>
     // --- SHARED UTILS ---
-    let reportMarkdownBuffer = "";
-    let thinkingBuffer = "";
-
+    let fullTextBuffer = ""; // Accumulates everything
+    
     function resetDeliberationUI(context) {
         if (context === 'text') {
             const ui = document.getElementById(`deliberation-ui-${context}`);
-            ui.querySelector('.col-hypotheses').innerHTML = '';
-            ui.querySelector('.col-evidence').innerHTML = '';
-            ui.querySelector('.col-decisions').innerHTML = '';
+            // Clear columns
+            ['col-hypotheses', 'col-evidence', 'col-decisions'].forEach(c => ui.querySelector('.'+c).innerHTML = '');
             ui.querySelector('.dw-notes').innerText = 'Pending analysis...';
             ui.querySelector('.task-id-display').innerText = Math.floor(Math.random() * 9000) + 1000;
             ui.querySelector('.status-text').innerText = "CONNECTING...";
             ui.querySelector('.status-text').style.color = "#58a6ff";
             
+            // Reset Badge
+            document.querySelector('#persona-badge-text strong').innerText = "Loading...";
+
             const btn = ui.querySelector('.btn-reveal-result');
             btn.style.display = 'none';
             btn.classList.remove('pulse-button');
+            
+            fullTextBuffer = ""; 
         } else {
             // Reset PPT
             document.getElementById('ppt-status-log').innerHTML = '';
@@ -342,10 +335,6 @@
         document.getElementById(`deliberation-ui-text`).style.display = 'flex';
         document.getElementById('error-display-text').style.display = 'none';
         resetDeliberationUI(context);
-        
-        reportMarkdownBuffer = "";
-        thinkingBuffer = "";
-        let isReportPhase = false;
 
         const formData = new FormData();
         if (useSample) formData.append("use_sample", "true");
@@ -356,154 +345,145 @@
 
         try {
             const response = await fetch("{{ url_for('summarization.process_summarize') }}", { method: "POST", body: formData });
-            await processStream(response, context, (text) => {
-                if (text.includes("### REPORT START")) {
-                    isReportPhase = true;
-                    updateStatus(context, "GENERATING FINAL BRIEF...");
-                    const parts = text.split("### REPORT START");
-                    if (parts[0].trim()) parseThinkingStream(parts[0], context);
-                    if (parts[1]) reportMarkdownBuffer += parts[1];
-                } else if (isReportPhase) {
-                    reportMarkdownBuffer += text;
-                } else {
-                    parseThinkingStream(text, context);
-                }
-            });
-            finishDeliberationText();
-        } catch (e) { handleError(e, context); }
-    }
-
-    function finishDeliberationText() {
-        const context = 'text';
-        updateStatus(context, "COMPLETE", "#4ade80");
-        if (marked && reportMarkdownBuffer) {
-            document.getElementById('summary-output-container').innerHTML = marked.parse(reportMarkdownBuffer);
-        }
-        showRevealButton(context);
-    }
-
-    // --- PPT STREAM LOGIC ---
-    async function submitPPTStream(useSample) {
-        document.getElementById('input-panel-ppt').style.display = 'none';
-        const progressWrapper = document.getElementById('ppt-progress-wrapper');
-        progressWrapper.style.display = 'block';
-        
-        const logDiv = document.getElementById('ppt-status-log');
-        logDiv.style.display = 'block';
-        logDiv.innerHTML = '<div class="ppt-log-line"><i class="fas fa-circle-notch fa-spin"></i> Initializing request...</div>';
-
-        const formData = new FormData();
-        if (useSample) formData.append("use_sample", "true");
-        else {
-            const fi = document.getElementById('ppt-builder-file-input');
-            if(fi.files.length) formData.append("file", fi.files[0]);
-        }
-        formData.append("inputType", "file");
-
-        try {
-            const response = await fetch("{{ url_for('summarization.process_create_ppt') }}", { method: "POST", body: formData });
+            
+            // Stream processing
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            let rawBuffer = "";
+            let rawChunkBuffer = "";
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                rawBuffer += decoder.decode(value, { stream: true });
-                const lines = rawBuffer.split("\n");
-                rawBuffer = lines.pop(); 
+                
+                rawChunkBuffer += decoder.decode(value, { stream: true });
+                const lines = rawChunkBuffer.split("\n");
+                rawChunkBuffer = lines.pop(); // Keep partial line
 
                 for (const line of lines) {
                     if (!line.trim()) continue;
                     try {
                         const msg = JSON.parse(line);
-                        if (msg.type === "status") {
-                            logDiv.innerHTML += `<div class="ppt-log-line"><i class="fas fa-chevron-right"></i> ${msg.message}</div>`;
-                            logDiv.scrollTop = logDiv.scrollHeight;
-                        } else if (msg.type === "result") {
-                            document.getElementById('ppt-result-container').innerHTML = msg.html;
-                            document.getElementById('ppt-reset-btn').style.display = 'block';
-                            // Scroll to result
-                            document.getElementById('ppt-result-container').scrollIntoView({behavior: "smooth"});
-                        } else if (msg.type === "error") {
-                             logDiv.innerHTML += `<div style="color:red"><i class="fas fa-times"></i> Error: ${msg.message}</div>`;
-                             document.getElementById('ppt-reset-btn').style.display = 'block';
+                        
+                        if (msg.type === "meta") {
+                            const badgeStrong = document.querySelector('#persona-badge-text strong');
+                            if (badgeStrong) badgeStrong.innerText = msg.role || msg.classification;
+                            updateStatus(context, "DELIBERATING...");
+                        } 
+                        else if (msg.type === "chunk") {
+                            // Accumulate ALL text content
+                            fullTextBuffer += msg.content;
+                            // Re-parse entire buffer on every chunk to ensure strict correctness
+                            updateThinkingAndReport(context);
+                        } 
+                        else if (msg.type === "error") {
+                            throw new Error(msg.content);
                         }
-                    } catch(e) { console.log(e); }
+                    } catch (e) { console.log("JSON Parse Error:", line); }
                 }
             }
-        } catch (e) {
-            logDiv.innerHTML += `<div style="color:red">Connection Error: ${e}</div>`;
-            document.getElementById('ppt-reset-btn').style.display = 'block';
+            updateThinkingAndReport(context); // Final pass
+            finishDeliberationText(context);
+
+        } catch (e) { 
+            console.error(e);
+            document.getElementById(`deliberation-ui-${context}`).style.display = 'none';
+            document.getElementById(`input-panel-${context}`).style.display = 'block';
+            document.getElementById('error-display-text').style.display = 'block';
+            document.getElementById('error-display-text').innerText = "Analysis Failed: " + e.message;
         }
     }
 
-    // --- STREAM PARSER ---
-    async function processStream(response, context, chunkCallback) {
-        if (!response.ok) throw new Error("Server Error: " + response.statusText);
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let rawBuffer = "";
+    function updateThinkingAndReport(context) {
+        const marker = "### REPORT START";
+        const splitIndex = fullTextBuffer.indexOf(marker);
+        
+        let thinkingPart = "";
+        let reportPart = "";
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            rawBuffer += decoder.decode(value, { stream: true });
-            const lines = rawBuffer.split("\n");
-            rawBuffer = lines.pop(); 
+        if (splitIndex === -1) {
+            thinkingPart = fullTextBuffer;
+        } else {
+            thinkingPart = fullTextBuffer.substring(0, splitIndex);
+            reportPart = fullTextBuffer.substring(splitIndex + marker.length);
+            updateStatus(context, "GENERATING FINAL BRIEF...");
+        }
 
-            for (const line of lines) {
-                if (!line.trim()) continue;
-                try {
-                    const msg = JSON.parse(line);
-                    if (msg.type === "meta") {
-                        addItem(context, 'hypo', `Classified: ${msg.classification}`);
-                        if(context === 'text') document.querySelector('#persona-badge-text strong').innerText = msg.classification;
-                        updateStatus(context, "DELIBERATING...");
-                    } else if (msg.type === "chunk") {
-                        chunkCallback(msg.content);
-                    } else if (msg.type === "error") {
-                        throw new Error(msg.content);
-                    }
-                } catch (e) { console.log("JSON Parse Error:", line); }
-            }
+        // Render Thinking
+        parseThinkingToColumns(thinkingPart, context);
+
+        // Render Report (if exists)
+        if (reportPart.trim()) {
+             const outputContainer = document.getElementById('summary-output-container');
+             if (typeof marked !== 'undefined') {
+                 outputContainer.innerHTML = marked.parse(reportPart);
+             } else {
+                 outputContainer.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${reportPart}</pre>`;
+             }
         }
     }
 
-    function parseThinkingStream(text, context) {
-        thinkingBuffer += text;
-        const regex = /::\s*(HYPO|HYPOTHESIS|EVIDENCE|DECISION|NOTE)\s*::(.*?)(?=(::|$))/gis;
+    function parseThinkingToColumns(text, context) {
+        const ui = document.getElementById(`deliberation-ui-${context}`);
+        
+        // Use regex to find all tags and their content
+        const regex = /::\s*(HYPO|HYPOTHESIS|EVIDENCE|DECISION|NOTE)\s*::/gi;
         let match;
         let lastIndex = 0;
-        while ((match = regex.exec(thinkingBuffer)) !== null) {
-            const type = match[1].toLowerCase();
-            const content = match[2].trim();
-            if (content.length > 3) addItem(context, type, content);
-            lastIndex = regex.lastIndex;
+        
+        // We will collect items to append to avoid clearing/redrawing if we wanted to optimize,
+        // but for safety/correctness, we clear and redraw.
+        
+        // Clear columns first
+        ui.querySelector('.col-hypotheses').innerHTML = '';
+        ui.querySelector('.col-evidence').innerHTML = '';
+        ui.querySelector('.col-decisions').innerHTML = '';
+        
+        // Note: The text might start with content before the first tag? Unlikely with strict prompt.
+        // We iterate through tags.
+        
+        // We need to capture the content *between* tags.
+        // The loop finds a tag. The content for *that* tag follows it, until the *next* tag.
+        
+        const tagsFound = [];
+        while ((match = regex.exec(text)) !== null) {
+            tagsFound.push({
+                type: match[1].toUpperCase(),
+                start: match.index,
+                end: match.index + match[0].length
+            });
         }
-        if (lastIndex > 0) thinkingBuffer = thinkingBuffer.slice(lastIndex);
-        if (thinkingBuffer.length > 2000) thinkingBuffer = ""; 
+        
+        for (let i = 0; i < tagsFound.length; i++) {
+            const currentTag = tagsFound[i];
+            const nextTagStart = (i + 1 < tagsFound.length) ? tagsFound[i+1].start : text.length;
+            
+            const content = text.substring(currentTag.end, nextTagStart).trim();
+            if (!content) continue;
+
+            if (currentTag.type.includes('HYPO')) appendItem(ui.querySelector('.col-hypotheses'), content, 'hypo-item active');
+            else if (currentTag.type.includes('EVI')) appendItem(ui.querySelector('.col-evidence'), `<strong>+</strong> ${content}`, 'evidence-item positive');
+            else if (currentTag.type.includes('DEC')) appendItem(ui.querySelector('.col-decisions'), `✓ ${content}`, 'decision-item final');
+            else if (currentTag.type.includes('NOTE')) ui.querySelector('.dw-notes').innerText = content;
+        }
     }
 
-    function addItem(context, type, text) {
-        const ui = document.getElementById(`deliberation-ui-${context}`);
-        let col, el = document.createElement('div');
-        if (type.includes('hypo')) { col = ui.querySelector('.col-hypotheses'); el.className = 'hypo-item active'; }
-        else if (type.includes('evi')) { col = ui.querySelector('.col-evidence'); el.className = 'evidence-item positive'; text = `<strong>+</strong> ${text}`; }
-        else if (type.includes('dec')) { col = ui.querySelector('.col-decisions'); el.className = 'decision-item final'; text = `✓ ${text}`; }
-        else if (type.includes('note')) { ui.querySelector('.dw-notes').innerText = text; return; }
-        
-        if(col) { el.innerHTML = text; col.appendChild(el); col.scrollTop = col.scrollHeight; }
+    function appendItem(col, html, className) {
+        const div = document.createElement('div');
+        div.className = className;
+        div.innerHTML = html;
+        col.appendChild(div);
+        col.scrollTop = col.scrollHeight;
+    }
+
+    function finishDeliberationText(context) {
+        updateStatus(context, "COMPLETE", "#4ade80");
+        document.querySelector(`#deliberation-ui-${context} .btn-reveal-result`).style.display = 'inline-flex';
+        document.querySelector(`#deliberation-ui-${context} .btn-reveal-result`).classList.add('pulse-button');
     }
 
     function updateStatus(context, text, color) {
         const el = document.querySelector(`#deliberation-ui-${context} .status-text`);
         if(el) { el.innerText = text; if(color) el.style.color = color; }
-    }
-
-    function showRevealButton(context) {
-        const btn = document.querySelector(`#deliberation-ui-${context} .btn-reveal-result`);
-        if(btn) { btn.style.display = 'inline-flex'; btn.classList.add('pulse-button'); }
     }
 
     function handleError(e, context) {
@@ -531,6 +511,58 @@
              document.getElementById('ppt-result-container').innerHTML = '';
         }
     };
+
+    // --- PPT STREAM LOGIC ---
+    async function submitPPTStream(useSample) {
+        document.getElementById('input-panel-ppt').style.display = 'none';
+        const progressWrapper = document.getElementById('ppt-progress-wrapper');
+        progressWrapper.style.display = 'block';
+        const logDiv = document.getElementById('ppt-status-log');
+        logDiv.style.display = 'block';
+        logDiv.innerHTML = '<div class="ppt-log-line"><i class="fas fa-circle-notch fa-spin"></i> Initializing request...</div>';
+
+        const formData = new FormData();
+        if (useSample) formData.append("use_sample", "true");
+        else {
+            const fi = document.getElementById('ppt-builder-file-input');
+            if(fi.files.length) formData.append("file", fi.files[0]);
+        }
+        formData.append("inputType", "file");
+
+        try {
+            const response = await fetch("{{ url_for('summarization.process_create_ppt') }}", { method: "POST", body: formData });
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let rawBuffer = "";
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                rawBuffer += decoder.decode(value, { stream: true });
+                const lines = rawBuffer.split("\n");
+                rawBuffer = lines.pop();
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const msg = JSON.parse(line);
+                        if (msg.type === "status") {
+                            logDiv.innerHTML += `<div class="ppt-log-line"><i class="fas fa-chevron-right"></i> ${msg.message}</div>`;
+                            logDiv.scrollTop = logDiv.scrollHeight;
+                        } else if (msg.type === "result") {
+                            document.getElementById('ppt-result-container').innerHTML = msg.html;
+                            document.getElementById('ppt-reset-btn').style.display = 'block';
+                            document.getElementById('ppt-result-container').scrollIntoView({behavior: "smooth"});
+                        } else if (msg.type === "error") {
+                             logDiv.innerHTML += `<div style="color:red"><i class="fas fa-times"></i> Error: ${msg.message}</div>`;
+                             document.getElementById('ppt-reset-btn').style.display = 'block';
+                        }
+                    } catch(e) {}
+                }
+            }
+        } catch (e) {
+            logDiv.innerHTML += `<div style="color:red">Connection Error: ${e}</div>`;
+            document.getElementById('ppt-reset-btn').style.display = 'block';
+        }
+    }
 
     // --- INIT ---
     (function() {
