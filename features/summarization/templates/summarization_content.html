@@ -3,609 +3,515 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <style>
-    /* --- Base Feature Styles --- */
-    .summarization-feature-container .feature-description { margin-bottom: 2rem; color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6; }
-    .summarization-feature-container .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
-    .summarization-feature-container .feature-item { background: #ffffff; padding: 1.5rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); transition: transform 0.2s, box-shadow 0.2s; }
-    .summarization-feature-container .feature-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--brand-primary); }
-    .summarization-feature-container .feature-item h4 { margin: 0 0 0.5rem 0; font-family: var(--font-sans); font-size: 1rem; color: var(--text-primary); font-weight: 600; }
-    .summarization-feature-container .feature-item p { font-family: var(--font-sans); color: var(--text-secondary); line-height: 1.5; margin: 0; font-size: 0.9rem; }
+    /* --- SCOPED CSS FOR SUMMARIZATION --- */
+    .summarization-wrapper { max-width: 900px; margin: 0 auto; }
 
-    /* --- Flash Demo Card --- */
-    .flash-demo-card { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #bbf7d0; padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 2rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
-    .flash-demo-card strong { color: #15803d; font-size: 1.05rem; display: block; margin-bottom: 0.2rem; }
-    .flash-demo-card span { color: #166534; font-size: 0.9rem; }
+    /* 1. HEADER */
+    .sum-header { margin-bottom: 2rem; }
+    .sum-header h1 { display: flex; align-items: center; gap: 12px; font-size: 1.8rem; margin-bottom: 1rem; }
+    .sum-header p { font-size: 1.05rem; color: var(--text-secondary); max-width: 700px; line-height: 1.6; }
 
-    /* --- Error Banner --- */
-    .error-banner { background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: none; }
+    /* 2. INFO GRID (Consolidated Style) */
+    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
+    .info-card { padding: 0; }
+    .info-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem; }
+    .info-card-header i { font-size: 1.25rem; color: var(--brand-primary); display: flex; flex-shrink: 0; }
+    .info-card-header span { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); }
+    .info-card p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; padding-left: 30px; }
 
-    /* --- V2 DELIBERATION WORKBENCH STYLES --- */
-    .deliberation-workbench {
-        display: none; /* Hidden initially */
-        background: #0d1117; /* GitHub Dark Dimmed */
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        margin-bottom: 2rem;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    /* 3. CONTROL PANEL */
+    .control-panel {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        box-shadow: var(--shadow-md);
         overflow: hidden;
-        font-family: 'JetBrains Mono', 'Courier New', monospace;
-        flex-direction: column !important; /* Force column layout */
-        width: 100%;
-        animation: slideUp 0.3s ease-out;
-        color: #c9d1d9;
+        margin-bottom: 2rem;
     }
+
+    /* Section A: Speed Demo (Top Bar) */
+    .cp-demo-bar {
+        background: linear-gradient(to right, #f0fdf4, #ffffff);
+        border-bottom: 1px solid #dcfce7;
+        padding: 1rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+    .demo-label { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #166534; }
+    .demo-btn {
+        background: #fff; border: 1px solid #bbf7d0; color: #15803d;
+        padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+        cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+    }
+    .demo-btn:hover { background: #dcfce7; border-color: #86efac; }
+
+    /* Section B: Upload Area */
+    .cp-upload-area {
+        background: #f8fafc; padding: 2.5rem;
+        transition: background 0.2s; border-bottom: 1px solid var(--border-subtle);
+    }
+    .drop-zone-active { background: #eff6ff !important; }
+
+    .upload-label {
+        display: flex; flex-direction: column; align-items: center;
+        border: 2px dashed #cbd5e1; border-radius: 8px; padding: 2.5rem;
+        text-align: center; cursor: pointer; background: white; transition: all 0.2s;
+    }
+    .upload-label:hover { border-color: var(--brand-primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .upload-label i { font-size: 2.5rem; color: #94a3b8; margin-bottom: 1rem; }
+    .upload-label h5 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; }
+    .upload-label .subtext { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; }
+
+    /* Section C: Action Bar */
+    .cp-action-bar { padding: 1.25rem 2rem; background: white; display: flex; justify-content: flex-end; }
+    .primary-action-btn { height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; }
+
+    /* 4. DELIBERATION WORKBENCH (The "Matrix" UI) */
+    .deliberation-workbench {
+        display: none; flex-direction: column;
+        background: #0d1117; /* GitHub Dark Dimmed */
+        border: 1px solid #30363d; border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        overflow: hidden; font-family: 'JetBrains Mono', monospace;
+        color: #c9d1d9; margin-bottom: 2rem;
+        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
     .dw-header {
-        padding: 12px 20px;
-        border-bottom: 1px solid #30363d;
-        background: #161b22;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        height: 60px;
-        flex-shrink: 0;
+        padding: 12px 20px; background: #161b22; border-bottom: 1px solid #30363d;
+        display: flex; justify-content: space-between; align-items: center;
     }
-    .dw-title { 
-        color: #e6edf3; font-weight: 700; font-size: 0.85rem; 
-        display: flex; gap: 10px; align-items: center; 
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .dw-status { color: #58a6ff; font-size: 0.8rem; letter-spacing: 0.5px; white-space: nowrap; }
-
-    /* The 3-Column Grid */
-    .dw-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        min-height: 300px;
-        max-height: 450px;
-        background: #0d1117;
-        width: 100%; /* Ensure full width */
-    }
-
-    .dw-col {
-        border-right: 1px solid #30363d;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        overflow: hidden;
-    }
+    .dw-title { font-size: 0.85rem; font-weight: 700; color: #e6edf3; display: flex; align-items: center; gap: 8px; }
+    .dw-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; min-height: 300px; max-height: 450px; }
+    .dw-col { border-right: 1px solid #30363d; display: flex; flex-direction: column; }
     .dw-col:last-child { border-right: none; }
-
-    .dw-col-head {
-        padding: 10px 15px;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        color: #8b949e;
-        letter-spacing: 1px;
-        font-weight: 600;
-        border-bottom: 1px solid #30363d;
-        background: rgba(22, 27, 34, 0.9);
-        flex-shrink: 0;
-    }
-
-    .dw-content {
-        padding: 15px;
-        overflow-y: auto;
-        flex: 1;
-        font-size: 0.8rem;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        scrollbar-width: thin;
-        scrollbar-color: #30363d #0d1117;
-    }
-
-    /* Items inside columns */
-    .hypo-item {
-        padding: 12px;
-        border: 1px solid #30363d;
-        border-radius: 4px;
-        color: #c9d1d9;
-        transition: all 0.5s ease;
-        line-height: 1.4;
-    }
-    .hypo-item.active { border-color: #58a6ff; background: rgba(56, 139, 253, 0.1); }
+    .dw-col-head { padding: 10px 15px; font-size: 0.7rem; text-transform: uppercase; color: #8b949e; font-weight: 600; border-bottom: 1px solid #30363d; background: rgba(22, 27, 34, 0.95); }
+    .dw-content { padding: 15px; overflow-y: auto; flex: 1; font-size: 0.8rem; display: flex; flex-direction: column; gap: 10px; }
     
-    .evidence-item {
-        color: #8b949e;
-        border-left: 3px solid #30363d;
-        padding-left: 12px;
-        line-height: 1.4;
-    }
-    .evidence-item.positive { border-color: #238636; }
-    
-    .decision-item {
-        background: rgba(255,255,255,0.05);
-        padding: 12px;
-        border-radius: 4px;
-        border-left: 4px solid #58a6ff;
-        color: #ffffff !important;
-        line-height: 1.4;
-    }
-    .decision-item.final { border-color: #238636; background: rgba(46, 160, 67, 0.1); }
+    /* Workbench Items */
+    .hypo-item { padding: 10px; border: 1px solid #30363d; border-radius: 4px; line-height: 1.4; color: #8b949e; }
+    .hypo-item.active { border-color: #58a6ff; color: #c9d1d9; background: rgba(56, 139, 253, 0.1); }
+    .decision-item { border-left: 3px solid #238636; padding-left: 10px; color: #e6edf3; }
 
-    /* Footer */
-    .dw-footer {
-        padding: 15px 20px;
-        border-top: 1px solid #30363d;
-        background: #161b22;
-        flex-shrink: 0;
-        width: 100%;
-    }
-    .analyst-note-title { color: #d29922; font-size: 0.75rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .analyst-note-body { color: #8b949e; font-size: 0.85rem; line-height: 1.5; }
+    /* Final Report */
+    .report-card { background: white; padding: 3rem; border-radius: 12px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-lg); }
+    .report-prose h1, .report-prose h2 { border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-top: 1.5rem; }
+    .report-prose ul { padding-left: 1.2rem; }
+    .report-prose li { margin-bottom: 0.5rem; color: #374151; }
 
-    /* PPT STATUS LOG */
-    .ppt-status-log {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 1rem;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.85rem;
-        color: #475569;
-        margin-top: 1.5rem;
-        display: none; 
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    .ppt-log-line { margin-bottom: 0.5rem; display: flex; align-items: center; gap: 8px; animation: fadeIn 0.3s forwards; }
-    .ppt-log-line i { color: #22c55e; }
-
-    /* Animations */
-    @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    @keyframes pulse-green-glow {
-        0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-        70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-    }
-    .pulse-button { animation: pulse-green-glow 2s infinite; }
-
-    /* Document Styles */
-    .summary-display-box h1 { font-size: 1.5rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-top: 1.5rem; }
-    .summary-display-box h2 { font-size: 1.25rem; color: var(--brand-primary); margin-top: 1.5rem; font-weight: 700; }
-    .summary-display-box h3 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-top: 2rem; font-weight: 600; }
-    .summary-display-box ul { margin-bottom: 1.5rem; padding-left: 1.5rem; }
-    .summary-display-box li { margin-bottom: 0.5rem; color: #334155; }
-    .summary-display-box strong { color: #0f172a; font-weight: 600; }
-    
     @media (max-width: 768px) {
-        .dw-grid { grid-template-columns: 1fr; max-height: none; }
-        .dw-col { border-right: none; border-bottom: 1px solid #30363d; height: 200px; }
+        .info-grid, .dw-grid { grid-template-columns: 1fr; }
+        .dw-col { height: 200px; border-right: none; border-bottom: 1px solid #30363d; }
     }
 </style>
 
-<div class="feature-container summarization-feature-container">
-    <h1><i class="fas fa-briefcase"></i> The Executive Briefer</h1>
-
-    <div class="feature-tabs">
-        <button class="tab-link active" data-target-tab="text-summary-tab"><i class="fas fa-align-left"></i> Create Text Summary</button>
-        <button class="tab-link" data-target-tab="ppt-summary-tab"><i class="fas fa-file-powerpoint"></i> Create Executive PowerPoint</button>
+<div class="summarization-wrapper">
+    
+    <!-- 1. HEADER -->
+    <div class="sum-header">
+        <h1><i class="ph ph-briefcase" style="color: var(--brand-primary);"></i> The Executive Briefer</h1>
+        
+        <!-- Tab Navigation -->
+        <div class="feature-tabs">
+            <button class="tab-link active" data-target-tab="text-summary-tab">
+                <i class="ph ph-file-text"></i> Text Brief
+            </button>
+            <button class="tab-link" data-target-tab="ppt-summary-tab">
+                <i class="ph ph-presentation"></i> PowerPoint Deck
+            </button>
+        </div>
     </div>
 
     <!-- ================= TEXT SUMMARY TAB ================= -->
     <div id="text-summary-tab" class="feature-tab-content active-content">
         
-        <!-- INPUT PANEL -->
-        <div id="input-panel-text">
-            <p class="feature-description">
-                This <strong>AI Agent</strong> operates on <strong>Decision Mandates</strong>. It classifies your document and adopts the specific responsibility of an executive role (e.g., CFO, General Counsel).
-            </p>
-            
-            <div class="feature-grid">
-                <div class="feature-item"><h4><i class="fas fa-sitemap" style="color:var(--brand-primary)"></i> Smart Classification</h4><p>Identifies the exact document type to select the right expert mandate.</p></div>
-                <div class="feature-item"><h4><i class="fas fa-gavel" style="color:var(--brand-primary)"></i> Decision Focused</h4><p>Produces "Go/No-Go" judgments, not just descriptions.</p></div>
-                <div class="feature-item"><h4><i class="fas fa-list-check" style="color:var(--brand-primary)"></i> Structured Brief</h4><p>Outputs a strict Hypotheses → Evidence → Decision format.</p></div>
-            </div>
-
-            <div id="error-display-text" class="error-banner"></div>
-
-            <div class="flash-demo-card">
-                <div><strong>🚀 Speed Demo:</strong><span>See the agent analyze a complex financial report in seconds.</span></div>
-                <button onclick="submitRealAnalysisText(true)" class="submit-button" style="margin:0; background:#16a34a; font-size:0.9em; padding:8px 15px; width:auto; box-shadow:none;"><i class="fas fa-bolt"></i> Load IBM 2024 Report</button>
-            </div>
-
-            <form id="text-summary-form" onsubmit="event.preventDefault(); submitRealAnalysisText(false);">
-                <div class="form-group" style="margin-bottom: 1.5rem;">
-                    <label for="text-summary-file-input" id="text-summary-drop-zone-label" class="drop-zone-style">
-                        <i class="fas fa-file-alt"></i>
-                        <div><p>Click to upload or drag and drop</p><p class="file-info" id="text-summary-file-name-display">PDF, DOCX, PPTX (Max 10MB)</p></div>
-                        <div class="format-badges"><span class="format-badge">DOCX</span><span class="format-badge">PDF</span><span class="format-badge">PPTX</span></div>
-                    </label>
-                    <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf" style="display: none;">
+        <!-- Info Grid -->
+        <div class="info-grid" id="input-info-text">
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="ph ph-brain"></i>
+                    <span>Smart Classification</span>
                 </div>
-                <button type="submit" id="text-summary-submit-btn" class="submit-button" disabled><i class="fas fa-magic"></i> Generate Analysis</button>
-            </form>
+                <p>Identifies document type (e.g., "10-K", "Legal Contract") to select the correct expert mandate.</p>
+            </div>
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="ph ph-gavel"></i>
+                    <span>Decision Focused</span>
+                </div>
+                <p>Produces specific "Go/No-Go" judgments and risk assessments, not just summaries.</p>
+            </div>
+            <div class="info-card">
+                <div class="info-card-header">
+                    <i class="ph ph-list-checks"></i>
+                    <span>Structured Brief</span>
+                </div>
+                <p>Outputs a strict "Hypotheses → Evidence → Decision" format for executive review.</p>
+            </div>
         </div>
 
-        <!-- DELIBERATION UI (TEXT) -->
+        <!-- INPUT PANEL -->
+        <div id="input-panel-text">
+            <form id="text-summary-form" onsubmit="event.preventDefault(); submitRealAnalysisText(false);">
+                <div class="control-panel">
+                    
+                    <!-- Speed Demo Bar -->
+                    <div class="cp-demo-bar">
+                        <div class="demo-label">
+                            <i class="ph ph-lightning" style="color: #f59e0b; font-weight: bold;"></i>
+                            <span><strong>Speed Demo:</strong> Analyze a complex financial report in seconds.</span>
+                        </div>
+                        <button type="button" onclick="submitRealAnalysisText(true)" class="demo-btn">
+                            Load IBM 2024 Report <i class="ph ph-arrow-right"></i>
+                        </button>
+                    </div>
+
+                    <!-- Upload Area -->
+                    <div class="cp-upload-area" id="text-drop-area">
+                        <label for="text-summary-file-input" class="upload-label" id="text-drop-zone">
+                            <i class="ph ph-file-doc"></i>
+                            <h5 id="text-file-name">Click to upload or drag and drop</h5>
+                            <span class="subtext">PDF, DOCX, PPTX (Max 10MB)</span>
+                            <div class="file-badges">
+                                <span class="f-badge" style="background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">PDF</span>
+                                <span class="f-badge" style="background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">DOCX</span>
+                            </div>
+                        </label>
+                        <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf" style="display: none;">
+                    </div>
+
+                    <!-- Action Bar -->
+                    <div class="cp-action-bar">
+                        <button type="submit" id="text-summary-submit-btn" class="submit-button primary-action-btn" disabled>
+                            <i class="ph ph-magic-wand"></i> Generate Brief
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <div id="error-display-text" class="message-item category-error" style="display:none;"></div>
+        </div>
+
+        <!-- DELIBERATION WORKBENCH (Hidden Initially) -->
         <div id="deliberation-ui-text" class="deliberation-workbench">
             <div class="dw-header">
                 <div class="dw-title">
-                    <i class="fas fa-brain" style="color: #58a6ff;"></i> ANALYST ENGINE
+                    <i class="ph ph-cpu" style="color: #58a6ff;"></i> ANALYST ENGINE
                     <span style="opacity: 0.3; margin: 0 8px;">|</span> 
-                    <span style="font-weight: 400; color: #8b949e;">ID: #AF-<span class="task-id-display">...</span></span>
+                    <span style="font-weight: 400; color: #8b949e;">TASK ID: #<span class="task-id-display">...</span></span>
                 </div>
-                
                 <div style="display: flex; align-items: center; gap: 15px;">
-                    <div class="dw-status status-text">INITIALIZING...</div>
-                    <button class="btn-reveal-result submit-button" style="display:none; padding: 6px 14px; font-size: 0.8rem; background: #22c55e; border: none; box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.4); white-space: nowrap;" onclick="revealFinalResult('text')">
-                        View Final Brief <i class="fas fa-arrow-right" style="margin-left: 5px;"></i>
+                    <div class="dw-status status-text" style="font-size: 0.8rem; letter-spacing: 0.5px; color: #58a6ff;">INITIALIZING...</div>
+                    <button class="btn-reveal-result submit-button" style="display:none; height: 32px; font-size: 0.8rem; background: #238636;" onclick="revealFinalResult('text')">
+                        View Brief <i class="ph ph-arrow-right"></i>
                     </button>
                 </div>
             </div>
             <div class="dw-grid">
-                <div class="dw-col"><div class="dw-col-head">Hypotheses Formulation</div><div class="dw-content col-hypotheses"></div></div>
-                <div class="dw-col"><div class="dw-col-head">Evidence Extraction</div><div class="dw-content col-evidence"></div></div>
-                <div class="dw-col"><div class="dw-col-head">Judgment & Decisions</div><div class="dw-content col-decisions"></div></div>
-            </div>
-            <div class="dw-footer">
-                <div class="analyst-note-title">⚠ Analyst Uncertainty Notes</div>
-                <div class="analyst-note-body dw-notes">Pending analysis completion...</div>
+                <div class="dw-col"><div class="dw-col-head">Hypotheses</div><div class="dw-content col-hypotheses"></div></div>
+                <div class="dw-col"><div class="dw-col-head">Evidence</div><div class="dw-content col-evidence"></div></div>
+                <div class="dw-col"><div class="dw-col-head">Decisions</div><div class="dw-content col-decisions"></div></div>
             </div>
         </div>
 
-        <!-- FINAL REPORT CONTAINER (TEXT) -->
+        <!-- FINAL REPORT (Hidden Initially) -->
         <div id="final-result-wrapper-text" style="display: none; opacity: 0; transition: opacity 0.5s ease;">
-            <div class="summary-actions" style="margin-bottom: 1.5rem; display: flex; justify-content: flex-end;">
-                <button onclick="resetView('text')" class="btn-secondary" style="background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">
-                    <i class="fas fa-undo"></i> Analyze Another Document
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div id="persona-badge-text" style="background: #eff6ff; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; color: #4f46e5; border: 1px solid #c7d2fe; display: flex; align-items: center; gap: 8px;">
+                    <i class="ph ph-user-focus"></i> Active Mandate: <strong>Loading...</strong>
+                </div>
+                <button onclick="resetView('text')" class="btn-secondary">
+                    Analyze Another
                 </button>
             </div>
-            <div id="persona-badge-text" class="model-used-info" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #eff6ff; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; color: #6366f1; border: 1px solid #bfdbfe; margin-bottom: 1.5rem;">
-                <i class="fas fa-user-shield"></i> Active Mandate: <strong>Loading...</strong>
-            </div>
-            <div id="summary-output-container" class="summary-display-box" style="background-color: #ffffff; border: 1px solid #e2e8f0; padding: 2.5rem; border-radius: 8px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); font-family: 'Inter', sans-serif; color: #0f172a; line-height: 1.7;"></div>
+            <div id="summary-output-container" class="report-card report-prose markdown-body"></div>
         </div>
     </div>
 
     <!-- ================= PPT TAB ================= -->
     <div id="ppt-summary-tab" class="feature-tab-content">
         
-        <!-- INPUT PANEL -->
-        <div id="input-panel-ppt">
-            <p class="feature-description">This <strong>AI Agent</strong> is a strategic communications partner. It transforms raw documents into compelling, executive-ready presentations, adhering to the same strict decision mandates as the text agent.</p>
-            
-            <div id="error-display-ppt" class="error-banner"></div>
-
-            <div class="flash-demo-card" style="background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); border-color: #fecdd3;">
-                <div><strong style="color: #9f1239;">✨ Magic Demo:</strong><span style="color: #be123c;">Generate a full Executive Deck from the IBM Report instantly.</span></div>
-                <button onclick="submitPPTStream(true)" class="submit-button" style="margin: 0; background: #e11d48; font-size: 0.9em; padding: 8px 15px; width: auto; box-shadow: none;"><i class="fas fa-magic"></i> Create Deck</button>
+        <div class="info-grid">
+             <div class="info-card">
+                <div class="info-card-header"><i class="ph ph-presentation"></i><span>Storytelling</span></div>
+                <p>Converts raw documents into a coherent 5-slide narrative arc automatically.</p>
             </div>
-            
-            <form id="ppt-form" onsubmit="event.preventDefault(); submitPPTStream(false);">
-                <input type="hidden" name="inputType" value="file">
-                <div class="form-group" style="margin-bottom: 1.5rem;">
-                     <label for="ppt-builder-file-input" id="ppt-builder-drop-zone-label" class="drop-zone-style">
-                         <i class="fas fa-file-powerpoint"></i>
-                         <div><p>Click to upload or drag and drop</p><p class="file-info" id="ppt-builder-file-info">Up to 5 files (DOCX, PDF)</p></div>
-                         <div class="format-badges"><span class="format-badge">DOCX</span><span class="format-badge">PDF</span></div>
-                     </label>
-                     <input type="file" id="ppt-builder-file-input" name="file" accept=".docx,.pdf" multiple style="display: none;">
-                </div>
-                <button type="submit" id="ppt-builder-convert-btn" class="submit-button" disabled><i class="fas fa-magic"></i> Generate Presentation</button>
-            </form>
+            <div class="info-card">
+                <div class="info-card-header"><i class="ph ph-paint-brush"></i><span>Design Engine</span></div>
+                <p>Selects layouts, colors, and typography based on the chosen professional template.</p>
+            </div>
+            <div class="info-card">
+                <div class="info-card-header"><i class="ph ph-export"></i><span>Native Export</span></div>
+                <p>Delivers an editable .pptx file with speaker notes and semantic slide structures.</p>
+            </div>
         </div>
 
-        <div id="ppt-progress-wrapper" style="display:none;">
-             <!-- STATUS LOG -->
-             <div id="ppt-status-log" class="ppt-status-log"></div>
-             <!-- RESULT -->
+        <div id="input-panel-ppt">
+             <form id="ppt-form" onsubmit="event.preventDefault(); submitPPTStream(false);">
+                <div class="control-panel">
+                    
+                    <!-- Demo Bar -->
+                    <div class="cp-demo-bar" style="background: linear-gradient(to right, #fff1f2, #ffffff); border-bottom-color: #fecdd3;">
+                         <div class="demo-label" style="color: #be123c;">
+                            <i class="ph ph-sparkle" style="color: #f43f5e; font-weight: bold;"></i>
+                            <span><strong>Magic Demo:</strong> Turn the IBM Report into a pitch deck.</span>
+                        </div>
+                        <button type="button" onclick="submitPPTStream(true)" class="demo-btn" style="color: #be123c; border-color: #fecdd3;">
+                            Create Deck <i class="ph ph-magic-wand"></i>
+                        </button>
+                    </div>
+
+                    <!-- Upload -->
+                     <div class="cp-upload-area" id="ppt-drop-area">
+                        <label for="ppt-builder-file-input" class="upload-label" id="ppt-drop-zone">
+                            <i class="ph ph-file-ppt"></i>
+                            <h5 id="ppt-file-name">Click to upload or drag and drop</h5>
+                            <span class="subtext">Up to 5 files (DOCX, PDF)</span>
+                        </label>
+                        <input type="file" id="ppt-builder-file-input" name="file" accept=".docx,.pdf" multiple style="display: none;">
+                    </div>
+
+                    <!-- Action -->
+                    <div class="cp-action-bar">
+                        <button type="submit" id="ppt-builder-convert-btn" class="submit-button primary-action-btn" disabled>
+                            <i class="ph ph-slideshow"></i> Generate Presentation
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <div id="error-display-ppt" class="message-item category-error" style="display:none;"></div>
+        </div>
+
+        <div id="ppt-progress-wrapper" style="display:none; margin-top: 2rem;">
+             <div id="ppt-status-log" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; font-family: 'JetBrains Mono'; font-size: 0.85rem; color: #475569; max-height: 250px; overflow-y: auto;"></div>
              <div id="ppt-result-container" style="margin-top: 1.5rem;"></div>
-             <!-- RESET -->
-             <button id="ppt-reset-btn" onclick="resetView('ppt')" class="btn-secondary" style="margin-top:1rem; display:none; background:white; border:1px solid #ddd; padding:8px 16px; border-radius:6px; cursor:pointer;">Create Another</button>
+             <button id="ppt-reset-btn" onclick="resetView('ppt')" class="btn-secondary" style="margin-top:1rem; display:none;">Create Another</button>
         </div>
     </div>
 </div>
 
 <script>
-    // --- SHARED UTILS ---
-    let fullTextBuffer = ""; // Accumulates everything
+    // --- UTILS ---
+    let fullTextBuffer = ""; 
     
-    function resetDeliberationUI(context) {
-        if (context === 'text') {
-            const ui = document.getElementById(`deliberation-ui-${context}`);
-            // Clear columns
-            ['col-hypotheses', 'col-evidence', 'col-decisions'].forEach(c => ui.querySelector('.'+c).innerHTML = '');
-            ui.querySelector('.dw-notes').innerText = 'Pending analysis...';
-            ui.querySelector('.task-id-display').innerText = Math.floor(Math.random() * 9000) + 1000;
-            ui.querySelector('.status-text').innerText = "CONNECTING...";
-            ui.querySelector('.status-text').style.color = "#58a6ff";
-            
-            // Reset Badge
-            document.querySelector('#persona-badge-text strong').innerText = "Loading...";
+    // --- UI HELPERS ---
+    function setupDropZone(areaId, labelId, inputId, displayId, btnId, iconClass) {
+        const area = document.getElementById(areaId);
+        const label = document.getElementById(labelId);
+        const input = document.getElementById(inputId);
+        const display = document.getElementById(displayId);
+        const btn = document.getElementById(btnId);
 
-            const btn = ui.querySelector('.btn-reveal-result');
-            btn.style.display = 'none';
-            btn.classList.remove('pulse-button');
-            
-            fullTextBuffer = ""; 
-        } else {
-            // Reset PPT
-            document.getElementById('ppt-status-log').innerHTML = '';
-            document.getElementById('ppt-result-container').innerHTML = '';
-            document.getElementById('ppt-reset-btn').style.display = 'none';
-        }
+        if(!label || !input) return;
+
+        ['dragenter', 'dragover'].forEach(eName => {
+            label.addEventListener(eName, (e) => { e.preventDefault(); area.classList.add('drop-zone-active'); label.style.borderColor = 'var(--brand-primary)'; });
+        });
+        ['dragleave', 'drop'].forEach(eName => {
+            label.addEventListener(eName, (e) => { e.preventDefault(); area.classList.remove('drop-zone-active'); label.style.borderColor = ''; });
+        });
+
+        label.addEventListener('drop', (e) => {
+            if(e.dataTransfer.files.length) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
+        });
+
+        input.addEventListener('change', () => {
+            if(input.files.length) {
+                display.textContent = input.files.length > 1 ? `${input.files.length} files selected` : input.files[0].name;
+                display.style.color = 'var(--brand-primary)';
+                const icon = label.querySelector('i');
+                if(icon) { icon.className = `ph ${iconClass || 'ph-file-text'}`; icon.style.color = 'var(--brand-primary)'; }
+                if(btn) btn.disabled = false;
+            } else {
+                display.textContent = 'Click to upload or drag and drop';
+                display.style.color = '';
+                const icon = label.querySelector('i');
+                if(icon) { icon.className = `ph ${iconClass || 'ph-file-doc'}`; icon.style.color = ''; }
+                if(btn) btn.disabled = true;
+            }
+        });
     }
 
-    // --- TEXT SUMMARY LOGIC ---
+    // --- TAB LOGIC ---
+    (function() {
+        const wrapper = document.querySelector('.summarization-wrapper');
+        const tabLinks = wrapper.querySelectorAll('.tab-link');
+        const tabContents = wrapper.querySelectorAll('.feature-tab-content');
+
+        function openTab(tId) {
+            tabContents.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
+            tabLinks.forEach(tl => tl.classList.remove('active'));
+            document.getElementById(tId).style.display = 'block';
+            wrapper.querySelector(`[data-target-tab="${tId}"]`).classList.add('active');
+        }
+        
+        tabLinks.forEach(l => l.addEventListener('click', (e) => { e.preventDefault(); openTab(l.dataset.targetTab); }));
+
+        setupDropZone('text-drop-area', 'text-drop-zone', 'text-summary-file-input', 'text-file-name', 'text-summary-submit-btn', 'ph-file-text');
+        setupDropZone('ppt-drop-area', 'ppt-drop-zone', 'ppt-builder-file-input', 'ppt-file-name', 'ppt-builder-convert-btn', 'ph-file-ppt');
+    })();
+
+    // --- LOGIC: TEXT SUMMARY ---
     async function submitRealAnalysisText(useSample) {
         const context = 'text';
         document.getElementById('input-panel-text').style.display = 'none';
-        document.getElementById(`deliberation-ui-text`).style.display = 'flex';
-        document.getElementById('error-display-text').style.display = 'none';
+        document.getElementById('input-info-text').style.display = 'none'; // Hide grid to focus
+        document.getElementById('deliberation-ui-text').style.display = 'flex';
         resetDeliberationUI(context);
 
         const formData = new FormData();
         if (useSample) formData.append("use_sample", "true");
         else {
             const fi = document.getElementById('text-summary-file-input');
-            if(fi.files.length > 0) formData.append("file", fi.files[0]);
+            if(fi.files.length) formData.append("file", fi.files[0]);
         }
 
         try {
             const response = await fetch("{{ url_for('summarization.process_summarize') }}", { method: "POST", body: formData });
-            
-            // Stream processing
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            let rawChunkBuffer = "";
+            let buffer = "";
 
-            while (true) {
+            while(true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                
-                rawChunkBuffer += decoder.decode(value, { stream: true });
-                const lines = rawChunkBuffer.split("\n");
-                rawChunkBuffer = lines.pop(); // Keep partial line
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop();
 
                 for (const line of lines) {
                     if (!line.trim()) continue;
                     try {
                         const msg = JSON.parse(line);
-                        
                         if (msg.type === "meta") {
-                            const badgeStrong = document.querySelector('#persona-badge-text strong');
-                            if (badgeStrong) badgeStrong.innerText = msg.role || msg.classification;
-                            updateStatus(context, "DELIBERATING...");
-                        } 
-                        else if (msg.type === "chunk") {
-                            // Accumulate ALL text content
+                            document.querySelector('#persona-badge-text strong').innerText = msg.role;
+                            updateStatus(context, "ANALYZING STRUCTURE...");
+                        } else if (msg.type === "chunk") {
                             fullTextBuffer += msg.content;
-                            // Re-parse entire buffer on every chunk to ensure strict correctness
                             updateThinkingAndReport(context);
-                        } 
-                        else if (msg.type === "error") {
-                            throw new Error(msg.content);
-                        }
-                    } catch (e) { console.log("JSON Parse Error:", line); }
+                        } else if (msg.type === "error") throw new Error(msg.content);
+                    } catch(e) {}
                 }
             }
-            updateThinkingAndReport(context); // Final pass
             finishDeliberationText(context);
-
-        } catch (e) { 
-            console.error(e);
-            document.getElementById(`deliberation-ui-${context}`).style.display = 'none';
-            document.getElementById(`input-panel-${context}`).style.display = 'block';
-            document.getElementById('error-display-text').style.display = 'block';
-            document.getElementById('error-display-text').innerText = "Analysis Failed: " + e.message;
-        }
+        } catch(e) { handleError(e, context); }
     }
 
-    function updateThinkingAndReport(context) {
-        const marker = "### REPORT START";
-        const splitIndex = fullTextBuffer.indexOf(marker);
-        
-        let thinkingPart = "";
-        let reportPart = "";
-
-        if (splitIndex === -1) {
-            thinkingPart = fullTextBuffer;
-        } else {
-            thinkingPart = fullTextBuffer.substring(0, splitIndex);
-            reportPart = fullTextBuffer.substring(splitIndex + marker.length);
-            updateStatus(context, "GENERATING FINAL BRIEF...");
-        }
-
-        // Render Thinking
-        parseThinkingToColumns(thinkingPart, context);
-
-        // Render Report (if exists)
-        if (reportPart.trim()) {
-             const outputContainer = document.getElementById('summary-output-container');
-             if (typeof marked !== 'undefined') {
-                 outputContainer.innerHTML = marked.parse(reportPart);
-             } else {
-                 outputContainer.innerHTML = `<pre style="white-space: pre-wrap; font-family: inherit;">${reportPart}</pre>`;
-             }
-        }
-    }
-
-    function parseThinkingToColumns(text, context) {
-        const ui = document.getElementById(`deliberation-ui-${context}`);
-        
-        // Use regex to find all tags and their content
-        const regex = /::\s*(HYPO|HYPOTHESIS|EVIDENCE|DECISION|NOTE)\s*::/gi;
-        let match;
-        let lastIndex = 0;
-        
-        // We will collect items to append to avoid clearing/redrawing if we wanted to optimize,
-        // but for safety/correctness, we clear and redraw.
-        
-        // Clear columns first
-        ui.querySelector('.col-hypotheses').innerHTML = '';
-        ui.querySelector('.col-evidence').innerHTML = '';
-        ui.querySelector('.col-decisions').innerHTML = '';
-        
-        // Note: The text might start with content before the first tag? Unlikely with strict prompt.
-        // We iterate through tags.
-        
-        // We need to capture the content *between* tags.
-        // The loop finds a tag. The content for *that* tag follows it, until the *next* tag.
-        
-        const tagsFound = [];
-        while ((match = regex.exec(text)) !== null) {
-            tagsFound.push({
-                type: match[1].toUpperCase(),
-                start: match.index,
-                end: match.index + match[0].length
-            });
-        }
-        
-        for (let i = 0; i < tagsFound.length; i++) {
-            const currentTag = tagsFound[i];
-            const nextTagStart = (i + 1 < tagsFound.length) ? tagsFound[i+1].start : text.length;
-            
-            const content = text.substring(currentTag.end, nextTagStart).trim();
-            if (!content) continue;
-
-            if (currentTag.type.includes('HYPO')) appendItem(ui.querySelector('.col-hypotheses'), content, 'hypo-item active');
-            else if (currentTag.type.includes('EVI')) appendItem(ui.querySelector('.col-evidence'), `<strong>+</strong> ${content}`, 'evidence-item positive');
-            else if (currentTag.type.includes('DEC')) appendItem(ui.querySelector('.col-decisions'), `✓ ${content}`, 'decision-item final');
-            else if (currentTag.type.includes('NOTE')) ui.querySelector('.dw-notes').innerText = content;
-        }
-    }
-
-    function appendItem(col, html, className) {
-        const div = document.createElement('div');
-        div.className = className;
-        div.innerHTML = html;
-        col.appendChild(div);
-        col.scrollTop = col.scrollHeight;
-    }
-
-    function finishDeliberationText(context) {
-        updateStatus(context, "COMPLETE", "#4ade80");
-        document.querySelector(`#deliberation-ui-${context} .btn-reveal-result`).style.display = 'inline-flex';
-        document.querySelector(`#deliberation-ui-${context} .btn-reveal-result`).classList.add('pulse-button');
-    }
-
-    function updateStatus(context, text, color) {
-        const el = document.querySelector(`#deliberation-ui-${context} .status-text`);
-        if(el) { el.innerText = text; if(color) el.style.color = color; }
-    }
-
-    function handleError(e, context) {
-        console.error(e);
-        document.getElementById(`deliberation-ui-${context}`).style.display = 'none';
-        document.getElementById(`input-panel-${context}`).style.display = 'block';
-        const errDiv = document.getElementById(`error-display-${context}`);
-        errDiv.style.display = 'block';
-        errDiv.innerText = "Analysis Failed: " + e.message;
-    }
-
-    window.revealFinalResult = function(context) {
-        document.getElementById(`deliberation-ui-${context}`).style.display = 'none';
-        const res = document.getElementById(`final-result-wrapper-${context}`);
-        res.style.display = 'block';
-        setTimeout(() => res.style.opacity = '1', 10);
-    };
-
-    window.resetView = function(context) { 
-        if (context === 'text') location.reload(); 
-        else {
-             document.getElementById('input-panel-ppt').style.display = 'block';
-             document.getElementById('ppt-progress-wrapper').style.display = 'none';
-             document.getElementById('ppt-status-log').innerHTML = '';
-             document.getElementById('ppt-result-container').innerHTML = '';
-        }
-    };
-
-    // --- PPT STREAM LOGIC ---
+    // --- LOGIC: PPT GENERATION ---
     async function submitPPTStream(useSample) {
         document.getElementById('input-panel-ppt').style.display = 'none';
-        const progressWrapper = document.getElementById('ppt-progress-wrapper');
-        progressWrapper.style.display = 'block';
-        const logDiv = document.getElementById('ppt-status-log');
-        logDiv.style.display = 'block';
-        logDiv.innerHTML = '<div class="ppt-log-line"><i class="fas fa-circle-notch fa-spin"></i> Initializing request...</div>';
+        const prog = document.getElementById('ppt-progress-wrapper');
+        prog.style.display = 'block';
+        const log = document.getElementById('ppt-status-log');
+        log.innerHTML = '<div><i class="ph ph-spinner ph-spin"></i> Initializing Designer Agent...</div>';
 
         const formData = new FormData();
-        if (useSample) formData.append("use_sample", "true");
+        if(useSample) formData.append("use_sample", "true");
         else {
-            const fi = document.getElementById('ppt-builder-file-input');
-            if(fi.files.length) formData.append("file", fi.files[0]);
+             const fi = document.getElementById('ppt-builder-file-input');
+             if(fi.files.length) formData.append("file", fi.files[0]);
         }
-        formData.append("inputType", "file");
-
+        
         try {
             const response = await fetch("{{ url_for('summarization.process_create_ppt') }}", { method: "POST", body: formData });
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            let rawBuffer = "";
-            while (true) {
+            let buffer = "";
+
+            while(true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                rawBuffer += decoder.decode(value, { stream: true });
-                const lines = rawBuffer.split("\n");
-                rawBuffer = lines.pop();
-                for (const line of lines) {
-                    if (!line.trim()) continue;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop();
+                
+                for(const line of lines) {
+                    if(!line.trim()) continue;
                     try {
                         const msg = JSON.parse(line);
-                        if (msg.type === "status") {
-                            logDiv.innerHTML += `<div class="ppt-log-line"><i class="fas fa-chevron-right"></i> ${msg.message}</div>`;
-                            logDiv.scrollTop = logDiv.scrollHeight;
-                        } else if (msg.type === "result") {
+                        if(msg.type === "status") {
+                            log.innerHTML += `<div><i class="ph ph-check" style="color:#22c55e"></i> ${msg.message}</div>`;
+                            log.scrollTop = log.scrollHeight;
+                        } else if(msg.type === "result") {
                             document.getElementById('ppt-result-container').innerHTML = msg.html;
                             document.getElementById('ppt-reset-btn').style.display = 'block';
-                            document.getElementById('ppt-result-container').scrollIntoView({behavior: "smooth"});
-                        } else if (msg.type === "error") {
-                             logDiv.innerHTML += `<div style="color:red"><i class="fas fa-times"></i> Error: ${msg.message}</div>`;
-                             document.getElementById('ppt-reset-btn').style.display = 'block';
                         }
                     } catch(e) {}
                 }
             }
-        } catch (e) {
-            logDiv.innerHTML += `<div style="color:red">Connection Error: ${e}</div>`;
-            document.getElementById('ppt-reset-btn').style.display = 'block';
+        } catch(e) { log.innerHTML += `<div style="color:red">Error: ${e}</div>`; document.getElementById('ppt-reset-btn').style.display = 'block'; }
+    }
+
+    // --- HELPERS (Copied from previous logic, simplified) ---
+    function updateThinkingAndReport(context) {
+        const marker = "### REPORT START";
+        const splitIndex = fullTextBuffer.indexOf(marker);
+        let thinking = splitIndex === -1 ? fullTextBuffer : fullTextBuffer.substring(0, splitIndex);
+        let report = splitIndex !== -1 ? fullTextBuffer.substring(splitIndex + marker.length) : "";
+        
+        // Render Tags
+        const regex = /::\s*(HYPO|HYPOTHESIS|EVIDENCE|DECISION|NOTE)\s*::/gi;
+        let match;
+        const ui = document.getElementById(`deliberation-ui-${context}`);
+        
+        // Simple append logic for demo efficiency (production would use delta updates)
+        ui.querySelector('.col-hypotheses').innerHTML = '';
+        ui.querySelector('.col-evidence').innerHTML = '';
+        ui.querySelector('.col-decisions').innerHTML = '';
+
+        let tags = [];
+        while ((match = regex.exec(thinking)) !== null) {
+             tags.push({ type: match[1].toUpperCase(), idx: match.index, end: match.index + match[0].length });
+        }
+
+        for(let i=0; i<tags.length; i++) {
+            let nextStart = (i+1 < tags.length) ? tags[i+1].idx : thinking.length;
+            let content = thinking.substring(tags[i].end, nextStart).trim();
+            if(!content) continue;
+            
+            if(tags[i].type.includes('HYPO')) appendItem(ui.querySelector('.col-hypotheses'), content, 'hypo-item active');
+            else if(tags[i].type.includes('EVI')) appendItem(ui.querySelector('.col-evidence'), content, 'hypo-item');
+            else if(tags[i].type.includes('DEC')) appendItem(ui.querySelector('.col-decisions'), content, 'decision-item');
+        }
+
+        if(report) {
+            document.getElementById('summary-output-container').innerHTML = marked.parse(report);
+            updateStatus(context, "FINALIZING BRIEF...");
         }
     }
 
-    // --- INIT ---
-    (function() {
-        const container = document.querySelector('.summarization-feature-container');
-        if (!container) return;
-        const tabLinks = container.querySelectorAll('.feature-tabs .tab-link');
-        const tabContents = container.querySelectorAll('.feature-tab-content');
-        function openTab(targetId) {
-            tabContents.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
-            tabLinks.forEach(tl => tl.classList.remove('active'));
-            container.querySelector('#' + targetId).style.display = 'block';
-            container.querySelector(`.feature-tabs .tab-link[data-target-tab="${targetId}"]`).classList.add('active');
-        }
-        tabLinks.forEach(link => {
-            link.addEventListener('click', (e) => { e.preventDefault(); openTab(link.dataset.targetTab); });
-        });
-        if (tabLinks.length > 0) openTab(tabLinks[0].dataset.targetTab);
+    function appendItem(col, html, cls) {
+        const d = document.createElement('div'); d.className = cls; d.innerText = html; col.appendChild(d);
+        col.scrollTop = col.scrollHeight;
+    }
 
-        function setupUploader(inputId, labelId, displayId, buttonId, configCheck) {
-            const input = document.getElementById(inputId);
-            const label = document.getElementById(labelId);
-            const display = document.getElementById(displayId);
-            const btn = document.getElementById(buttonId);
-            if (!input || !label) return;
-            label.addEventListener('dragover', (e) => { e.preventDefault(); label.classList.add('drag-over'); });
-            label.addEventListener('dragleave', () => label.classList.remove('drag-over'));
-            label.addEventListener('drop', (e) => {
-                e.preventDefault(); label.classList.remove('drag-over');
-                if (e.dataTransfer.files.length > 0) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
-            });
-            input.addEventListener('change', () => {
-                if (input.files.length > 0) {
-                    if(display) { display.textContent = input.files.length > 1 ? `${input.files.length} files selected` : input.files[0].name; display.style.color = 'var(--brand-primary)'; display.style.fontWeight = '600'; }
-                    label.classList.add('file-selected'); if(btn && configCheck) btn.disabled = false;
-                } else {
-                    if(display) { display.textContent = "No file selected"; display.style.color = ''; display.style.fontWeight = ''; }
-                    label.classList.remove('file-selected'); if(btn) btn.disabled = true;
-                }
-            });
-        }
-        const geminiConfigured = {{ gemini_configured|default(false)|tojson }};
-        const pptConfigured = {{ ppt_api_key_configured|default(false)|tojson }};
-        setupUploader('text-summary-file-input', 'text-summary-drop-zone-label', 'text-summary-file-name-display', 'text-summary-submit-btn', geminiConfigured);
-        setupUploader('ppt-builder-file-input', 'ppt-builder-drop-zone-label', 'ppt-builder-file-info', 'ppt-builder-convert-btn', pptConfigured);
-    })();
+    function updateStatus(c, t) { document.querySelector(`#deliberation-ui-${c} .status-text`).innerText = t; }
+    
+    function finishDeliberationText(c) {
+        updateStatus(c, "COMPLETE");
+        document.querySelector(`#deliberation-ui-${c} .btn-reveal-result`).style.display = 'inline-flex';
+    }
+
+    window.revealFinalResult = function(c) {
+        document.getElementById(`deliberation-ui-${c}`).style.display = 'none';
+        const res = document.getElementById(`final-result-wrapper-${c}`);
+        res.style.display = 'block';
+        setTimeout(() => res.style.opacity = '1', 10);
+    }
+    
+    function resetDeliberationUI(c) {
+        fullTextBuffer = "";
+        document.querySelector('.task-id-display').innerText = Math.floor(Math.random()*9999);
+        ['col-hypotheses','col-evidence','col-decisions'].forEach(cls => document.querySelector(`.${cls}`).innerHTML='');
+    }
+
+    window.resetView = function(c) { location.reload(); }
+    
+    function handleError(e, c) {
+        document.getElementById(`input-panel-${c}`).style.display = 'block';
+        document.getElementById(`deliberation-ui-${c}`).style.display = 'none';
+        alert("Error: " + e.message);
+    }
 </script>

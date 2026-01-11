@@ -201,19 +201,13 @@ body {
 
 /* --- FEATURE CONTAINER (The Main Card) --- */
 .feature-container {
-    background: var(--surface-card);
-    backdrop-filter: blur(12px); 
-    -webkit-backdrop-filter: blur(12px);
-    
-    border: 1px solid rgba(255, 255, 255, 0.5); /* Inner light border */
-    box-shadow: var(--shadow-xl); /* Floating effect */
-    border-radius: var(--radius-lg);
-    
-    padding: 3rem;
-    max-width: 1000px;
-    margin: 0 auto;
-    position: relative; 
-    overflow: hidden; 
+    background: rgba(255, 255, 255, 0.85); /* Semi-transparent */
+    backdrop-filter: blur(12px);          /* Glass effect */
+    border: 1px solid rgba(255, 255, 255, 0.5); 
+    box-shadow: 
+        0 10px 15px -3px rgba(0, 0, 0, 0.05), /* Diffuse shadow */
+        0 4px 6px -2px rgba(0, 0, 0, 0.025);
+    border-radius: 16px; /* Smooth corners */
 }
 
 /* --- TYPOGRAPHY (Editorial / Premium) --- */

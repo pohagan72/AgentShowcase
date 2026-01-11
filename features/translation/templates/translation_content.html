@@ -1,91 +1,280 @@
 {# features/translation/templates/translation_content.html #}
 <style>
-    /* Scoped styles for Translation feature specifics */
-    .translation-feature-container .feature-description { 
-        margin-bottom: 2rem; 
-        color: var(--text-secondary);
+    /* --- SCOPED CSS FOR PRECISION ALIGNMENT --- */
+    
+    .translation-wrapper {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    /* 1. HEADER SECTION */
+    .trans-header {
+        margin-bottom: 2.5rem;
+    }
+    .trans-header h1 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1.8rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+        margin-bottom: 1rem;
+    }
+    .trans-header p {
         font-size: 1.05rem;
+        color: var(--text-secondary);
+        max-width: 650px;
         line-height: 1.6;
     }
-    
-    .translation-feature-container .feature-grid { 
-        display: grid; 
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
-        gap: 1.5rem; 
-        margin-bottom: 2.5rem; 
+
+    /* 2. FEATURE GRID (Information) */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 3rem;
     }
     
-    .translation-feature-container .feature-item { 
-        background: #ffffff; 
-        padding: 1.5rem; 
-        border-radius: var(--radius-md); 
-        border: 1px solid var(--border-subtle); 
-        transition: transform 0.2s, box-shadow 0.2s;
+    .info-card {
+        padding: 0;
     }
     
-    .translation-feature-container .feature-item:hover {
-        transform: translateY(-2px);
+    .info-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .info-card-header i {
+        font-size: 1.25rem;
+        color: var(--brand-primary);
+        display: flex;
+        flex-shrink: 0;
+    }
+    
+    .info-card-header span {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--text-primary);
+    }
+    
+    .info-card p {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        line-height: 1.5;
+        margin: 0;
+        padding-left: 30px; /* Align with text start */
+    }
+
+    /* 3. THE CONTROL PANEL (The "Work Surface") */
+    .control-panel {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
         box-shadow: var(--shadow-md);
-        border-color: var(--brand-primary);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
-    .translation-feature-container .feature-item h4 { 
-        margin: 0 0 0.5rem 0; 
-        font-family: var(--font-sans); 
-        font-size: 1rem; 
-        color: var(--text-primary); 
-        font-weight: 600; 
-        letter-spacing: normal;
-        text-transform: none;
+    /* Top: Drop Zone */
+    .cp-upload-area {
+        background: #f8fafc;
+        padding: 2rem;
+        border-bottom: 1px solid var(--border-subtle);
+        transition: background 0.2s;
+        /* Ensure it's a block context */
+        display: block;
+        width: 100%;
+    }
+
+    .drop-zone-active {
+        background: #eff6ff !important;
+    }
+
+    /* CRITICAL FIX: Explicit Flex Column for the Label */
+    .upload-label {
+        display: flex;           /* Force Flexbox */
+        flex-direction: column;  /* Stack children vertically */
+        align-items: center;     /* Center children horizontally */
+        justify-content: center; /* Center children vertically */
+        width: 100%;            /* Fill the container */
+        
+        border: 2px dashed #cbd5e1;
+        border-radius: 8px;
+        padding: 3rem 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: white;
+        box-sizing: border-box; /* Include padding in width */
     }
     
-    .translation-feature-container .feature-item p { 
-        font-family: var(--font-sans); 
-        color: var(--text-secondary); 
-        line-height: 1.5; 
-        margin: 0; 
-        font-size: 0.9rem; 
+    .upload-label:hover {
+        border-color: var(--brand-primary);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
     }
 
-    /* Adjust spacing for form elements */
-    .translation-feature-container .form-group {
-        margin-bottom: 1.5rem;
+    .upload-label i {
+        font-size: 3rem;
+        color: #94a3b8;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .upload-label h5 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        margin-top: 0;
+    }
+    
+    .upload-label .subtext {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        display: block; /* Ensure it takes its own line */
+        margin-bottom: 1rem;
+    }
+
+    .file-badges {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+    }
+    .f-badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        background: #f1f5f9;
+        padding: 4px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+
+    /* Bottom: Settings Bar */
+    .cp-settings-bar {
+        padding: 1.5rem 2rem;
+        display: flex;
+        align-items: flex-end;
+        gap: 1.5rem;
+        background: white;
+    }
+
+    /* Custom Select Styling */
+    .select-group {
+        flex: 1;
+    }
+    .select-group label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .custom-select-wrapper {
+        position: relative;
+    }
+    .custom-select-wrapper select {
+        width: 100%;
+        appearance: none;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 0.85rem 1rem;
+        padding-right: 2.5rem;
+        font-size: 1rem;
+        color: var(--text-primary);
+        font-family: inherit;
+        cursor: pointer;
+    }
+    .custom-select-wrapper select:focus {
+        outline: none;
+        border-color: var(--brand-primary);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    .select-arrow {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: #64748b;
+        font-size: 1rem;
+    }
+
+    /* Action Button */
+    .action-btn-wrapper {
+        flex-shrink: 0;
+    }
+    .translate-btn {
+        height: 50px; /* Match input visual weight */
+        padding: 0 2rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .info-grid { grid-template-columns: 1fr; }
+        .cp-settings-bar { flex-direction: column; align-items: stretch; }
+        .info-card p { padding-left: 30px; }
     }
 </style>
 
-<div class="feature-container translation-feature-container">
-    <h1><i class="fas fa-language"></i> Intelligent Document Translation</h1>
-    <p class="feature-description">
-        This <strong>AI Agent</strong> executes a sophisticated processing pipeline to translate complex documents while preserving original layout and formatting. Designed for automated language translation in over 200 language pairs.
-    </p>
+<div class="translation-wrapper">
     
-    <div class="feature-grid">
-        <div class="feature-item">
-            <h4><i class="fas fa-file-import" style="color: var(--brand-primary); margin-right: 8px;"></i> Intelligent Ingestion</h4>
-            <p>Automatically detects source language and parses complex Word, PowerPoint, and Excel structures.</p>
+    <!-- 1. HEADER -->
+    <div class="trans-header">
+        <h1><i class="ph ph-translate" style="color: var(--brand-primary);"></i> Intelligent Document Translation</h1>
+        <p>A sophisticated processing pipeline that translates complex documents while preserving original layout, fonts, and formatting. Supports 200+ language pairs.</p>
+    </div>
+
+    <!-- 2. INFO GRID -->
+    <div class="info-grid">
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="ph ph-file-doc"></i>
+                <span>Intelligent Ingestion</span>
+            </div>
+            <p>Parses complex Word, PowerPoint, and Excel structures automatically.</p>
         </div>
-        <div class="feature-item">
-            <h4><i class="fas fa-magic" style="color: var(--brand-primary); margin-right: 8px;"></i> Contextual AI</h4>
-            <p>Uses advanced prompt engineering to ensure translation accuracy and nuance preservation.</p>
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="ph ph-magic-wand"></i>
+                <span>Contextual AI</span>
+            </div>
+            <p>Uses prompt engineering to ensure accurate tone and nuance.</p>
         </div>
-        <div class="feature-item">
-            <h4><i class="fas fa-print" style="color: var(--brand-primary); margin-right: 8px;"></i> Native Formatting</h4>
-            <p>Reassembles the translated document, preserving layouts, fonts, and styles perfectly.</p>
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="ph ph-layout"></i>
+                <span>Native Formatting</span>
+            </div>
+            <p>Reassembles documents pixel-perfectly after translation.</p>
         </div>
     </div>
 
+    <!-- Error Handling -->
     {% if not gcs_available or not gemini_configured %}
-        <div class="message-item category-error" role="alert">
-            <i class="fas fa-exclamation-triangle"></i>
+        <div class="message-item category-error" style="margin-bottom: 2rem;">
+            <i class="ph ph-warning-circle"></i>
             <div>
-                <strong>Configuration Issue:</strong>
-                {% if not gcs_available %}Cloud Storage is not available. {% endif %}
-                {% if not gemini_configured %}Google Gemini AI is not configured. {% endif %}
-                File processing is disabled.
+                <strong>System Unavailable:</strong>
+                {% if not gcs_available %}Cloud Storage missing. {% endif %}
+                {% if not gemini_configured %}AI Model missing. {% endif %}
             </div>
         </div>
     {% endif %}
 
+    <!-- 3. CONTROL PANEL -->
     <form method="POST" action="{{ url_for('translation.process_translate_document') }}" enctype="multipart/form-data"
           hx-post="{{ url_for('translation.process_translate_document') }}"
           hx-target="#translation-results-area"
@@ -93,121 +282,142 @@
           hx-encoding="multipart/form-data"
           hx-indicator="#translation-submit-button .spinner">
         
-        <!-- Pro Drop Zone -->
-        <div class="form-group">
-            <label for="translation-file-input" id="translation-drop-zone-label" class="drop-zone-style">
-                <!-- Icon -->
-                <i class="fas fa-cloud-upload-alt"></i>
+        <div class="control-panel">
+            
+            <!-- A. Upload Area -->
+            <div class="cp-upload-area" id="cp-upload-area">
+                <label for="translation-file-input" class="upload-label" id="translation-drop-zone">
+                    <i class="ph ph-cloud-arrow-up"></i>
+                    <h5 id="file-name-display">Click to upload or drag and drop</h5>
+                    <span class="subtext">Maximum file size 10MB</span>
+                    <div class="file-badges">
+                        <span class="f-badge">DOCX</span>
+                        <span class="f-badge">PPTX</span>
+                        <span class="f-badge">XLSX</span>
+                    </div>
+                </label>
+                <input type="file" id="translation-file-input" name="file" accept=".docx,.pptx,.xlsx" required style="display: none;">
+            </div>
+
+            <!-- B. Settings Bar -->
+            <div class="cp-settings-bar">
                 
-                <!-- Main Text -->
-                <div>
-                    <p>Click to upload or drag and drop</p>
-                    <p class="file-info" id="translation-file-name-display">Maximum file size 10MB</p>
+                <!-- Language Select -->
+                <div class="select-group">
+                    <label for="translation-target-language">Target Language</label>
+                    <div class="custom-select-wrapper">
+                        <select id="translation-target-language" name="target_language" required
+                                {% if not gemini_configured %}disabled{% endif %}>
+                            {% if not languages and gemini_configured %}
+                                <option value="" disabled selected>No languages configured</option>
+                            {% elif not gemini_configured %}
+                                 <option value="" disabled selected>Service Unavailable</option>
+                            {% else %}
+                                <option value="" disabled selected>Select destination language...</option>
+                                {% for lang in languages %}
+                                    <option value="{{ lang }}">{{ lang }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                        <i class="ph ph-caret-down select-arrow"></i>
+                    </div>
                 </div>
 
-                <!-- Format Badges -->
-                <div class="format-badges">
-                    <span class="format-badge">DOCX</span>
-                    <span class="format-badge">PPTX</span>
-                    <span class="format-badge">XLSX</span>
+                <!-- Submit Button -->
+                <div class="action-btn-wrapper">
+                    <button type="submit" class="submit-button translate-btn" id="translation-submit-button"
+                            {% if not gcs_available or not gemini_configured %}disabled{% endif %}>
+                        <i class="ph ph-translate"></i> Translate
+                        <span class="htmx-indicator spinner"></span>
+                    </button>
                 </div>
-            </label>
-            <input type="file" id="translation-file-input" name="file" accept=".docx,.pptx,.xlsx" required style="display: none;">
-        </div>
-
-        <div class="form-group">
-            <label for="translation-target-language">Target Language</label>
-            <select id="translation-target-language" name="target_language" required
-                    {% if not gemini_configured %}disabled{% endif %}>
-                {% if not languages and gemini_configured %}
-                    <option value="" disabled selected>No languages configured</option>
-                {% elif not gemini_configured %}
-                     <option value="" disabled selected>Gemini Service Not Configured</option>
-                {% else %}
-                    <option value="" disabled selected>Select a language...</option>
-                    {% for lang in languages %}
-                        <option value="{{ lang }}">{{ lang }}</option>
-                    {% endfor %}
-                {% endif %}
-            </select>
-        </div>
-
-        <div class="submit-area">
-            <button type="submit" class="submit-button" id="translation-submit-button"
-                    {% if not gcs_available or not gemini_configured %}disabled aria-disabled="true" title="Translation service is not fully configured." {% endif %}>
-                <i class="fas fa-cogs"></i> Translate Document
-                <span class="htmx-indicator spinner"></span>
-            </button>
+            </div>
         </div>
     </form>
 
-    <div id="translation-results-area" class="processing-result" style="margin-top: 1.5rem; border: none; padding: 0; background-color: transparent; min-height: 0;">
-        <!-- Results will load here -->
-    </div>
+    <!-- Results Output -->
+    <div id="translation-results-area" style="margin-top: 2rem;"></div>
 </div>
 
 <script>
-// Ensure global markdown renderer exists (fallback)
+// Markdown Render Fallback
 if (typeof window.renderMarkdownSummary !== 'function') {
     window.renderMarkdownSummary = function(markdownText, containerElement) {
         if (!markdownText || markdownText.trim() === "") {
             containerElement.innerHTML = '<p><i>No content to display.</i></p>';
             return;
         }
-        // Basic line-break renderer if the complex one isn't loaded
         containerElement.innerHTML = markdownText.replace(/\n/g, '<br>');
     };
 }
 
 (function() {
-    const translationFeatureContainer = document.querySelector('.translation-feature-container');
-    if (!translationFeatureContainer) return;
+    const container = document.querySelector('.translation-wrapper');
+    if (!container) return;
 
-    const dropZoneLabel = translationFeatureContainer.querySelector('#translation-drop-zone-label');
-    const fileInput = translationFeatureContainer.querySelector('#translation-file-input');
-    const fileNameDisplay = translationFeatureContainer.querySelector('#translation-file-name-display');
+    const dropArea = document.getElementById('cp-upload-area');
+    const dropLabel = document.getElementById('translation-drop-zone');
+    const fileInput = document.getElementById('translation-file-input');
+    const nameDisplay = document.getElementById('file-name-display');
+    const submitBtn = document.getElementById('translation-submit-button');
 
-    if (dropZoneLabel && fileInput && fileNameDisplay) {
+    if (dropLabel && fileInput) {
         
-        // Drag over visual cue
-        dropZoneLabel.addEventListener('dragover', (e) => { 
-            e.preventDefault(); 
-            dropZoneLabel.classList.add('drag-over'); 
+        // Drag Effects
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropLabel.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.add('drop-zone-active');
+                dropLabel.style.borderColor = 'var(--brand-primary)';
+            }, false);
         });
 
-        // Drag leave visual cue
-        dropZoneLabel.addEventListener('dragleave', () => { 
-            dropZoneLabel.classList.remove('drag-over'); 
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropLabel.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropArea.classList.remove('drop-zone-active');
+                dropLabel.style.borderColor = '';
+            }, false);
         });
 
-        // Drop handler
-        dropZoneLabel.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZoneLabel.classList.remove('drag-over');
-            
-            const files = e.dataTransfer.files;
+        // Drop Handler
+        dropLabel.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
             if (files.length > 0) {
                 fileInput.files = files;
-                // Trigger change event manually
-                const event = new Event('change', { bubbles: true });
-                fileInput.dispatchEvent(event);
+                fileInput.dispatchEvent(new Event('change'));
             }
         });
 
-        // File selection handler
+        // Change Handler
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
-                // Update text to show filename
-                fileNameDisplay.textContent = fileInput.files[0].name;
-                fileNameDisplay.style.color = 'var(--brand-primary)';
-                fileNameDisplay.style.fontWeight = '600';
-                dropZoneLabel.classList.add('file-selected');
+                const file = fileInput.files[0];
+                nameDisplay.textContent = file.name;
+                nameDisplay.style.color = 'var(--brand-primary)';
+                
+                // Switch Icon
+                const icon = dropLabel.querySelector('i');
+                if(icon) {
+                    icon.className = 'ph ph-file-text';
+                    icon.style.color = 'var(--brand-primary)';
+                }
+                
+                if(submitBtn) submitBtn.disabled = false;
             } else {
-                // Reset text
-                fileNameDisplay.textContent = 'Maximum file size 10MB';
-                fileNameDisplay.style.color = '';
-                fileNameDisplay.style.fontWeight = '';
-                dropZoneLabel.classList.remove('file-selected');
+                nameDisplay.textContent = 'Click to upload or drag and drop';
+                nameDisplay.style.color = '';
+                
+                const icon = dropLabel.querySelector('i');
+                if(icon) {
+                    icon.className = 'ph ph-cloud-arrow-up';
+                    icon.style.color = '';
+                }
+
+                if(submitBtn) submitBtn.disabled = true;
             }
         });
     }
