@@ -6,14 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ current_feature.name if current_feature else "My App" }} - AI Agents</title>
     
-    <!-- ADD THIS SECTION -->
+    <!-- FONTS: Inter (Clean, Modern Sans-Serif) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- END ADD SECTION -->
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- ICONS: Phosphor Icons (Stroke-based, Apple-like aesthetics) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- STYLES -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.12"></script> 
 </head>
 
@@ -22,15 +26,17 @@
     <div class="mobile-overlay" onclick="toggleSidebar()"></div>
 
     <div class="app-container">
+        <!-- SIDEBAR -->
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <i class="fas fa-rocket"></i> 
+                <!-- Sparkle Icon for "AI Magic" -->
+                <i class="ph ph-sparkle" style="font-weight: bold;"></i> 
                 <span>AI Agents</span>
             </div>
             <ul>
                 {% for key, feature_item in features.items() %}
                 <li>
-                    <!-- UPDATED: Added 'main.' prefix to endpoints -->
+                    <!-- Sidebar Links with HTMX for SPA-like transitions -->
                     <a href="{{ url_for('main.index', feature_key=key) }}"
                        hx-get="{{ url_for('main.get_feature_content', feature_key=key) }}"
                        hx-target="#main-content"
@@ -38,6 +44,7 @@
                        hx-indicator=".global-loader"
                        class="sidebar-link {{ 'active' if key == active_feature_key else '' }}"
                        onclick="closeSidebarIfMobile()">
+                        <!-- Dynamic Icon Class (Passed from Python) -->
                         <i class="{{ feature_item.icon }}"></i>
                         <span>{{ feature_item.name }}</span>
                     </a>
@@ -46,28 +53,33 @@
             </ul>
         </nav>
 
+        <!-- MAIN CONTENT AREA -->
         <main class="content-area">
             <!-- Mobile-only header with hamburger menu -->
             <header class="mobile-header">
                 <button class="mobile-menu-toggle" onclick="toggleSidebar()">
-                    <i class="fas fa-bars"></i>
+                    <i class="ph ph-list"></i>
                 </button>
             </header>
 
             <div id="main-content-wrapper">
+                <!-- Global Loading Indicator -->
                 <div class="global-loader htmx-indicator" style="text-align: center; padding: 30px 0; display:none;">
-                    <div class="spinner" style="width: 36px; height: 36px; border-width: 4px; margin: 0 auto;"></div>
-                    <p style="margin-top: 12px; color: #555; font-size: 1.1em;">Loading Content...</p>
+                    <div class="spinner" style="width: 36px; height: 36px; border-width: 4px; margin: 0 auto; border-top-color: var(--brand-primary); border-right-color: transparent;"></div>
+                    <p style="margin-top: 12px; color: var(--text-secondary); font-size: 0.9em; font-weight: 500;">Processing...</p>
                 </div>
+                
+                <!-- Dynamic Content Injection Point -->
                 <div id="main-content">
-                    {# This will now render the path from FEATURES_DATA #}
                     {% include initial_content_template %}
                 </div>
             </div>
         </main>
     </div>
 
+    <!-- JAVASCRIPT LOGIC -->
     <script>
+        // Sidebar Toggling for Mobile
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('show');
             document.querySelector('.mobile-overlay').classList.toggle('show');
@@ -80,10 +92,14 @@
             }
         }
 
+        // HTMX Hooks: Handle Active States after Navigation
         document.body.addEventListener('htmx:afterSwap', function(event) {
+            // Remove active class from all links
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
                 link.classList.remove('active');
             });
+
+            // Add active class to the matching link based on URL
             const pushedUrlPath = event.detail.pathInfo.requestPath;
             let activeFound = false;
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
@@ -96,15 +112,19 @@
                 }
             });
 
+            // Re-initialize custom JS components (like Drop Zones) after HTML swap
             const swappedElement = event.detail.target; 
-            if (swappedElement && (swappedElement.querySelector('.drop-zone') || swappedElement.classList.contains('drop-zone'))) {
-                initDropZones();
+            if (swappedElement && (swappedElement.querySelector('.drop-zone-style') || swappedElement.classList.contains('drop-zone-style'))) {
+                // Any specific re-init logic if needed
             }
         });
 
+        // Initial Page Load Logic
         document.addEventListener('DOMContentLoaded', function() {
             const currentPath = window.location.pathname;
             let activeFoundOnLoad = false;
+            
+            // Set active state based on current URL
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
                 const linkUrl = new URL(link.href, window.location.origin);
                 if (linkUrl.pathname === currentPath) {
@@ -116,8 +136,9 @@
                     link.classList.remove('active');
                 }
             });
+
+            // Fallback for root URL
             if (!activeFoundOnLoad && currentPath === '/') {
-                 // UPDATED: Added 'main.' prefix
                  const defaultLinkQuery = 'a.sidebar-link[href$="/feature/{{ DEFAULT_FEATURE_KEY }}"]'; 
                  let defaultLink = document.querySelector(defaultLinkQuery);
                  if (!defaultLink) { 
@@ -129,58 +150,35 @@
                      document.title = featureName + " - AI Agents";
                  }
             }
-            initDropZones();
         });
 
+        // Global Utility: Tab Switching
         function openTab(event, tabId, tabContentClass) {
             var i, tabcontent, tablinks;
             var currentTabContainer = document.getElementById(tabId).closest('.feature-container') || document.body;
+            
+            // Hide all tab content
             tabcontent = currentTabContainer.getElementsByClassName(tabContentClass);
-            for (i = 0; i < tabcontent.length; i++) { tabcontent[i].style.display = "none"; tabcontent[i].classList.remove("active-content"); }
+            for (i = 0; i < tabcontent.length; i++) { 
+                tabcontent[i].style.display = "none"; 
+                tabcontent[i].classList.remove("active-content"); 
+            }
+            
+            // Deactivate all tab links
             if (event && event.currentTarget) {
                 const currentTabGroup = event.currentTarget.closest('.feature-tabs');
                 if (currentTabGroup) {
                     tablinks = currentTabGroup.getElementsByClassName("tab-link");
-                    for (i = 0; i < tablinks.length; i++) { tablinks[i].classList.remove("active"); }
+                    for (i = 0; i < tablinks.length; i++) { 
+                        tablinks[i].classList.remove("active"); 
+                    }
                     event.currentTarget.classList.add("active");
                 }
             }
+            
+            // Show target tab
             document.getElementById(tabId).style.display = "block";
             document.getElementById(tabId).classList.add("active-content");
-        }
-
-        function displayFileName(inputId, displayId) {
-            const input = document.getElementById(inputId);
-            const display = document.getElementById(displayId);
-            if (!input || !display) { return; }
-            if (input.files && input.files.length > 0) { display.textContent = input.files[0].name; display.style.display = 'block'; } else { display.textContent = ''; display.style.display = 'none'; }
-        }
-
-        function initDropZones() {
-            const dropZones = document.querySelectorAll('.drop-zone');
-            dropZones.forEach(zone => {
-                const input = zone.querySelector('input[type="file"]');
-                zone.addEventListener('click', (e) => {
-                    if (input && e.target.closest('.drop-zone') === zone && !e.target.closest('button, a, .browse-button-link')) { input.click(); }
-                });
-                if (input) {
-                    input.addEventListener('change', () => {
-                        const displayId = input.getAttribute('onchange')?.match(/displayFileName\s*\(\s*this\.id\s*,\s*['"]([^'"]+)['"]\s*\)/)?.[1];
-                        if (displayId) { displayFileName(input.id, displayId); }
-                    });
-                    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
-                    zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); });
-                    zone.addEventListener('drop', (e) => {
-                        e.preventDefault();
-                        zone.classList.remove('dragover');
-                        if (e.dataTransfer.files.length > 0) {
-                            input.files = e.dataTransfer.files;
-                            const event = new Event('change', { bubbles: true });
-                            input.dispatchEvent(event);
-                        }
-                    });
-                }
-            });
         }
     </script>
 </body>
