@@ -4,20 +4,29 @@
 
 <style>
     /* --- SCOPED CSS FOR SUMMARIZATION --- */
+    /* We keep wrapper for width, but ADD feature-container in HTML for logic */
     .summarization-wrapper { max-width: 900px; margin: 0 auto; }
 
     /* 1. HEADER */
     .sum-header { margin-bottom: 2rem; }
-    .sum-header h1 { display: flex; align-items: center; gap: 12px; font-size: 1.8rem; margin-bottom: 1rem; }
+    .sum-header h1 { 
+        display: flex; align-items: center; gap: 12px; 
+        font-size: 1.8rem; margin-bottom: 1rem; color: var(--text-primary); letter-spacing: -0.02em;
+    }
     .sum-header p { font-size: 1.05rem; color: var(--text-secondary); max-width: 700px; line-height: 1.6; }
 
-    /* 2. INFO GRID (Consolidated Style) */
+    /* 2. INFO GRID */
     .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
-    .info-card { padding: 0; }
-    .info-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem; }
-    .info-card-header i { font-size: 1.25rem; color: var(--brand-primary); display: flex; flex-shrink: 0; }
-    .info-card-header span { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); }
-    .info-card p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; padding-left: 30px; }
+    .info-card { 
+        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; 
+        transition: all 0.2s ease; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .info-card:hover { background: #ffffff; border-color: var(--brand-primary); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    
+    .info-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.25rem; }
+    .info-card-header i { font-size: 1.4rem; color: var(--brand-primary); flex-shrink: 0; }
+    .info-card-header span { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
+    .info-card p { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
 
     /* 3. CONTROL PANEL */
     .control-panel {
@@ -27,6 +36,7 @@
         box-shadow: var(--shadow-md);
         overflow: hidden;
         margin-bottom: 2rem;
+        display: flex; flex-direction: column;
     }
 
     /* Section A: Speed Demo (Top Bar) */
@@ -39,9 +49,9 @@
         justify-content: space-between;
         gap: 1rem;
     }
-    .demo-label { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #166534; }
+    .demo-label { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #15803d; }
     .demo-btn {
-        background: #fff; border: 1px solid #bbf7d0; color: #15803d;
+        background: #ffffff; border: 1px solid #bbf7d0; color: #166534;
         padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
         cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
     }
@@ -60,13 +70,13 @@
         text-align: center; cursor: pointer; background: white; transition: all 0.2s;
     }
     .upload-label:hover { border-color: var(--brand-primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-    .upload-label i { font-size: 2.5rem; color: #94a3b8; margin-bottom: 1rem; }
-    .upload-label h5 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; }
-    .upload-label .subtext { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; }
+    .upload-label i { font-size: 3rem; color: #94a3b8; margin-bottom: 1rem; transition: color 0.2s; }
+    .upload-label h5 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; margin-top: 0; }
+    .upload-label .subtext { font-size: 0.9rem; color: var(--text-secondary); }
 
     /* Section C: Action Bar */
-    .cp-action-bar { padding: 1.25rem 2rem; background: white; display: flex; justify-content: flex-end; }
-    .primary-action-btn { height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; }
+    .cp-action-bar { padding: 1.5rem 2rem; background: white; display: flex; justify-content: flex-end; }
+    .primary-action-btn { height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; }
 
     /* 4. DELIBERATION WORKBENCH (The "Matrix" UI) */
     .deliberation-workbench {
@@ -108,7 +118,8 @@
     }
 </style>
 
-<div class="summarization-wrapper">
+<!-- FIX APPLIED: Added 'feature-container' here. Without it, global tabs break. -->
+<div class="summarization-wrapper feature-container">
     
     <!-- 1. HEADER -->
     <div class="sum-header">
@@ -161,7 +172,7 @@
                     <!-- Speed Demo Bar -->
                     <div class="cp-demo-bar">
                         <div class="demo-label">
-                            <i class="ph ph-lightning" style="color: #f59e0b; font-weight: bold;"></i>
+                            <i class="ph ph-lightning" style="color: #15803d; font-weight: bold; font-size: 1.1rem;"></i>
                             <span><strong>Speed Demo:</strong> Analyze a complex financial report in seconds.</span>
                         </div>
                         <button type="button" onclick="submitRealAnalysisText(true)" class="demo-btn">
@@ -175,9 +186,9 @@
                             <i class="ph ph-file-doc"></i>
                             <h5 id="text-file-name">Click to upload or drag and drop</h5>
                             <span class="subtext">PDF, DOCX, PPTX (Max 10MB)</span>
-                            <div class="file-badges">
-                                <span class="f-badge" style="background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">PDF</span>
-                                <span class="f-badge" style="background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">DOCX</span>
+                            <div class="file-badges" style="margin-top: 1rem; display: flex; gap: 8px;">
+                                <span style="background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">PDF</span>
+                                <span style="background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">DOCX</span>
                             </div>
                         </label>
                         <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf" style="display: none;">
@@ -255,7 +266,7 @@
                     <!-- Demo Bar -->
                     <div class="cp-demo-bar" style="background: linear-gradient(to right, #fff1f2, #ffffff); border-bottom-color: #fecdd3;">
                          <div class="demo-label" style="color: #be123c;">
-                            <i class="ph ph-sparkle" style="color: #f43f5e; font-weight: bold;"></i>
+                            <i class="ph ph-sparkle" style="color: #f43f5e; font-weight: bold; font-size: 1.1rem;"></i>
                             <span><strong>Magic Demo:</strong> Turn the IBM Report into a pitch deck.</span>
                         </div>
                         <button type="button" onclick="submitPPTStream(true)" class="demo-btn" style="color: #be123c; border-color: #fecdd3;">
@@ -285,7 +296,7 @@
         </div>
 
         <div id="ppt-progress-wrapper" style="display:none; margin-top: 2rem;">
-             <div id="ppt-status-log" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; font-family: 'JetBrains Mono'; font-size: 0.85rem; color: #475569; max-height: 250px; overflow-y: auto;"></div>
+             <div id="ppt-status-log" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #475569; max-height: 250px; overflow-y: auto;"></div>
              <div id="ppt-result-container" style="margin-top: 1.5rem;"></div>
              <button id="ppt-reset-btn" onclick="resetView('ppt')" class="btn-secondary" style="margin-top:1rem; display:none;">Create Another</button>
         </div>
@@ -296,7 +307,7 @@
     // --- UTILS ---
     let fullTextBuffer = ""; 
     
-    // --- UI HELPERS ---
+    // --- UI HELPERS (Pure functionality, no global overrides) ---
     function setupDropZone(areaId, labelId, inputId, displayId, btnId, iconClass) {
         const area = document.getElementById(areaId);
         const label = document.getElementById(labelId);
@@ -334,21 +345,12 @@
         });
     }
 
-    // --- TAB LOGIC ---
+    // --- INIT ---
     (function() {
-        const wrapper = document.querySelector('.summarization-wrapper');
-        const tabLinks = wrapper.querySelectorAll('.tab-link');
-        const tabContents = wrapper.querySelectorAll('.feature-tab-content');
-
-        function openTab(tId) {
-            tabContents.forEach(tc => { tc.style.display = 'none'; tc.classList.remove('active-content'); });
-            tabLinks.forEach(tl => tl.classList.remove('active'));
-            document.getElementById(tId).style.display = 'block';
-            wrapper.querySelector(`[data-target-tab="${tId}"]`).classList.add('active');
-        }
+        // Tab switching is now handled GLOBALLY in layout.html via event delegation.
+        // We do NOT need to add tab listeners here.
         
-        tabLinks.forEach(l => l.addEventListener('click', (e) => { e.preventDefault(); openTab(l.dataset.targetTab); }));
-
+        // Initialize Drop Zones
         setupDropZone('text-drop-area', 'text-drop-zone', 'text-summary-file-input', 'text-file-name', 'text-summary-submit-btn', 'ph-file-text');
         setupDropZone('ppt-drop-area', 'ppt-drop-zone', 'ppt-builder-file-input', 'ppt-file-name', 'ppt-builder-convert-btn', 'ph-file-ppt');
     })();
@@ -444,19 +446,17 @@
         } catch(e) { log.innerHTML += `<div style="color:red">Error: ${e}</div>`; document.getElementById('ppt-reset-btn').style.display = 'block'; }
     }
 
-    // --- HELPERS (Copied from previous logic, simplified) ---
+    // --- HELPERS (Simplified) ---
     function updateThinkingAndReport(context) {
         const marker = "### REPORT START";
         const splitIndex = fullTextBuffer.indexOf(marker);
         let thinking = splitIndex === -1 ? fullTextBuffer : fullTextBuffer.substring(0, splitIndex);
         let report = splitIndex !== -1 ? fullTextBuffer.substring(splitIndex + marker.length) : "";
         
-        // Render Tags
         const regex = /::\s*(HYPO|HYPOTHESIS|EVIDENCE|DECISION|NOTE)\s*::/gi;
         let match;
         const ui = document.getElementById(`deliberation-ui-${context}`);
         
-        // Simple append logic for demo efficiency (production would use delta updates)
         ui.querySelector('.col-hypotheses').innerHTML = '';
         ui.querySelector('.col-evidence').innerHTML = '';
         ui.querySelector('.col-decisions').innerHTML = '';

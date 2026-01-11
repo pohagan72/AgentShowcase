@@ -201,13 +201,19 @@ body {
 
 /* --- FEATURE CONTAINER (The Main Card) --- */
 .feature-container {
-    background: rgba(255, 255, 255, 0.85); /* Semi-transparent */
-    backdrop-filter: blur(12px);          /* Glass effect */
-    border: 1px solid rgba(255, 255, 255, 0.5); 
-    box-shadow: 
-        0 10px 15px -3px rgba(0, 0, 0, 0.05), /* Diffuse shadow */
-        0 4px 6px -2px rgba(0, 0, 0, 0.025);
-    border-radius: 16px; /* Smooth corners */
+    background: var(--surface-card);
+    backdrop-filter: blur(12px); 
+    -webkit-backdrop-filter: blur(12px);
+    
+    border: 1px solid rgba(255, 255, 255, 0.5); /* Inner light border */
+    box-shadow: var(--shadow-xl); /* Floating effect */
+    border-radius: var(--radius-lg);
+    
+    padding: 3rem;
+    max-width: 1000px;
+    margin: 0 auto;
+    position: relative; 
+    overflow: hidden; 
 }
 
 /* --- TYPOGRAPHY (Editorial / Premium) --- */
@@ -251,19 +257,23 @@ p {
     font-size: 1rem;
 }
 
-/* --- COMPONENTS: DROP ZONE (Tactile) --- */
+/* --- COMPONENTS: DROP ZONE (Tactile & Flexbox Fix) --- */
 .drop-zone-style {
+    display: flex;           /* Force Flexbox */
+    flex-direction: column;  /* Stack children vertically */
+    align-items: center;     /* Center children horizontally */
+    justify-content: center; /* Center children vertically */
+    width: 100%;            /* Fill the container */
+    
     border: 2px dashed rgba(203, 213, 225, 0.6);
     background: rgba(248, 250, 252, 0.5);
     border-radius: var(--radius-lg);
-    padding: 3rem;
+    padding: 3rem 2rem;
     text-align: center;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     gap: 1rem;
+    box-sizing: border-box;
 }
 
 .drop-zone-style:hover {
@@ -275,7 +285,7 @@ p {
 
 /* Icons inside drop zone */
 .drop-zone-style i {
-    font-size: 2.5rem;
+    font-size: 3rem;
     color: #9ca3af;
     transition: color 0.3s;
     margin-bottom: 0.5rem;
@@ -378,12 +388,51 @@ p {
     transform: scale(0.97);
 }
 
-/* --- FORMS --- */
+/* --- FORMS & SLIDERS --- */
 input:focus, select:focus, textarea:focus {
     outline: none;
     /* Soft Glow Focus Ring */
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); 
     border-color: var(--brand-primary);
+}
+
+/* Standardized Range Slider (iOS Style) */
+input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: transparent;
+    margin: 0;
+    height: 24px;
+    cursor: pointer;
+}
+input[type=range]:focus { outline: none; }
+
+/* WebKit Track & Thumb */
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%; height: 6px; 
+    background: #e2e8f0; border-radius: 99px; border: none;
+}
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 22px; width: 22px; 
+    border-radius: 50%; background: var(--brand-primary);
+    margin-top: -8px; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    border: 2px solid #ffffff; 
+    transition: transform 0.1s ease;
+}
+input[type=range]:active::-webkit-slider-thumb { transform: scale(1.1); }
+
+/* Firefox Track & Thumb */
+input[type=range]::-moz-range-track {
+    width: 100%; height: 6px; 
+    background: #e2e8f0; border-radius: 99px; border: none;
+}
+input[type=range]::-moz-range-thumb {
+    height: 22px; width: 22px; 
+    border-radius: 50%; background: var(--brand-primary);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
 /* --- GRID LAYOUTS (Feature Tiles) --- */
@@ -411,7 +460,7 @@ input:focus, select:focus, textarea:focus {
     border-color: rgba(79, 70, 229, 0.2);
 }
 
-/* --- TABS (Fixed Logic + Styling) --- */
+/* --- TABS (Robust Logic) --- */
 .feature-tabs {
     display: flex;
     gap: 0.5rem;
@@ -434,7 +483,7 @@ input:focus, select:focus, textarea:focus {
     border-radius: 6px;
     transition: all 0.2s;
     white-space: nowrap;
-    border-bottom: 2px solid transparent; /* Fallback */
+    border-bottom: 2px solid transparent; 
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -448,18 +497,19 @@ input:focus, select:focus, textarea:focus {
 .feature-tabs .tab-link.active {
     color: var(--brand-primary);
     background: rgba(79, 70, 229, 0.08); /* Soft pill shape active state */
-    border-bottom-color: transparent;
+    font-weight: 600;
 }
 
-/* CRITICAL FIX: TAB DISPLAY LOGIC */
+/* CRITICAL FIX: Robust Tab Visibility */
+/* We use !important to override any lingering inline styles from JS race conditions */
 .feature-tab-content {
-    display: none; /* Hidden by default */
+    display: none !important;
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
 }
 
 .feature-tab-content.active-content {
-    display: block; /* Shown when active */
+    display: block !important;
     opacity: 1;
     animation: fadeIn 0.4s ease-out;
 }
