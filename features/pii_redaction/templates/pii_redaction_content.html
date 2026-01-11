@@ -3,20 +3,22 @@
 {# HTMX Partial Check: If returning a result, just show the success state #}
 {% if request.headers.get('HX-Request') and hx_target_is_result %}
     {% if redacted_file_url %}
-        <div style="text-align: center; padding: 2rem; animation: fadeIn 0.5s;">
-            <div style="background: #dcfce7; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-                <i class="ph ph-check" style="font-size: 32px; color: #16a34a;"></i>
+        <div style="text-align: center; padding: 3rem 2rem; animation: fadeIn 0.5s;">
+            <div style="background: #dcfce7; width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto; box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.1);">
+                <i class="ph ph-check" style="font-size: 36px; color: #16a34a; font-weight: bold;"></i>
             </div>
-            <h3 style="margin-bottom: 0.5rem; color: #166534;">Redaction Complete</h3>
-            <p style="color: #15803d; margin-bottom: 2rem;">'{{ original_filename }}' has been processed and secured.</p>
+            <h3 style="margin-bottom: 0.5rem; color: #14532d; font-size: 1.5rem; letter-spacing: -0.02em;">Redaction Complete</h3>
+            <p style="color: #166534; margin-bottom: 2rem; font-size: 1.05rem;">'{{ original_filename }}' has been successfully processed.</p>
             
-            <a href="{{ redacted_file_url }}" class="submit-button" style="background: #16a34a; display: inline-flex; gap: 8px;">
-                <i class="ph ph-download-simple"></i> Download Redacted File
-            </a>
-            
-            <button onclick="location.reload()" class="btn-secondary" style="margin-left: 10px;">
-                Process Another
-            </button>
+            <div style="display: flex; justify-content: center; gap: 1rem;">
+                <a href="{{ redacted_file_url }}" class="submit-button" style="background: #16a34a; padding: 0.75rem 1.5rem; display: inline-flex; gap: 8px; box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.3);">
+                    <i class="ph ph-download-simple" style="font-size: 1.2rem;"></i> Download File
+                </a>
+                
+                <button onclick="location.reload()" class="btn-secondary" style="height: auto; padding: 0.75rem 1.5rem;">
+                    Process Another
+                </button>
+            </div>
         </div>
     {% elif get_flashed_messages(with_categories=true) %}
          {% with messages = get_flashed_messages(with_categories=true) %}
@@ -36,20 +38,49 @@
         /* --- SCOPED CSS FOR PII FEATURE --- */
         .pii-wrapper { max-width: 900px; margin: 0 auto; }
 
-        /* Header */
+        /* 1. HEADER */
         .pii-header { margin-bottom: 2.5rem; }
-        .pii-header h1 { display: flex; align-items: center; gap: 12px; font-size: 1.8rem; margin-bottom: 1rem; }
-        .pii-header p { font-size: 1.05rem; color: var(--text-secondary); max-width: 700px; line-height: 1.6; }
+        .pii-header h1 { 
+            display: flex; align-items: center; gap: 12px; 
+            font-size: 1.8rem; margin-bottom: 1rem; color: var(--text-primary); letter-spacing: -0.02em;
+        }
+        .pii-header p { 
+            font-size: 1.05rem; color: var(--text-secondary); max-width: 700px; line-height: 1.6; 
+        }
 
-        /* Info Grid (Copied from Translation for Consistency) */
-        .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 3rem; }
-        .info-card { padding: 0; }
-        .info-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem; }
-        .info-card-header i { font-size: 1.25rem; color: var(--brand-primary); display: flex; flex-shrink: 0; }
-        .info-card-header span { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); }
-        .info-card p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; padding-left: 30px; }
+        /* 2. INFO GRID (The "Apple Card" Look) */
+        .info-grid { 
+            display: grid; grid-template-columns: repeat(3, 1fr); 
+            gap: 1.5rem; margin-bottom: 3rem; 
+        }
+        .info-card { 
+            background: #f8fafc; /* Distinct from white background */
+            border: 1px solid #e2e8f0; 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            transition: all 0.2s ease; 
+            display: flex; flex-direction: column; gap: 0.5rem;
+        }
+        .info-card:hover { 
+            background: #ffffff; 
+            border-color: var(--brand-primary); 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* Soft Apple shadow */
+        }
+        .info-card-header { 
+            display: flex; align-items: center; gap: 10px; margin-bottom: 0.25rem; 
+        }
+        .info-card-header i { 
+            font-size: 1.4rem; color: var(--brand-primary); flex-shrink: 0; 
+        }
+        .info-card-header span { 
+            font-weight: 700; font-size: 1rem; color: var(--text-primary); 
+        }
+        .info-card p { 
+            font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin: 0; 
+        }
 
-        /* Control Panel Container */
+        /* 3. CONTROL PANEL */
         .control-panel {
             background: #ffffff;
             border: 1px solid var(--border-subtle);
@@ -63,10 +94,9 @@
         /* Upload Area */
         .cp-upload-area {
             background: #f8fafc;
-            padding: 2.5rem 2rem;
+            padding: 2.5rem;
             border-bottom: 1px solid var(--border-subtle);
             transition: background 0.2s;
-            display: block; width: 100%;
         }
         .drop-zone-active { background: #eff6ff !important; }
 
@@ -82,37 +112,60 @@
             background: white;
             box-sizing: border-box;
         }
-        .upload-label:hover { border-color: var(--brand-primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+        .upload-label:hover { 
+            border-color: var(--brand-primary); 
+            transform: translateY(-1px); 
+            box-shadow: var(--shadow-sm); 
+        }
         
-        .upload-label i { font-size: 3rem; color: #94a3b8; margin-bottom: 1rem; display: block; transition: color 0.2s; }
-        .upload-label h5 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; margin-top: 0; }
-        .upload-label .subtext { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; display: block; }
+        .upload-label i { 
+            font-size: 3rem; color: #94a3b8; margin-bottom: 1rem; 
+            transition: color 0.2s; 
+        }
+        .upload-label h5 { 
+            font-size: 1.1rem; font-weight: 600; color: var(--text-primary); 
+            margin-bottom: 0.5rem; margin-top: 0; 
+        }
+        .upload-label .subtext { 
+            font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; display: block; 
+        }
 
-        .file-badges { display: flex; justify-content: center; gap: 8px; width: 100%; }
-        .f-badge { font-size: 0.75rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; }
+        .file-badges { 
+            display: flex; justify-content: center; gap: 8px; width: 100%; 
+        }
+        .f-badge { 
+            font-size: 0.75rem; font-weight: 600; color: #64748b; 
+            background: #f1f5f9; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; 
+        }
 
         /* Bottom Action Bar */
         .cp-action-bar {
-            padding: 1.25rem 2rem;
+            padding: 1.5rem 2.5rem;
             display: flex;
-            justify-content: flex-end; /* Align button right */
+            justify-content: space-between;
             align-items: center;
             background: white;
             gap: 1rem;
         }
         
-        .status-text { font-size: 0.9rem; color: var(--text-secondary); margin-right: auto; }
+        .status-text { 
+            font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;
+            display: flex; align-items: center; gap: 6px;
+        }
 
-        .redact-btn { height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; }
+        .redact-btn { 
+            height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; 
+            display: inline-flex; align-items: center; gap: 8px;
+        }
 
         @media (max-width: 768px) {
             .info-grid { grid-template-columns: 1fr; }
-            .cp-action-bar { flex-direction: column; align-items: stretch; }
-            .status-text { margin-bottom: 1rem; text-align: center; }
+            .cp-action-bar { flex-direction: column; align-items: stretch; text-align: center; }
+            .status-text { justify-content: center; margin-bottom: 1rem; }
         }
     </style>
 
-    <div class="pii-wrapper">
+    <div class="pii-wrapper feature-container">
         
         <!-- 1. Header -->
         <div class="pii-header">
@@ -123,7 +176,7 @@
             </p>
         </div>
 
-        <!-- 2. Info Grid -->
+        <!-- 2. Info Grid (Now matches Translation/Multimedia style) -->
         <div class="info-grid">
             <div class="info-card">
                 <div class="info-card-header">
@@ -190,7 +243,7 @@
                 <!-- Action Bar -->
                 <div class="cp-action-bar">
                     <div class="status-text">
-                        <i class="ph ph-shield" style="vertical-align: middle; margin-right: 5px;"></i>
+                        <i class="ph ph-shield" style="color: var(--brand-primary);"></i>
                         Ready to secure
                     </div>
                     <button type="submit" class="submit-button redact-btn" id="pii-submit-button" disabled>
