@@ -1,83 +1,122 @@
 {# features/multimedia/templates/multimedia_content.html #}
 <style>
-    /* Scoped styles for the Multimedia Feature */
-    .multimedia-feature-container .feature-description { 
-        margin-bottom: 2rem; 
+    /* --- SCOPED CSS FOR MULTIMEDIA --- */
+    /* We keep media-wrapper for specific sizing, feature-container handles the look/logic */
+    .media-wrapper { max-width: 900px; margin: 0 auto; }
+
+    /* 1. HEADER */
+    .media-header { margin-bottom: 2rem; }
+    .media-header h1 { display: flex; align-items: center; gap: 12px; font-size: 1.8rem; margin-bottom: 1rem; color: var(--text-primary); letter-spacing: -0.02em;}
+    .media-header p { font-size: 1.05rem; color: var(--text-secondary); max-width: 700px; line-height: 1.6; }
+
+    /* 2. INFO GRID */
+    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
+    .info-card { 
+        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem; 
+        transition: all 0.2s ease; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .info-card:hover { background: #ffffff; border-color: var(--brand-primary); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .info-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.25rem; }
+    .info-card-header i { font-size: 1.4rem; color: var(--brand-primary); flex-shrink: 0; }
+    .info-card-header span { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
+    .info-card p { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+
+    /* 3. CONTROL PANEL CONTAINER */
+    .control-panel {
+        background: #ffffff; border: 1px solid var(--border-subtle); border-radius: 12px;
+        box-shadow: var(--shadow-md); overflow: hidden; display: flex; flex-direction: column;
+        margin-bottom: 2rem;
     }
 
-    /* Refined Slider Styling */
-    .multimedia-feature-container .blur-slider-group label { 
-        display: block; 
-        margin-bottom: 0.75rem; 
-        font-weight: 600; 
-        color: var(--text-primary);
-        font-size: 0.95rem;
+    /* Upload Area */
+    .cp-upload-area {
+        background: #f8fafc; padding: 2.5rem; border-bottom: 1px solid var(--border-subtle);
+        transition: background 0.2s;
+    }
+    .drop-zone-active { background: #eff6ff !important; }
+
+    .upload-label {
+        display: flex; flex-direction: column; align-items: center;
+        border: 2px dashed #cbd5e1; border-radius: 8px; padding: 2.5rem;
+        text-align: center; cursor: pointer; background: white; transition: all 0.2s;
+    }
+    .upload-label:hover { border-color: var(--brand-primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .upload-label i { font-size: 3rem; color: #94a3b8; margin-bottom: 1rem; transition: color 0.2s; }
+    .upload-label h5 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; margin-top: 0; }
+    .upload-label .subtext { font-size: 0.9rem; color: var(--text-secondary); }
+
+    /* Settings Bar */
+    .cp-settings-bar {
+        padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: space-between;
+        background: white; gap: 2rem;
     }
 
-    .multimedia-feature-container .slider-container { 
-        display: flex; 
-        align-items: center; 
-        gap: 1.5rem; 
-        background: rgba(255, 255, 255, 0.5); /* Glassy background */
-        padding: 1.25rem;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--border-subtle);
-        box-shadow: var(--shadow-sm);
+    /* Slider Styling */
+    .slider-group { flex: 1; display: flex; flex-direction: column; gap: 0.75rem; }
+    .slider-header { 
+        display: flex; justify-content: space-between; 
+        font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); 
+        text-transform: uppercase; letter-spacing: 0.05em; 
     }
+    
+    /* Cross-browser Range Input */
+    input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; height: 24px; cursor: pointer; }
+    input[type=range]:focus { outline: none; }
+    
+    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; background: #e2e8f0; border-radius: 99px; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%; background: var(--brand-primary); margin-top: -8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border: 2px solid #ffffff; transition: transform 0.1s ease; }
+    input[type=range]:active::-webkit-slider-thumb { transform: scale(1.1); }
+    
+    input[type=range]::-moz-range-track { width: 100%; height: 6px; background: #e2e8f0; border-radius: 99px; }
+    input[type=range]::-moz-range-thumb { height: 22px; width: 22px; border-radius: 50%; background: var(--brand-primary); border: 2px solid #ffffff; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 
-    .multimedia-feature-container .slider-container .form-range { 
-        flex-grow: 1; 
-        cursor: pointer;
-    }
+    .action-btn { height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-    .multimedia-feature-container .slider-container .slider-label { 
-        font-size: 0.8rem; 
-        color: var(--text-secondary); 
-        font-weight: 600; 
-        text-transform: uppercase; 
-        letter-spacing: 0.05em;
+    @media (max-width: 768px) {
+        .info-grid { grid-template-columns: 1fr; }
+        .cp-settings-bar { flex-direction: column; align-items: stretch; gap: 1.5rem; }
     }
 </style>
 
-<div class="feature-container multimedia-feature-container">
-    <!-- Header -->
-    <h1><i class="ph ph-aperture"></i> Multimedia AI Tools</h1>
-
-    <!-- Tabs -->
-    <div class="feature-tabs">
-        <button class="tab-link active" data-target-tab="blurring-tab">
-            <i class="ph ph-eye-slash"></i> Facial Blurring
-        </button>
-        <button class="tab-link" data-target-tab="analytics-tab">
-            <i class="ph ph-chart-bar"></i> Image Analytics
-        </button>
+<!-- FIX APPLIED: Added 'feature-container' class below so JS can find the tabs -->
+<div class="media-wrapper feature-container">
+    
+    <!-- 1. Header -->
+    <div class="media-header">
+        <h1><i class="ph ph-aperture" style="color: var(--brand-primary);"></i> Multimedia AI Tools</h1>
+        
+        <!-- Navigation Tabs -->
+        <div class="feature-tabs">
+            <button class="tab-link active" data-target-tab="blurring-tab">
+                <i class="ph ph-eye-slash"></i> Facial Redaction
+            </button>
+            <button class="tab-link" data-target-tab="analytics-tab">
+                <i class="ph ph-chart-bar"></i> Image Analytics
+            </button>
+        </div>
     </div>
 
     <!-- ================= BLURRING TAB ================= -->
     <div id="blurring-tab" class="feature-tab-content active-content">
-        <p class="feature-description">
-            In an era of strict privacy regulations, our facial redaction agent provides an essential layer of automated compliance. By leveraging a highly-optimized computer vision model, this tool delivers fast, accurate PII removal without the overhead of larger generative models.
-        </p>
         
-        <div class="feature-grid">
-            <div class="feature-item">
-                <h4><i class="ph ph-scan-dashed" style="color:var(--brand-primary); margin-right:6px; vertical-align:middle;"></i> High-Accuracy Detection</h4>
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-card-header"><i class="ph ph-scan-dashed"></i><span>High-Accuracy</span></div>
                 <p>Utilizes a neural network trained to identify human faces with precision, minimizing false positives.</p>
             </div>
-            <div class="feature-item">
-                <h4><i class="ph ph-sliders" style="color:var(--brand-primary); margin-right:6px; vertical-align:middle;"></i> Configurable Privacy</h4>
+            <div class="info-card">
+                <div class="info-card-header"><i class="ph ph-sliders"></i><span>Configurable</span></div>
                 <p>Offers a range of strengths, from light blur to fully opaque redaction for GDPR/CCPA compliance.</p>
             </div>
-            <div class="feature-item">
-                <h4><i class="ph ph-lightning" style="color:var(--brand-primary); margin-right:6px; vertical-align:middle;"></i> Efficient Scale</h4>
-                <p>Engineered for high-throughput processing, capable of anonymizing thousands of images efficiently.</p>
+            <div class="info-card">
+                <div class="info-card-header"><i class="ph ph-lightning"></i><span>Efficient Scale</span></div>
+                <p>Engineered for high-throughput processing, capable of anonymizing thousands of images.</p>
             </div>
         </div>
 
         {% if not gcs_available %}
-            <div class="message-item category-error" role="alert">
-                <i class="ph ph-warning-circle"></i>
-                <strong>Configuration Issue:</strong> Cloud Storage is not available. Image processing is disabled.
+            <div class="message-item category-error" style="margin-bottom: 2rem;">
+                <i class="ph ph-warning-circle"></i> <strong>Configuration Issue:</strong> Cloud Storage is not available.
             </div>
         {% endif %}
 
@@ -88,65 +127,52 @@
               hx-encoding="multipart/form-data"
               hx-indicator="#blur-start-button .spinner">
             
-            <div class="form-group" style="margin-bottom: 2rem;">
-                <label for="blur-file-input" id="blur-drop-zone-label" class="drop-zone-style">
-                    <i class="ph ph-image"></i>
-                    <div>
-                        <p>Drag & drop your image here</p>
-                        <p class="file-info" id="blur-file-name-display">JPG, PNG, WEBP supported</p>
-                    </div>
-                </label>
-                <input type="file" id="blur-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required
-                       {% if not gcs_available %}disabled{% endif %}>
-            </div>
+            <div class="control-panel">
+                <div class="cp-upload-area" id="blur-drop-area">
+                    <label for="blur-file-input" class="upload-label" id="blur-drop-zone">
+                        <i class="ph ph-image"></i>
+                        <h5 id="blur-file-name">Click to upload or drag and drop</h5>
+                        <span class="subtext">JPG, PNG, WEBP supported</span>
+                    </label>
+                    <input type="file" id="blur-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required {% if not gcs_available %}disabled{% endif %}>
+                </div>
 
-            <div class="form-group blur-slider-group">
-                <label for="blur_strength_slider">Anonymization Strength</label>
-                <div class="slider-container">
-                    <span class="slider-label">Light</span>
-                    <input type="range" id="blur_strength_slider" name="blur_strength" class="form-range" 
-                           min="1" max="3" step="1" value="2" 
-                           {% if not gcs_available %}disabled{% endif %}>
-                    <span class="slider-label">Opaque</span>
+                <div class="cp-settings-bar">
+                    <div class="slider-group">
+                        <div class="slider-header"><span>Light Blur</span><span>Opaque</span></div>
+                        <input type="range" id="blur_strength_slider" name="blur_strength" min="1" max="3" step="1" value="2" {% if not gcs_available %}disabled{% endif %}>
+                    </div>
+                    <button type="submit" id="blur-start-button" class="submit-button action-btn" disabled>
+                        <i class="ph ph-shield-check"></i> Anonymize
+                        <span class="htmx-indicator spinner"></span>
+                    </button>
                 </div>
             </div>
-            
-            <div class="submit-area" style="margin-top: 2rem;">
-                <button type="submit" id="blur-start-button" class="submit-button" disabled>
-                    <i class="ph ph-shield-check"></i> Anonymize Image
-                    <span class="htmx-indicator spinner"></span>
-                </button>
-            </div>
         </form>
-
-        <div id="blurring-results-area" class="processing-result" style="margin-top: 2rem; min-height: 150px;"></div>
+        <div id="blurring-results-area" style="margin-top: 2rem;"></div>
     </div>
 
     <!-- ================= ANALYTICS TAB ================= -->
     <div id="analytics-tab" class="feature-tab-content">
-        <p class="feature-description">
-            This AI Agent leverages a state-of-the-art computer vision model to transform raw pixels into valuable business intelligence, enabling automated content moderation, metadata generation, and data extraction at scale.
-        </p>
         
-        <div class="feature-grid">
-            <div class="feature-item">
-                <h4><i class="ph ph-brain" style="color:var(--brand-primary); margin-right:6px; vertical-align:middle;"></i> Contextual Analysis</h4>
-                <p>Generates rich, semantic descriptions of the scene, identifying key objects and their relationships.</p>
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-card-header"><i class="ph ph-brain"></i><span>Contextual Analysis</span></div>
+                <p>Generates rich, semantic descriptions of the scene, identifying key objects and relationships.</p>
             </div>
-            <div class="feature-item">
-                <h4><i class="ph ph-text-t" style="color:var(--brand-primary); margin-right:6px; vertical-align:middle;"></i> Data Digitization</h4>
-                <p>Instantly extracts embedded text (OCR), converting visual information into machine-readable data.</p>
+            <div class="info-card">
+                <div class="info-card-header"><i class="ph ph-text-t"></i><span>Data Digitization</span></div>
+                <p>Instantly extracts embedded text (OCR), converting visual info into machine-readable data.</p>
             </div>
-            <div class="feature-item">
-                <h4><i class="ph ph-shield-warning" style="color:var(--brand-primary); margin-right:6px; vertical-align:middle;"></i> Image Moderation</h4>
-                <p>Proactively audits images for sensitive material to ensure brand safety and compliance.</p>
+            <div class="info-card">
+                <div class="info-card-header"><i class="ph ph-shield-warning"></i><span>Moderation</span></div>
+                <p>Proactively audits images for sensitive material to ensure brand safety.</p>
             </div>
         </div>
 
         {% if not gemini_configured %}
-            <div class="message-item category-error" role="alert">
-                <i class="ph ph-warning-circle"></i>
-                <strong>Configuration Issue:</strong> The GenAI service is not available. Image analysis is disabled.
+            <div class="message-item category-error" style="margin-bottom: 2rem;">
+                <i class="ph ph-warning-circle"></i> <strong>Configuration Issue:</strong> GenAI service is not available.
             </div>
         {% endif %}
 
@@ -160,120 +186,72 @@
             
             <input type="hidden" name="image_data_url" id="analytics-image-data-url">
 
-            <div class="form-group" style="margin-bottom: 2rem;">
-                <label for="analytics-file-input" id="analytics-drop-zone-label" class="drop-zone-style">
-                    <i class="ph ph-magnifying-glass"></i>
-                    <div>
-                        <p>Drag & drop your image here</p>
-                        <p class="file-info" id="analytics-file-name-display">JPG, PNG, WEBP supported</p>
-                    </div>
-                </label>
-                <input type="file" id="analytics-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required
-                       {% if not gemini_configured %}disabled{% endif %}>
-            </div>
+            <div class="control-panel">
+                <div class="cp-upload-area" id="analytics-drop-area">
+                    <label for="analytics-file-input" class="upload-label" id="analytics-drop-zone">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <h5 id="analytics-file-name">Click to upload or drag and drop</h5>
+                        <span class="subtext">JPG, PNG, WEBP supported</span>
+                    </label>
+                    <input type="file" id="analytics-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required {% if not gemini_configured %}disabled{% endif %}>
+                </div>
 
-            <div class="submit-area">
-                <button type="submit" id="analytics-start-button" class="submit-button" disabled>
-                    <i class="ph ph-sparkle"></i> Analyze Image
-                    <span class="htmx-indicator spinner"></span>
-                </button>
+                <div class="cp-settings-bar" style="justify-content: flex-end;">
+                    <button type="submit" id="analytics-start-button" class="submit-button action-btn" disabled>
+                        <i class="ph ph-sparkle"></i> Analyze Image
+                        <span class="htmx-indicator spinner"></span>
+                    </button>
+                </div>
             </div>
         </form>
-
-        <div id="analytics-results-area" class="processing-result" style="margin-top: 2rem; min-height: 150px;"></div>
+        <div id="analytics-results-area" style="margin-top: 2rem;"></div>
     </div>
 </div>
 
 <script>
 (function() {
-    const multimediaFeatureContainer = document.querySelector('.multimedia-feature-container');
-    if (!multimediaFeatureContainer) return;
-
-    // --- Tab Switching Logic ---
-    const tabLinks = multimediaFeatureContainer.querySelectorAll('.feature-tabs .tab-link');
-    const tabContents = multimediaFeatureContainer.querySelectorAll('.feature-tab-content');
+    // Note: Tab switching is handled globally by layout.html's event delegation
     
-    function openMultimediaTab(targetTabId) {
-        // 1. Hide all tabs
-        tabContents.forEach(tc => { 
-            tc.style.display = 'none'; 
-            tc.classList.remove('active-content'); 
-        });
-        
-        // 2. Deactivate all links
-        tabLinks.forEach(tl => tl.classList.remove('active'));
-        
-        // 3. Find targets
-        const currentTabContent = multimediaFeatureContainer.querySelector('#' + targetTabId);
-        const currentTabLink = multimediaFeatureContainer.querySelector(`.feature-tabs .tab-link[data-target-tab="${targetTabId}"]`);
-        
-        // 4. Activate target
-        if (currentTabContent) { 
-            currentTabContent.style.display = 'block'; 
-            // Slight timeout enables the CSS fade-in animation to trigger
-            setTimeout(() => currentTabContent.classList.add('active-content'), 10);
-        }
-        if (currentTabLink) { currentTabLink.classList.add('active'); }
-    }
-
-    tabLinks.forEach(link => {
-        link.addEventListener('click', function(event) { 
-            event.preventDefault(); 
-            const targetTabId = this.dataset.targetTab; 
-            if (targetTabId) { openMultimediaTab(targetTabId); } 
-        });
-    });
-
     // --- Reusable Drop Zone Logic ---
-    function setupDropZone(tabId, dropLabelId, fileInputId, nameDisplayId, btnId) {
-        const tab = multimediaFeatureContainer.querySelector(tabId);
-        if (!tab) return;
-        
-        const label = tab.querySelector(dropLabelId);
-        const input = tab.querySelector(fileInputId);
-        const display = tab.querySelector(nameDisplayId);
-        const btn = tab.querySelector(btnId);
-        const servicesReady = !input.disabled;
+    function setupDropZone(areaId, labelId, inputId, nameId, btnId, iconClass) {
+        const area = document.getElementById(areaId);
+        const label = document.getElementById(labelId);
+        const input = document.getElementById(inputId);
+        const display = document.getElementById(nameId);
+        const btn = document.getElementById(btnId);
 
-        if (label && input && display && btn) {
-            // Drag & Drop visual cues
-            label.addEventListener('dragover', (e) => { e.preventDefault(); if(servicesReady) label.classList.add('drag-over'); });
-            label.addEventListener('dragleave', () => label.classList.remove('drag-over'));
-            
-            label.addEventListener('drop', (e) => {
-                e.preventDefault();
-                if(servicesReady) {
-                    label.classList.remove('drag-over');
-                    if (e.dataTransfer.files.length > 0) {
-                        input.files = e.dataTransfer.files;
-                        // Manually trigger change event
-                        input.dispatchEvent(new Event('change'));
-                    }
-                }
-            });
+        if(!label || !input) return;
 
-            // Handle file selection
-            input.addEventListener('change', () => {
-                if (input.files.length > 0) {
-                    display.textContent = input.files[0].name;
-                    // Styling for selected state
-                    display.style.color = 'var(--brand-primary)';
-                    display.style.fontWeight = '600';
-                    label.classList.add('file-selected');
-                    btn.disabled = false;
-                } else {
-                    display.textContent = 'JPG, PNG, WEBP supported';
-                    display.style.color = '';
-                    display.style.fontWeight = '';
-                    label.classList.remove('file-selected');
-                    btn.disabled = true;
-                }
-            });
-        }
+        ['dragenter', 'dragover'].forEach(eName => {
+            label.addEventListener(eName, (e) => { e.preventDefault(); area.classList.add('drop-zone-active'); label.style.borderColor = 'var(--brand-primary)'; });
+        });
+        ['dragleave', 'drop'].forEach(eName => {
+            label.addEventListener(eName, (e) => { e.preventDefault(); area.classList.remove('drop-zone-active'); label.style.borderColor = ''; });
+        });
+
+        label.addEventListener('drop', (e) => {
+            if(e.dataTransfer.files.length) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
+        });
+
+        input.addEventListener('change', () => {
+            if(input.files.length) {
+                display.textContent = input.files[0].name;
+                display.style.color = 'var(--brand-primary)';
+                const icon = label.querySelector('i');
+                if(icon) { icon.className = `ph ph-image-square`; icon.style.color = 'var(--brand-primary)'; }
+                if(btn) btn.disabled = false;
+            } else {
+                display.textContent = 'Click to upload or drag and drop';
+                display.style.color = '';
+                const icon = label.querySelector('i');
+                if(icon) { icon.className = `ph ${iconClass}`; icon.style.color = ''; }
+                if(btn) btn.disabled = true;
+            }
+        });
     }
 
-    // Initialize both drop zones
-    setupDropZone('#blurring-tab', '#blur-drop-zone-label', '#blur-file-input', '#blur-file-name-display', '#blur-start-button');
-    setupDropZone('#analytics-tab', '#analytics-drop-zone-label', '#analytics-file-input', '#analytics-file-name-display', '#analytics-start-button');
+    // Initialize drop zones
+    setupDropZone('blur-drop-area', 'blur-drop-zone', 'blur-file-input', 'blur-file-name', 'blur-start-button', 'ph-image');
+    setupDropZone('analytics-drop-area', 'analytics-drop-zone', 'analytics-file-input', 'analytics-file-name', 'analytics-start-button', 'ph-magnifying-glass');
 })();
 </script>

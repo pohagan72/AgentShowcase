@@ -79,7 +79,36 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // Sidebar Toggling for Mobile
+        // --- GLOBAL TAB LOGIC (Event Delegation) ---
+        // This solves the "Blank Tab" issue by handling clicks globally.
+        // Even if HTMX replaces the content, this listener remains active on the document.
+        document.addEventListener('click', function(event) {
+            // Check if the clicked element (or its parent) is a tab-link
+            const tabLink = event.target.closest('.tab-link');
+            
+            if (tabLink) {
+                event.preventDefault();
+                
+                // Find the container (the specific feature wrapper)
+                const featureContainer = tabLink.closest('.feature-container');
+                if (!featureContainer) return;
+
+                const targetId = tabLink.dataset.targetTab;
+                const targetContent = featureContainer.querySelector('#' + targetId);
+
+                if (targetContent) {
+                    // 1. Deactivate all tabs in this specific container
+                    featureContainer.querySelectorAll('.tab-link').forEach(link => link.classList.remove('active'));
+                    featureContainer.querySelectorAll('.feature-tab-content').forEach(content => content.classList.remove('active-content'));
+
+                    // 2. Activate the clicked tab and its content
+                    tabLink.classList.add('active');
+                    targetContent.classList.add('active-content');
+                }
+            }
+        });
+
+        // --- SIDEBAR & MOBILE LOGIC ---
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('show');
             document.querySelector('.mobile-overlay').classList.toggle('show');
@@ -92,94 +121,49 @@
             }
         }
 
-        // HTMX Hooks: Handle Active States after Navigation
+        // --- HTMX POST-SWAP RE-INITIALIZATION ---
         document.body.addEventListener('htmx:afterSwap', function(event) {
-            // Remove active class from all links
-            document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
-                link.classList.remove('active');
-            });
-
-            // Add active class to the matching link based on URL
+            // Update Sidebar Active State based on the new URL
             const pushedUrlPath = event.detail.pathInfo.requestPath;
-            let activeFound = false;
+            
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
+                // Reset all
+                link.classList.remove('active');
+                
                 const linkUrl = new URL(link.href, window.location.origin);
                 if (linkUrl.pathname === pushedUrlPath) {
                     link.classList.add('active');
+                    // Update Page Title
                     const featureName = link.querySelector('span').textContent;
                     document.title = featureName + " - AI Agents";
-                    activeFound = true;
                 }
             });
-
-            // Re-initialize custom JS components (like Drop Zones) after HTML swap
-            const swappedElement = event.detail.target; 
-            if (swappedElement && (swappedElement.querySelector('.drop-zone-style') || swappedElement.classList.contains('drop-zone-style'))) {
-                // Any specific re-init logic if needed
-            }
         });
 
-        // Initial Page Load Logic
+        // --- ON LOAD INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', function() {
+            // Highlight correct sidebar link on full page refresh
             const currentPath = window.location.pathname;
-            let activeFoundOnLoad = false;
+            let activeFound = false;
             
-            // Set active state based on current URL
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
                 const linkUrl = new URL(link.href, window.location.origin);
                 if (linkUrl.pathname === currentPath) {
                     link.classList.add('active');
-                    const featureName = link.querySelector('span').textContent;
-                    document.title = featureName + " - AI Agents";
-                    activeFoundOnLoad = true;
+                    activeFound = true;
                 } else {
                     link.classList.remove('active');
                 }
             });
 
-            // Fallback for root URL
-            if (!activeFoundOnLoad && currentPath === '/') {
-                 const defaultLinkQuery = 'a.sidebar-link[href$="/feature/{{ DEFAULT_FEATURE_KEY }}"]'; 
-                 let defaultLink = document.querySelector(defaultLinkQuery);
-                 if (!defaultLink) { 
-                     defaultLink = document.querySelector('a.sidebar-link[href="/"]'); 
-                 }
+            // Fallback for root URL -> Default Feature
+            if (!activeFound && currentPath === '/') {
+                 const defaultLink = document.querySelector('a.sidebar-link[href$="/feature/{{ DEFAULT_FEATURE_KEY }}"]'); 
                  if (defaultLink) {
                      defaultLink.classList.add('active');
-                     const featureName = defaultLink.querySelector('span').textContent;
-                     document.title = featureName + " - AI Agents";
                  }
             }
         });
-
-        // Global Utility: Tab Switching
-        function openTab(event, tabId, tabContentClass) {
-            var i, tabcontent, tablinks;
-            var currentTabContainer = document.getElementById(tabId).closest('.feature-container') || document.body;
-            
-            // Hide all tab content
-            tabcontent = currentTabContainer.getElementsByClassName(tabContentClass);
-            for (i = 0; i < tabcontent.length; i++) { 
-                tabcontent[i].style.display = "none"; 
-                tabcontent[i].classList.remove("active-content"); 
-            }
-            
-            // Deactivate all tab links
-            if (event && event.currentTarget) {
-                const currentTabGroup = event.currentTarget.closest('.feature-tabs');
-                if (currentTabGroup) {
-                    tablinks = currentTabGroup.getElementsByClassName("tab-link");
-                    for (i = 0; i < tablinks.length; i++) { 
-                        tablinks[i].classList.remove("active"); 
-                    }
-                    event.currentTarget.classList.add("active");
-                }
-            }
-            
-            // Show target tab
-            document.getElementById(tabId).style.display = "block";
-            document.getElementById(tabId).classList.add("active-content");
-        }
     </script>
 </body>
 </html>
