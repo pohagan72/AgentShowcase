@@ -1,51 +1,64 @@
 # main_routes.py
-from flask import Blueprint, render_template, redirect, url_for, current_app
+from flask import Blueprint, render_template, current_app, request, make_response
 
 # Define the Blueprint
 bp = Blueprint('main', __name__)
 
-# UI Configuration (The Sidebar Menu)
+# UI Configuration with SEO-Friendly Routes
 FEATURES_DATA = {
     "welcome": {
         "name": "Welcome", 
-        "icon": "ph ph-house",  # Cleaner home icon
-        "template": "partials/_welcome_content.html"
+        "icon": "ph ph-house", 
+        "template": "partials/_welcome_content.html",
+        "route": "/"  # The Root Domain
     },
     "summarization": {
         "name": "The Executive Briefer", 
-        "icon": "ph ph-article", # Matches "Briefing" better than a briefcase
-        "template": "summarization/templates/summarization_content.html"
+        "icon": "ph ph-article",
+        "template": "summarization/templates/summarization_content.html",
+        "route": "/summarizer" # Keyword: Summarizer
     },
     "translation": {
         "name": "The Global Localizer", 
-        "icon": "ph ph-translate", # Specific translation icon
-        "template": "translation/templates/translation_content.html"
+        "icon": "ph ph-translate",
+        "template": "translation/templates/translation_content.html",
+        "route": "/translator" # Keyword: Translator
     },
     "pii_redaction": {
         "name": "The Compliance Guardian", 
-        "icon": "ph ph-shield-check", # Modern security shield
-        "template": "pii_redaction/templates/pii_redaction_content.html"
+        "icon": "ph ph-shield-check",
+        "template": "pii_redaction/templates/pii_redaction_content.html",
+        "route": "/redactor" # Keyword: Redactor
     },
     "multimedia": {
         "name": "The Visual Analyst", 
-        "icon": "ph ph-aperture", # Camera aperture implies "Vision/AI"
-        "template": "multimedia/templates/multimedia_content.html"
+        "icon": "ph ph-aperture",
+        "template": "multimedia/templates/multimedia_content.html",
+        "route": "/vision" # Keyword: Vision/Analysis
     },
     "info": {
         "name": "Meet the Architect", 
-        "icon": "ph ph-fingerprint", # More personal/unique than "user tie"
-        "template": "info/templates/info_content.html"
+        "icon": "ph ph-fingerprint",
+        "template": "info/templates/info_content.html",
+        "route": "/about"
     },
 }
 
 DEFAULT_FEATURE_KEY = "welcome"
 
-@bp.route('/')
-def root_redirect():
-    return redirect(url_for('main.index', feature_key=DEFAULT_FEATURE_KEY))
+# --- NEW: SEO-Friendly Route Definitions ---
+# We map multiple URLs to the same 'index' function, but pass different defaults.
 
-@bp.route('/feature/<feature_key>')
+@bp.route('/', defaults={'feature_key': 'welcome'})
+@bp.route('/summarizer', defaults={'feature_key': 'summarization'})
+@bp.route('/translator', defaults={'feature_key': 'translation'})
+@bp.route('/redactor', defaults={'feature_key': 'pii_redaction'})
+@bp.route('/vision', defaults={'feature_key': 'multimedia'})
+@bp.route('/about', defaults={'feature_key': 'info'})
+# Keep the old route for internal HTMX calls if needed, but don't link to it
+@bp.route('/feature/<feature_key>') 
 def index(feature_key):
+    # Fallback if an invalid key is forced via URL
     if feature_key not in FEATURES_DATA:
         feature_key = DEFAULT_FEATURE_KEY
 
@@ -58,7 +71,7 @@ def index(feature_key):
         "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
     }
 
-    # Add Feature-Specific Context
+    # Feature-Specific Context (Same logic as before)
     if feature_key == "translation":
         template_context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
     elif feature_key == "summarization":
@@ -88,6 +101,44 @@ def index(feature_key):
         **template_context
     )
 
+@bp.route('/sitemap.xml')
+def sitemap():
+    host = request.host_url.rstrip('/')
+    xml_sitemap = ['<?xml version="1.0" encoding="UTF-8"?>']
+    xml_sitemap.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+    
+    # Iterate through your FEATURES_DATA to build links
+    for key, data in FEATURES_DATA.items():
+        # Skip internal/hidden routes if any
+        route = data.get('route')
+        if route:
+            url = f"{host}{route}"
+            xml_sitemap.append(f"""
+                <url>
+                    <loc>{url}</loc>
+                    <changefreq>weekly</changefreq>
+                    <priority>{'1.0' if route == '/' else '0.8'}</priority>
+                </url>
+            """)
+    
+    xml_sitemap.append('</urlset>')
+    response = make_response('\n'.join(xml_sitemap))
+    response.headers["Content-Type"] = "application/xml"
+    return response
+
+@bp.route('/robots.txt')
+def robots():
+    host = request.host_url.rstrip('/')
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        f"Sitemap: {host}/sitemap.xml"
+    ]
+    response = make_response('\n'.join(lines))
+    response.headers["Content-Type"] = "text/plain"
+    return response
+
+# HTMX Specific Endpoint (Keep this for partial reloads)
 @bp.route('/content/<feature_key>')
 def get_feature_content(feature_key):
     if feature_key not in FEATURES_DATA:
@@ -101,7 +152,7 @@ def get_feature_content(feature_key):
         "gemini_configured": current_app.config.get('GEMINI_CONFIGURED', False)
     }
 
-    # Re-inject feature specific context for HTMX requests
+    # Re-inject feature specific context (Same logic as above)
     if feature_key == "translation":
         context["languages"] = current_app.config.get('TRANSLATION_LANGUAGES', [])
     elif feature_key == "summarization":
