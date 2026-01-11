@@ -1,4 +1,4 @@
-# features/summarization/ppt_builder_logic/presentation_generator.py
+# features/summarization/ppt_renderer.py
 import logging
 from io import BytesIO
 from pptx import Presentation
@@ -7,7 +7,7 @@ from pptx.enum.text import MSO_ANCHOR, PP_PARAGRAPH_ALIGNMENT
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 
-# Expanded Template Definitions (Consulting Style)
+# --- Style Definitions ---
 TEMPLATES = {
     'professional': { 
         'bg_color': RGBColor(255, 255, 255), 
@@ -24,16 +24,25 @@ TEMPLATES = {
         'text_color': RGBColor(50, 50, 50),
         'panel_bg': RGBColor(255, 245, 235),
         'panel_border': RGBColor(230, 200, 180)
+    },
+    'minimalist': {
+        'bg_color': RGBColor(255, 255, 255),
+        'title_color': RGBColor(0, 0, 0),        # Black
+        'accent_color': RGBColor(100, 100, 100), # Grey
+        'text_color': RGBColor(30, 30, 30),
+        'panel_bg': RGBColor(245, 245, 245),
+        'panel_border': RGBColor(220, 220, 220)
     }
 }
+
 DEFAULT_TEMPLATE_NAME = 'professional'
 
-# --- NEW: Insight Panel (Replaces "Suggested Visual") ---
 def add_insight_panel(slide, text, template, left, top, width, height):
     """
-    Adds a styled 'Strategic Insight' sidebar instead of a placeholder image.
+    Adds a styled 'Strategic Insight' sidebar to the right side of the slide.
     """
-    if not text or text.lower() in ["n/a", "none"]: return
+    if not text or text.lower() in ["n/a", "none", ""]: 
+        return
 
     # 1. Background Box
     shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
@@ -72,13 +81,15 @@ def add_insight_panel(slide, text, template, left, top, width, height):
     p.font.color.rgb = template['text_color']
     p.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
 
-# --- Helper: Notes ---
 def add_formatted_notes(notes_text_frame, slide_data):
+    """
+    Populates the speaker notes section of the slide.
+    """
     tf = notes_text_frame
     tf.clear()
     
     def add_section(header, content):
-        if content and content != "Suggestion not provided by AI.":
+        if content and content not in ["Suggestion not provided by AI.", "N/A"]:
             p = tf.add_paragraph()
             p.text = f"{header}: {content}"
             p.font.size = Pt(10)
@@ -87,8 +98,17 @@ def add_formatted_notes(notes_text_frame, slide_data):
     add_section("Elaboration", slide_data.get('elaboration'))
     add_section("Tip", slide_data.get('best_practice_tip'))
 
-# --- Main PPTX Creation ---
 def create_presentation(all_slides_data, template_name='professional', any_truncated=False, num_processed=0):
+    """
+    Generates a .pptx file in memory based on the provided slide data.
+    
+    Args:
+        all_slides_data (dict): {filename: [slide_dict_1, slide_dict_2, ...]}
+        template_name (str): Key from TEMPLATES dict.
+        
+    Returns:
+        BytesIO: The binary PowerPoint file.
+    """
     prs = Presentation()
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
@@ -105,7 +125,9 @@ def create_presentation(all_slides_data, template_name='professional', any_trunc
     bar.line.fill.background()
 
     # Title Text
+    # We use the first key as the main title (usually the filename)
     source_name = list(all_slides_data.keys())[0] if all_slides_data else "Document Summary"
+    
     title_box = slide.shapes.add_textbox(Inches(1), Inches(3), Inches(11.3), Inches(1.5))
     title_p = title_box.text_frame.paragraphs[0]
     title_p.text = f"Executive Summary:\n{source_name}"
@@ -143,12 +165,13 @@ def create_presentation(all_slides_data, template_name='professional', any_trunc
             tp.font.bold = True
 
             # 2. Key Message (The "So What")
-            km_box = slide.shapes.add_textbox(Inches(0.6), Inches(1.2), Inches(8), Inches(0.6))
-            km = km_box.text_frame.paragraphs[0]
-            km.text = s_data.get('key_message', '')
-            km.font.size = Pt(14)
-            km.font.color.rgb = t_config['accent_color']
-            km.font.italic = True
+            if s_data.get('key_message'):
+                km_box = slide.shapes.add_textbox(Inches(0.6), Inches(1.2), Inches(8), Inches(0.6))
+                km = km_box.text_frame.paragraphs[0]
+                km.text = s_data.get('key_message', '')
+                km.font.size = Pt(14)
+                km.font.color.rgb = t_config['accent_color']
+                km.font.italic = True
 
             # 3. Main Content (Bullets)
             body_box = slide.shapes.add_textbox(Inches(0.6), Inches(2.0), Inches(8), Inches(4.5))
@@ -163,6 +186,7 @@ def create_presentation(all_slides_data, template_name='professional', any_trunc
                 p.level = 0
 
             # 4. Right Sidebar (Analyst Insight)
+            # Checks for 'strategic_takeaway' (new agent) or fallback to 'visual' (legacy)
             insight_text = s_data.get('strategic_takeaway', s_data.get('visual', ''))
             add_insight_panel(slide, insight_text, t_config, Inches(9), Inches(2.0), Inches(4), Inches(4.5))
 
