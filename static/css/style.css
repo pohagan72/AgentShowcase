@@ -7,7 +7,6 @@
     --brand-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     
     /* Semantic Colors */
-    --surface-bg: #f8fafc;          /* Lightest Grey Background */
     --surface-card: #ffffff;        /* White Cards */
     --text-primary: #0f172a;        /* Nearly Black */
     --text-secondary: #64748b;      /* Muted Blue-Grey */
@@ -16,6 +15,7 @@
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
     
     /* Layout */
     --sidebar-width: 260px;
@@ -24,7 +24,7 @@
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* --- GLOBAL RESET (Crucial for fixing the bullets) --- */
+/* --- GLOBAL RESET --- */
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
@@ -33,7 +33,9 @@
 
 body {
     font-family: var(--font-sans);
-    background-color: var(--surface-bg);
+    /* Updated Background: Subtle gradient to enable Glassmorphism depth */
+    background: radial-gradient(circle at top left, #f8fafc, #f1f5f9, #e2e8f0);
+    background-attachment: fixed;
     color: var(--text-primary);
     height: 100vh;
     display: flex;
@@ -47,23 +49,29 @@ body {
     height: 100%;
 }
 
-/* --- SIDEBAR (Fixed) --- */
+/* --- SIDEBAR (Glassmorphism Enabled) --- */
 .sidebar {
     width: var(--sidebar-width);
-    background: #ffffff;
-    border-right: 1px solid var(--border-subtle);
+    
+    /* Glassmorphism Styles */
+    background: rgba(255, 255, 255, 0.75); /* Semi-transparent white */
+    backdrop-filter: blur(16px);            /* The "Frost" effect */
+    -webkit-backdrop-filter: blur(16px);    /* Safari support */
+    border-right: 1px solid rgba(226, 232, 240, 0.6); /* Semi-transparent border */
+    
     display: flex;
     flex-direction: column;
     padding: 1.5rem 1rem;
     flex-shrink: 0;
     z-index: 50;
+    transition: transform 0.3s ease;
 }
 
 .sidebar-header {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0 0.5rem 2rem 0.5rem; /* Spacing below logo */
+    padding: 0 0.5rem 2rem 0.5rem;
     font-weight: 700;
     font-size: 1.1rem;
     color: var(--text-primary);
@@ -78,10 +86,10 @@ body {
     font-size: 1.2rem;
 }
 
-/* THE FIX: Explicitly target the UL to remove defaults */
+/* Fix: Explicitly remove bullets */
 .sidebar ul {
-    list-style: none !important; /* Force remove bullets */
-    padding-left: 0 !important;  /* Force remove indent */
+    list-style: none !important; 
+    padding-left: 0 !important;
     margin: 0 !important;
 }
 
@@ -103,12 +111,12 @@ body {
 }
 
 .sidebar-link:hover {
-    background-color: #f1f5f9;
+    background-color: rgba(241, 245, 249, 0.8); /* Slight transparency on hover */
     color: var(--text-primary);
 }
 
 .sidebar-link.active {
-    background-color: #eff6ff;
+    background-color: rgba(239, 246, 255, 0.9); /* Slight transparency on active */
     color: var(--brand-primary);
 }
 
@@ -128,7 +136,34 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 2rem;
-    background-color: var(--surface-bg);
+    /* Transparent to let the body gradient show through */
+    background-color: transparent; 
+}
+
+/* --- MOBILE HEADER (Glassmorphism Enabled) --- */
+.mobile-header { 
+    display: none; 
+    padding: 1rem; 
+    
+    /* Glassmorphism Styles */
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+    
+    align-items: center; 
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+}
+
+.mobile-menu-toggle { 
+    background: none; 
+    border: none; 
+    font-size: 1.5rem; 
+    color: var(--text-primary); 
+    cursor: pointer;
 }
 
 /* --- FEATURE CONTAINER (The White Card) --- */
@@ -140,14 +175,18 @@ body {
     padding: 2.5rem;
     max-width: 1000px;
     margin: 0 auto;
+    /* Ensure content inside doesn't bleed */
+    position: relative; 
+    overflow: hidden; 
 }
 
-/* --- TYPOGRAPHY --- */
+/* --- TYPOGRAPHY (Editorial Style) --- */
 h1 {
     font-size: 1.75rem;
     font-weight: 700;
     margin-bottom: 1.5rem;
-    letter-spacing: -0.03em;
+    /* Tighter tracking for "Premium" feel */
+    letter-spacing: -0.04em; 
     color: var(--text-primary);
 }
 
@@ -155,16 +194,17 @@ h2 {
     font-size: 1.5rem;
     font-weight: 600;
     margin: 2rem 0 1rem 0;
+    letter-spacing: -0.03em;
     color: var(--text-primary);
 }
 
 h4 {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text-secondary);
     margin-bottom: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 p {
@@ -173,7 +213,7 @@ p {
     color: var(--text-secondary);
 }
 
-/* --- COMPONENTS: DROP ZONE (Pro) --- */
+/* --- COMPONENTS: DROP ZONE (Tactile Feel) --- */
 .drop-zone-style {
     border: 2px dashed #cbd5e1;
     background: #f8fafc;
@@ -181,7 +221,7 @@ p {
     padding: 3rem;
     text-align: center;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smooth spring */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -191,18 +231,32 @@ p {
 .drop-zone-style:hover {
     border-color: var(--brand-primary);
     background: #eff6ff;
+    /* Tactile Lift Effect */
+    transform: scale(1.015);
+    box-shadow: var(--shadow-md);
 }
 
 .drop-zone-style i {
     font-size: 2rem;
     color: #94a3b8;
+    transition: color 0.3s;
 }
 
 .drop-zone-style:hover i {
     color: var(--brand-primary);
 }
 
+.drop-zone-style.file-selected {
+    border-color: #22c55e; /* Success Green */
+    background: #f0fdf4;
+}
+
 /* Badges */
+.format-badges {
+    display: flex;
+    gap: 0.5rem;
+}
+
 .format-badge {
     background: #e2e8f0;
     color: #475569;
@@ -210,7 +264,6 @@ p {
     font-weight: 700;
     padding: 4px 8px;
     border-radius: 4px;
-    margin: 0 4px;
 }
 
 /* --- BUTTONS --- */
@@ -223,7 +276,7 @@ p {
     font-weight: 600;
     cursor: pointer;
     font-size: 0.95rem;
-    transition: transform 0.1s, opacity 0.2s;
+    transition: transform 0.1s, opacity 0.2s, box-shadow 0.2s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -231,14 +284,33 @@ p {
 }
 
 .submit-button:hover {
-    opacity: 0.9;
+    opacity: 0.95;
     transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 .submit-button:disabled {
     background: #cbd5e1;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
+}
+
+/* Secondary Button Style */
+.btn-secondary {
+    background: white; 
+    border: 1px solid var(--border-subtle); 
+    color: var(--text-secondary); 
+    padding: 0.75rem 1.5rem; 
+    border-radius: var(--radius-md); 
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.btn-secondary:hover {
+    background: #f8fafc;
+    color: var(--text-primary);
+    border-color: #cbd5e1;
 }
 
 /* --- GRID LAYOUTS --- */
@@ -254,12 +326,13 @@ p {
     border: 1px solid var(--border-subtle);
     padding: 1.5rem;
     border-radius: var(--radius-md);
-    transition: box-shadow 0.2s;
+    transition: all 0.2s ease;
 }
 
 .feature-item:hover {
     box-shadow: var(--shadow-md);
     border-color: #cbd5e1;
+    transform: translateY(-2px);
 }
 
 /* --- TABS --- */
@@ -268,7 +341,10 @@ p {
     gap: 1rem;
     border-bottom: 1px solid var(--border-subtle);
     margin-bottom: 2rem;
+    overflow-x: auto; /* Allow scrolling on small screens */
+    scrollbar-width: none; /* Hide scrollbar Firefox */
 }
+.feature-tabs::-webkit-scrollbar { display: none; }
 
 .feature-tabs .tab-link {
     background: none;
@@ -280,6 +356,7 @@ p {
     cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .feature-tabs .tab-link:hover {
@@ -300,10 +377,14 @@ p {
     align-items: center;
     gap: 0.75rem;
     font-size: 0.9rem;
+    animation: fadeIn 0.3s ease-in-out;
 }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
 .message-item.category-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 .message-item.category-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 .message-item.category-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.message-item.category-warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
 
 /* --- SPINNER --- */
 .spinner {
@@ -315,14 +396,38 @@ p {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* --- MOBILE --- */
-.mobile-header { display: none; padding: 1rem; background: white; border-bottom: 1px solid var(--border-subtle); align-items: center; justify-content: space-between; }
-.mobile-menu-toggle { background: none; border: none; font-size: 1.5rem; color: var(--text-primary); }
-
+/* --- RESPONSIVE ADJUSTMENTS --- */
 @media (max-width: 768px) {
     .app-container { flex-direction: column; }
-    .sidebar { position: fixed; top: 0; left: 0; height: 100%; transform: translateX(-100%); transition: transform 0.3s; }
+    
+    .sidebar { 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        height: 100%; 
+        transform: translateX(-100%); 
+        /* Ensure sidebar is above everything else on mobile */
+        z-index: 1000;
+        /* Mobile specific glass boost */
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 10px 0 30px rgba(0,0,0,0.1);
+    }
+    
     .sidebar.show { transform: translateX(0); }
+    
+    /* Overlay for mobile menu */
+    .mobile-overlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(4px);
+        z-index: 999;
+        display: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .mobile-overlay.show { display: block; opacity: 1; }
+
     .mobile-header { display: flex; }
     .content-area { padding: 1rem; }
     .feature-container { padding: 1.5rem; }
