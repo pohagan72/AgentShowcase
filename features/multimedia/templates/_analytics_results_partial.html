@@ -1,81 +1,237 @@
 {# features/multimedia/templates/_analytics_results_partial.html #}
 
-{# The entire content is now wrapped in the main styling container div #}
+<style>
+    /* Scoped Styles for Analytics Results */
+    .analytics-result-card {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: var(--shadow-md);
+        margin-top: 2rem;
+        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    
+    @media (min-width: 900px) {
+        .analytics-grid {
+            grid-template-columns: 350px 1fr; /* Fixed width image, fluid content */
+        }
+    }
+
+    /* Image Styling */
+    .result-image-container {
+        position: relative;
+    }
+    .result-image {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+        box-shadow: var(--shadow-sm);
+        display: block;
+    }
+
+    /* Data Sections */
+    .data-section {
+        margin-bottom: 2rem;
+    }
+    .data-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .section-header i {
+        font-size: 1.1rem;
+        color: var(--brand-primary);
+    }
+
+    .analysis-text {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: var(--text-primary);
+    }
+
+    /* Object Tags (Chips) */
+    .tags-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .obj-tag {
+        background: #f1f5f9;
+        color: #475569;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .obj-tag:hover {
+        background: #e2e8f0;
+        border-color: #cbd5e1;
+    }
+    .obj-tag i {
+        font-size: 0.8rem;
+        opacity: 0.6;
+    }
+
+    /* Color Swatches */
+    .palette-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .swatch-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+    }
+    .color-swatch {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px; /* Squircle */
+        border: 1px solid rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: transform 0.2s;
+    }
+    .swatch-group:hover .color-swatch {
+        transform: scale(1.1);
+    }
+    .hex-code {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    /* OCR Text Block */
+    .ocr-block {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        color: #334155;
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .no-data {
+        font-style: italic;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+</style>
+
 <div class="processing-result">
     {% if analysis_results and not analysis_results.get('error') %}
-    <div class="analytics-results-grid">
-        <!-- Left Column: Image Preview -->
-        <div class="image-preview-container">
-            <img id="analytics-image-preview-img" src="{{ image_data_url }}" alt="Image Preview" class="img-fluid result-image">
-        </div>
-
-        <!-- Right Column: Analysis Details -->
-        <div class="analysis-details-container">
-            
-            <h4><i class="fas fa-file-alt"></i> AI Description</h4>
-            <p class="analysis-description">{{ analysis_results.rich_description }}</p>
-
-            <h4><i class="fas fa-spell-check"></i> Extracted Text (OCR)</h4>
-            {% if analysis_results.extracted_text %}
-                <pre class="analysis-ocr-text">{{ analysis_results.extracted_text }}</pre>
-            {% else %}
-                <p class="analysis-ocr-text no-text-found" style="font-style: italic; color: #6c757d;">No text was detected in the image.</p>
-            {% endif %}
-
-            {# --- CONTENT SAFETY SECTION TEMPORARILY DISABLED FOR DEBUGGING ---
-            <h4><i class="fas fa-shield-alt"></i> Content Safety</h4>
-            <ul class="safety-flags-list">
-                <li>
-                    {% if analysis_results.safety_flags.contains_people %}
-                        <i class="fas fa-check-circle category-success"></i> Contains People: <strong>Yes</strong>
-                    {% else %}
-                        <i class="fas fa-times-circle category-secondary"></i> Contains People: <strong>No</strong>
-                    {% endif %}
-                </li>
-                <li>
-                    {% if analysis_results.safety_flags.contains_potential_pii %}
-                        <i class="fas fa-exclamation-triangle category-warning"></i> Potential PII: <strong>Yes</strong>
-                    {% else %}
-                        <i class="fas fa-check-circle category-secondary"></i> Potential PII: <strong>No</strong>
-                    {% endif %}
-                </li>
-                 <li>
-                    {% if analysis_results.safety_flags.is_graphic_or_violent %}
-                        <i class="fas fa-exclamation-triangle category-error"></i> Graphic/Violent: <strong>Yes</strong>
-                    {% else %}
-                        <i class="fas fa-check-circle category-secondary"></i> Graphic/Violent: <strong>No</strong>
-                    {% endif %}
-                </li>
-            </ul>
-            --- END OF DISABLED SECTION --- #}
-
-            <h4><i class="fas fa-tags"></i> Detected Objects & Labels</h4>
-            <div class="object-tags-container">
-                {% for obj in analysis_results.detected_objects %}
-                    <span class="object-tag">{{ obj }}</span>
-                {% endfor %}
-            </div>
-            
-            {% if dominant_colors %}
-            <h4><i class="fas fa-palette"></i> Dominant Colors</h4>
-            <div class="color-palette-container">
-                {% for color in dominant_colors %}
-                <div class="color-swatch-wrapper" title="{{ color }}">
-                    <div class="color-swatch" style="background-color: {{ color }};"></div>
+        
+        <div class="analytics-result-card">
+            <div class="analytics-grid">
+                
+                <!-- Left Column: Image -->
+                <div class="result-image-container">
+                    <img src="{{ image_data_url }}" alt="Analyzed Image" class="result-image">
+                    
+                    <!-- Metadata Badge (Optional) -->
+                    <div style="margin-top: 10px; text-align: center;">
+                        <span class="obj-tag" style="background: white;">
+                            <i class="ph ph-file-image"></i> Source Image
+                        </span>
+                    </div>
                 </div>
-                {% endfor %}
+
+                <!-- Right Column: Analysis -->
+                <div class="analysis-details">
+                    
+                    <!-- 1. AI Description -->
+                    <div class="data-section">
+                        <div class="section-header">
+                            <i class="ph ph-sparkle"></i> AI Insight
+                        </div>
+                        <p class="analysis-text">{{ analysis_results.rich_description }}</p>
+                    </div>
+
+                    <!-- 2. Detected Objects -->
+                    <div class="data-section">
+                        <div class="section-header">
+                            <i class="ph ph-crosshair"></i> Detected Objects
+                        </div>
+                        <div class="tags-container">
+                            {% for obj in analysis_results.detected_objects %}
+                                <span class="obj-tag">
+                                    <i class="ph ph-tag"></i> {{ obj }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- 3. Dominant Colors (Fixed Rendering) -->
+                    {% if dominant_colors %}
+                    <div class="data-section">
+                        <div class="section-header">
+                            <i class="ph ph-palette"></i> Color Palette
+                        </div>
+                        <div class="palette-container">
+                            {% for color in dominant_colors %}
+                                <div class="swatch-group">
+                                    <div class="color-swatch" style="background-color: {{ color }};" title="{{ color }}"></div>
+                                    <span class="hex-code">{{ color }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- 4. OCR Text -->
+                    <div class="data-section">
+                        <div class="section-header">
+                            <i class="ph ph-text-t"></i> Extracted Text
+                        </div>
+                        {% if analysis_results.extracted_text %}
+                            <div class="ocr-block">{{ analysis_results.extracted_text }}</div>
+                        {% else %}
+                            <p class="no-data">No legible text detected in image.</p>
+                        {% endif %}
+                    </div>
+
+                </div>
             </div>
-            {% endif %}
         </div>
-    </div>
+
     {% elif analysis_results and analysis_results.get('error') %}
-        <div class="message-item category-error" role="alert">
-            <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+        <!-- Error State -->
+        <div class="message-item category-error" role="alert" style="margin-top: 2rem;">
+            <i class="ph ph-warning-circle"></i>
             {{ analysis_results.get('error') }}
         </div>
     {% else %}
-        <div class="message-item category-error" role="alert">
-            <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+        <!-- Unknown Error -->
+        <div class="message-item category-error" role="alert" style="margin-top: 2rem;">
+            <i class="ph ph-warning-circle"></i>
             An unknown error occurred during analysis.
         </div>
     {% endif %}
