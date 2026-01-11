@@ -1,8 +1,8 @@
 /* static/css/style.css */
 
 :root {
-    /* --- Modern Palette (Apple-Inspired) --- */
-    /* Primary: A refined Indigo/Violet blend, similar to MacOS accent colors */
+    /* --- Modern Palette (Apple/Linear Inspired) --- */
+    /* Primary: Refined Indigo/Violet blend */
     --brand-primary: #4f46e5;       
     --brand-secondary: #7c3aed;     
     --brand-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
@@ -17,7 +17,7 @@
     /* Borders - Extremely subtle, barely visible */
     --border-subtle: rgba(0, 0, 0, 0.06); 
     
-    /* Shadows - Diffuse, multi-layered, colored shadows (No harsh blacks) */
+    /* Shadows - Diffuse, multi-layered */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 
         0 4px 6px -1px rgba(0, 0, 0, 0.05), 
@@ -106,7 +106,7 @@ body {
     background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
     padding: 8px;
     border-radius: 10px; /* Squircle-ish */
-    font-size: 1.2rem;
+    font-size: 1.4rem;
 }
 
 .sidebar ul {
@@ -146,22 +146,21 @@ body {
     border-color: rgba(0,0,0,0.02);
 }
 
+/* Updated for Phosphor Icons */
 .sidebar-link i {
-    width: 24px;         /* Slightly wider bounding box */
-    font-size: 1.25rem;  /* Larger icon size */
-    opacity: 0.8;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    /* This makes the stroke look crisp */
+    width: 24px;
+    text-align: center;
+    font-size: 1.25rem;
+    opacity: 0.7;
+    transition: opacity 0.2s;
     vertical-align: middle;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.sidebar-link.active i {
+.sidebar-link.active i, .sidebar-link:hover i {
     opacity: 1;
-    color: var(--brand-primary);
-    font-weight: bold; /* Phosphor supports faux-bolding via font-weight */
 }
 
 /* --- CONTENT AREA --- */
@@ -171,7 +170,6 @@ body {
     padding: 2.5rem;
     /* Transparent to let body gradient show */
     background-color: transparent; 
-    
     /* Smooth Scrolling */
     scroll-behavior: smooth;
 }
@@ -204,7 +202,7 @@ body {
 /* --- FEATURE CONTAINER (The Main Card) --- */
 .feature-container {
     background: var(--surface-card);
-    backdrop-filter: blur(12px); /* Content blur */
+    backdrop-filter: blur(12px); 
     -webkit-backdrop-filter: blur(12px);
     
     border: 1px solid rgba(255, 255, 255, 0.5); /* Inner light border */
@@ -226,6 +224,13 @@ h1 {
     letter-spacing: -0.03em; /* Tight tracking is key for modern UI */
     color: var(--text-primary);
     line-height: 1.2;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+h1 i {
+    color: var(--brand-primary);
 }
 
 h2 {
@@ -274,14 +279,28 @@ p {
     box-shadow: var(--shadow-md);
 }
 
+/* Icons inside drop zone */
 .drop-zone-style i {
-    font-size: 2rem;
+    font-size: 2.5rem;
     color: #9ca3af;
     transition: color 0.3s;
+    margin-bottom: 0.5rem;
 }
 
 .drop-zone-style:hover i {
     color: var(--brand-primary);
+}
+
+/* Text styling inside drop zone */
+.drop-zone-style p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+.drop-zone-style p:first-of-type {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
 }
 
 .drop-zone-style.file-selected {
@@ -293,6 +312,7 @@ p {
 .format-badges {
     display: flex;
     gap: 0.5rem;
+    margin-top: 0.5rem;
 }
 
 .format-badge {
@@ -397,7 +417,7 @@ input:focus, select:focus, textarea:focus {
     border-color: rgba(79, 70, 229, 0.2);
 }
 
-/* --- TABS --- */
+/* --- TABS (Fixed Logic + Styling) --- */
 .feature-tabs {
     display: flex;
     gap: 0.5rem;
@@ -421,6 +441,9 @@ input:focus, select:focus, textarea:focus {
     transition: all 0.2s;
     white-space: nowrap;
     border-bottom: 2px solid transparent; /* Fallback */
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .feature-tabs .tab-link:hover {
@@ -432,6 +455,24 @@ input:focus, select:focus, textarea:focus {
     color: var(--brand-primary);
     background: rgba(79, 70, 229, 0.08); /* Soft pill shape active state */
     border-bottom-color: transparent;
+}
+
+/* CRITICAL FIX: TAB DISPLAY LOGIC */
+.feature-tab-content {
+    display: none; /* Hidden by default */
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.feature-tab-content.active-content {
+    display: block; /* Shown when active */
+    opacity: 1;
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* --- MESSAGES (Toasts) --- */
