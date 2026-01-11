@@ -8,35 +8,36 @@ bp = Blueprint('main', __name__)
 FEATURES_DATA = {
     "welcome": {
         "name": "Welcome", 
-        "icon": "fas fa-home", 
+        "icon": "ph ph-house",  # Cleaner home icon
         "template": "partials/_welcome_content.html"
     },
     "summarization": {
         "name": "The Executive Briefer", 
-        "icon": "fas fa-briefcase",
+        "icon": "ph ph-article", # Matches "Briefing" better than a briefcase
         "template": "summarization/templates/summarization_content.html"
     },
     "translation": {
         "name": "The Global Localizer", 
-        "icon": "fas fa-globe",
+        "icon": "ph ph-translate", # Specific translation icon
         "template": "translation/templates/translation_content.html"
     },
     "pii_redaction": {
         "name": "The Compliance Guardian", 
-        "icon": "fas fa-user-shield",
+        "icon": "ph ph-shield-check", # Modern security shield
         "template": "pii_redaction/templates/pii_redaction_content.html"
     },
     "multimedia": {
         "name": "The Visual Analyst", 
-        "icon": "fas fa-eye",
+        "icon": "ph ph-aperture", # Camera aperture implies "Vision/AI"
         "template": "multimedia/templates/multimedia_content.html"
     },
     "info": {
         "name": "Meet the Architect", 
-        "icon": "fas fa-user-tie",
+        "icon": "ph ph-fingerprint", # More personal/unique than "user tie"
         "template": "info/templates/info_content.html"
     },
 }
+
 DEFAULT_FEATURE_KEY = "welcome"
 
 @bp.route('/')
