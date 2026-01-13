@@ -1,12 +1,21 @@
 {# features/multimedia/templates/multimedia_content.html #}
 <style>
     /* --- SCOPED CSS FOR MULTIMEDIA --- */
-    /* We keep media-wrapper for specific sizing, feature-container handles the look/logic */
     .media-wrapper { max-width: 900px; margin: 0 auto; }
 
     /* 1. HEADER */
     .media-header { margin-bottom: 2rem; }
-    .media-header h1 { display: flex; align-items: center; gap: 12px; font-size: 1.8rem; margin-bottom: 1rem; color: var(--text-primary); letter-spacing: -0.02em;}
+    .media-header h1 { 
+        display: flex; align-items: center; gap: 12px; 
+        font-size: 1.8rem; margin-bottom: 1rem; color: var(--text-primary); letter-spacing: -0.02em;
+    }
+    
+    /* Image Header Styling */
+    .media-header h1 img {
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
     .media-header p { font-size: 1.05rem; color: var(--text-secondary); max-width: 700px; line-height: 1.6; }
 
     /* 2. INFO GRID */
@@ -16,81 +25,58 @@
         transition: all 0.2s ease; display: flex; flex-direction: column; gap: 0.5rem;
     }
     .info-card:hover { background: #ffffff; border-color: var(--brand-primary); transform: translateY(-2px); box-shadow: var(--shadow-md); }
-    .info-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.25rem; }
+    
+    .info-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.25rem; font-weight: 700; color: var(--text-primary); }
     .info-card-header i { font-size: 1.4rem; color: var(--brand-primary); flex-shrink: 0; }
-    .info-card-header span { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
     .info-card p { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
 
-    /* 3. CONTROL PANEL CONTAINER */
+    /* 3. CONTROL PANEL */
     .control-panel {
         background: #ffffff; border: 1px solid var(--border-subtle); border-radius: 12px;
-        box-shadow: var(--shadow-md); overflow: hidden; display: flex; flex-direction: column;
-        margin-bottom: 2rem;
+        box-shadow: var(--shadow-md); overflow: hidden; margin-bottom: 2rem;
     }
 
-    /* Upload Area */
     .cp-upload-area {
-        background: #f8fafc; padding: 2.5rem; border-bottom: 1px solid var(--border-subtle);
-        transition: background 0.2s;
+        background: #f8fafc; padding: 3rem 2rem; border-bottom: 1px solid var(--border-subtle);
+        transition: background 0.2s; display: flex; justify-content: center;
     }
     .drop-zone-active { background: #eff6ff !important; }
 
     .upload-label {
-        display: flex; flex-direction: column; align-items: center;
-        border: 2px dashed #cbd5e1; border-radius: 8px; padding: 2.5rem;
-        text-align: center; cursor: pointer; background: white; transition: all 0.2s;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        width: 100%; border: 2px dashed #cbd5e1; border-radius: 8px; padding: 3rem 2rem;
+        text-align: center; cursor: pointer; transition: all 0.2s;
     }
     .upload-label:hover { border-color: var(--brand-primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
     .upload-label i { font-size: 3rem; color: #94a3b8; margin-bottom: 1rem; transition: color 0.2s; }
-    .upload-label h5 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; margin-top: 0; }
+    .upload-label h5 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; margin-top: 0; }
     .upload-label .subtext { font-size: 0.9rem; color: var(--text-secondary); }
 
-    /* Settings Bar */
     .cp-settings-bar {
-        padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: space-between;
-        background: white; gap: 2rem;
-    }
-
-    /* Slider Styling */
-    .slider-group { flex: 1; display: flex; flex-direction: column; gap: 0.75rem; }
-    .slider-header { 
-        display: flex; justify-content: space-between; 
-        font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); 
-        text-transform: uppercase; letter-spacing: 0.05em; 
+        padding: 1.5rem 2rem; background: white; display: flex; align-items: center; justify-content: space-between; gap: 2rem;
     }
     
-    /* Cross-browser Range Input */
-    input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; height: 24px; cursor: pointer; }
-    input[type=range]:focus { outline: none; }
-    
-    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; background: #e2e8f0; border-radius: 99px; }
-    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%; background: var(--brand-primary); margin-top: -8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border: 2px solid #ffffff; transition: transform 0.1s ease; }
-    input[type=range]:active::-webkit-slider-thumb { transform: scale(1.1); }
-    
-    input[type=range]::-moz-range-track { width: 100%; height: 6px; background: #e2e8f0; border-radius: 99px; }
-    input[type=range]::-moz-range-thumb { height: 22px; width: 22px; border-radius: 50%; background: var(--brand-primary); border: 2px solid #ffffff; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-
-    .action-btn { height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .loading-status {
+        display: flex; align-items: center; gap: 10px; color: var(--brand-primary); font-weight: 600; font-size: 0.9rem;
+    }
 
     @media (max-width: 768px) {
         .info-grid { grid-template-columns: 1fr; }
-        .cp-settings-bar { flex-direction: column; align-items: stretch; gap: 1.5rem; }
+        .cp-settings-bar { flex-direction: column; align-items: stretch; }
     }
 </style>
 
-<!-- FIX APPLIED: Added 'feature-container' class below so JS can find the tabs -->
 <div class="media-wrapper feature-container">
     
-    <!-- 1. Header -->
+    <!-- Header -->
     <div class="media-header">
         <h1>
             <img src="{{ url_for('static', filename='images/synzo-visual-analyst-icon.png') }}" 
-                alt="Icon" 
-                style="width: 48px; height: 48px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                 alt="Icon" style="width: 48px; height: 48px; vertical-align: middle; margin-right: 12px;">
             Multimedia AI Tools
         </h1>
         
-        <!-- Navigation Tabs -->
+        <!-- Tabs -->
         <div class="feature-tabs">
             <button class="tab-link active" data-target-tab="blurring-tab">
                 <img src="{{ url_for('static', filename='images/tab-icon-blur.png') }}" class="tab-icon-img" alt="Redaction">
@@ -103,9 +89,10 @@
         </div>
     </div>
 
-    <!-- ================= BLURRING TAB ================= -->
+    <!-- BLURRING TAB -->
     <div id="blurring-tab" class="feature-tab-content active-content">
         
+        <!-- Restored Info Grid -->
         <div class="info-grid">
             <div class="info-card">
                 <div class="info-card-header"><i class="ph ph-scan-dashed"></i><span>High-Accuracy</span></div>
@@ -121,47 +108,47 @@
             </div>
         </div>
 
-        {% if not gcs_available %}
-            <div class="message-item category-error" style="margin-bottom: 2rem;">
-                <i class="ph ph-warning-circle"></i> <strong>Configuration Issue:</strong> Cloud Storage is not available.
-            </div>
-        {% endif %}
-
         <form id="blur-upload-form" 
               hx-post="{{ url_for('multimedia.process_multimedia_blur_image_route') }}"
               hx-target="#blurring-results-area"
               hx-swap="innerHTML"
               hx-encoding="multipart/form-data"
-              hx-indicator="#blur-start-button .spinner">
+              hx-indicator="#blur-spinner">
             
             <div class="control-panel">
                 <div class="cp-upload-area" id="blur-drop-area">
                     <label for="blur-file-input" class="upload-label" id="blur-drop-zone">
                         <i class="ph ph-image"></i>
                         <h5 id="blur-file-name">Click to upload or drag and drop</h5>
-                        <span class="subtext">JPG, PNG, WEBP supported</span>
+                        <span class="subtext">Faces will be redacted automatically</span>
                     </label>
-                    <input type="file" id="blur-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required {% if not gcs_available %}disabled{% endif %}>
+                    <input type="file" id="blur-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;">
                 </div>
 
                 <div class="cp-settings-bar">
-                    <div class="slider-group">
-                        <div class="slider-header"><span>Light Blur</span><span>Opaque</span></div>
-                        <input type="range" id="blur_strength_slider" name="blur_strength" min="1" max="3" step="1" value="2" {% if not gcs_available %}disabled{% endif %}>
+                    <div style="flex: 1; max-width: 300px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:700; color:#64748b; margin-bottom:8px;">
+                            <span>LIGHT BLUR</span><span>OPAQUE</span>
+                        </div>
+                        <!-- Changing slider auto-submits if file is present -->
+                        <input type="range" id="blur_strength_slider" name="blur_strength" min="1" max="3" step="1" value="2" 
+                               onchange="if(document.getElementById('blur-file-input').files.length) htmx.trigger(this.form, 'submit')">
                     </div>
-                    <button type="submit" id="blur-start-button" class="submit-button action-btn" disabled>
-                        <i class="ph ph-shield-check"></i> Anonymize
-                        <span class="htmx-indicator spinner"></span>
-                    </button>
+                    
+                    <div id="blur-spinner" class="loading-status htmx-indicator">
+                        <div class="spinner" style="border-top-color: var(--brand-primary); border-left-color: var(--brand-primary);"></div>
+                        <span>Processing Faces...</span>
+                    </div>
                 </div>
             </div>
         </form>
-        <div id="blurring-results-area" style="margin-top: 2rem;"></div>
+        <div id="blurring-results-area"></div>
     </div>
 
-    <!-- ================= ANALYTICS TAB ================= -->
+    <!-- ANALYTICS TAB -->
     <div id="analytics-tab" class="feature-tab-content">
         
+        <!-- Restored Info Grid -->
         <div class="info-grid">
             <div class="info-card">
                 <div class="info-card-header"><i class="ph ph-brain"></i><span>Contextual Analysis</span></div>
@@ -177,18 +164,12 @@
             </div>
         </div>
 
-        {% if not gemini_configured %}
-            <div class="message-item category-error" style="margin-bottom: 2rem;">
-                <i class="ph ph-warning-circle"></i> <strong>Configuration Issue:</strong> GenAI service is not available.
-            </div>
-        {% endif %}
-
         <form id="analytics-upload-form"
               hx-post="{{ url_for('multimedia.process_multimedia_analyze_image_route') }}"
               hx-target="#analytics-results-area"
               hx-swap="innerHTML"
               hx-encoding="multipart/form-data"
-              hx-indicator="#analytics-start-button .spinner"
+              hx-indicator="#analytics-spinner"
               hx-params="not image_data_url">
             
             <input type="hidden" name="image_data_url" id="analytics-image-data-url">
@@ -198,67 +179,54 @@
                     <label for="analytics-file-input" class="upload-label" id="analytics-drop-zone">
                         <i class="ph ph-magnifying-glass"></i>
                         <h5 id="analytics-file-name">Click to upload or drag and drop</h5>
-                        <span class="subtext">JPG, PNG, WEBP supported</span>
+                        <span class="subtext">Instant object & text detection</span>
                     </label>
-                    <input type="file" id="analytics-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;" required {% if not gemini_configured %}disabled{% endif %}>
+                    <input type="file" id="analytics-file-input" name="file" accept=".jpg,.jpeg,.png,.webp" style="display: none;">
                 </div>
 
                 <div class="cp-settings-bar" style="justify-content: flex-end;">
-                    <button type="submit" id="analytics-start-button" class="submit-button action-btn" disabled>
-                        <i class="ph ph-sparkle"></i> Analyze Image
-                        <span class="htmx-indicator spinner"></span>
-                    </button>
+                    <div id="analytics-spinner" class="loading-status htmx-indicator">
+                        <div class="spinner" style="border-top-color: var(--brand-primary); border-left-color: var(--brand-primary);"></div>
+                        <span>Analyzing Image...</span>
+                    </div>
                 </div>
             </div>
         </form>
-        <div id="analytics-results-area" style="margin-top: 2rem;"></div>
+        <div id="analytics-results-area"></div>
     </div>
 </div>
 
 <script>
 (function() {
-    // Note: Tab switching is handled globally by layout.html's event delegation
-    
-    // --- Reusable Drop Zone Logic ---
-    function setupDropZone(areaId, labelId, inputId, nameId, btnId, iconClass) {
+    function setupAutoDrop(areaId, labelId, inputId, nameId, formId) {
         const area = document.getElementById(areaId);
         const label = document.getElementById(labelId);
         const input = document.getElementById(inputId);
         const display = document.getElementById(nameId);
-        const btn = document.getElementById(btnId);
+        const form = document.getElementById(formId);
 
         if(!label || !input) return;
 
-        ['dragenter', 'dragover'].forEach(eName => {
-            label.addEventListener(eName, (e) => { e.preventDefault(); area.classList.add('drop-zone-active'); label.style.borderColor = 'var(--brand-primary)'; });
-        });
-        ['dragleave', 'drop'].forEach(eName => {
-            label.addEventListener(eName, (e) => { e.preventDefault(); area.classList.remove('drop-zone-active'); label.style.borderColor = ''; });
-        });
+        ['dragenter', 'dragover'].forEach(e => label.addEventListener(e, (ev) => { ev.preventDefault(); area.classList.add('drop-zone-active'); label.style.borderColor = 'var(--brand-primary)'; }));
+        ['dragleave', 'drop'].forEach(e => label.addEventListener(e, (ev) => { ev.preventDefault(); area.classList.remove('drop-zone-active'); label.style.borderColor = ''; }));
 
         label.addEventListener('drop', (e) => {
-            if(e.dataTransfer.files.length) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
+            if(e.dataTransfer.files.length) { 
+                input.files = e.dataTransfer.files; 
+                input.dispatchEvent(new Event('change')); 
+            }
         });
 
         input.addEventListener('change', () => {
             if(input.files.length) {
-                display.textContent = input.files[0].name;
+                display.textContent = "Processing " + input.files[0].name + "...";
                 display.style.color = 'var(--brand-primary)';
-                const icon = label.querySelector('i');
-                if(icon) { icon.className = `ph ph-image-square`; icon.style.color = 'var(--brand-primary)'; }
-                if(btn) btn.disabled = false;
-            } else {
-                display.textContent = 'Click to upload or drag and drop';
-                display.style.color = '';
-                const icon = label.querySelector('i');
-                if(icon) { icon.className = `ph ${iconClass}`; icon.style.color = ''; }
-                if(btn) btn.disabled = true;
+                htmx.trigger(form, 'submit'); // Auto-Submit
             }
         });
     }
 
-    // Initialize drop zones
-    setupDropZone('blur-drop-area', 'blur-drop-zone', 'blur-file-input', 'blur-file-name', 'blur-start-button', 'ph-image');
-    setupDropZone('analytics-drop-area', 'analytics-drop-zone', 'analytics-file-input', 'analytics-file-name', 'analytics-start-button', 'ph-magnifying-glass');
+    setupAutoDrop('blur-drop-area', 'blur-drop-zone', 'blur-file-input', 'blur-file-name', 'blur-upload-form');
+    setupAutoDrop('analytics-drop-area', 'analytics-drop-zone', 'analytics-file-input', 'analytics-file-name', 'analytics-upload-form');
 })();
 </script>

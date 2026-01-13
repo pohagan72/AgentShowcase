@@ -101,7 +101,7 @@
         /* Upload Area */
         .cp-upload-area {
             background: #f8fafc;
-            padding: 2.5rem;
+            padding: 3rem 2rem;
             border-bottom: 1px solid var(--border-subtle);
             transition: background 0.2s;
         }
@@ -112,7 +112,7 @@
             width: 100%;
             border: 2px dashed #cbd5e1;
             border-radius: 8px;
-            padding: 3rem 2rem;
+            padding: 4rem 2rem;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -126,15 +126,15 @@
         }
         
         .upload-label i { 
-            font-size: 3rem; color: #94a3b8; margin-bottom: 1rem; 
+            font-size: 3.5rem; color: #94a3b8; margin-bottom: 1.5rem; 
             transition: color 0.2s; 
         }
         .upload-label h5 { 
-            font-size: 1.1rem; font-weight: 600; color: var(--text-primary); 
+            font-size: 1.2rem; font-weight: 600; color: var(--text-primary); 
             margin-bottom: 0.5rem; margin-top: 0; 
         }
         .upload-label .subtext { 
-            font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; display: block; 
+            font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 1rem; display: block; 
         }
 
         .file-badges { 
@@ -145,30 +145,20 @@
             background: #f1f5f9; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; 
         }
 
-        /* Bottom Action Bar */
-        .cp-action-bar {
-            padding: 1.5rem 2.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: white;
-            gap: 1rem;
+        /* Loading Overlay */
+        .loading-overlay { 
+            display: none; 
+            padding: 2rem; 
+            text-align: center; 
+            background: white; 
+            border-top: 1px solid #eee; 
         }
-        
-        .status-text { 
-            font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;
-            display: flex; align-items: center; gap: 6px;
-        }
-
-        .redact-btn { 
-            height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; 
-            display: inline-flex; align-items: center; gap: 8px;
+        .loading-overlay.htmx-request { 
+            display: block; 
         }
 
         @media (max-width: 768px) {
             .info-grid { grid-template-columns: 1fr; }
-            .cp-action-bar { flex-direction: column; align-items: stretch; text-align: center; }
-            .status-text { justify-content: center; margin-bottom: 1rem; }
         }
     </style>
 
@@ -188,7 +178,7 @@
             </p>
         </div>
 
-        <!-- 2. Info Grid -->
+        <!-- 2. Info Grid (Full Text Restored) -->
         <div class="info-grid">
             <div class="info-card">
                 <div class="info-card-header">
@@ -232,7 +222,7 @@
               hx-target="#pii-redaction-result"
               hx-swap="innerHTML"
               hx-encoding="multipart/form-data"
-              hx-indicator="#pii-submit-button .spinner">
+              hx-indicator="#pii-loading">
 
             <div class="control-panel">
                 
@@ -251,17 +241,11 @@
                            style="display: none;"
                            {% if not services_ready %}disabled{% endif %}>
                 </div>
-
-                <!-- Action Bar -->
-                <div class="cp-action-bar">
-                    <div class="status-text">
-                        <i class="ph ph-shield" style="color: var(--brand-primary);"></i>
-                        Ready to secure
-                    </div>
-                    <button type="submit" class="submit-button redact-btn" id="pii-submit-button" disabled>
-                        <i class="ph ph-eraser"></i> Redact Document
-                        <span class="htmx-indicator spinner"></span>
-                    </button>
+                
+                <!-- Progress Indicator -->
+                <div id="pii-loading" class="loading-overlay htmx-indicator">
+                    <div class="spinner" style="margin: 0 auto; border-top-color: var(--brand-primary); border-left-color: var(--brand-primary);"></div>
+                    <p style="margin-top: 10px; color: var(--brand-primary); font-weight: 600;">Scanning and Redacting Document...</p>
                 </div>
             </div>
         </form>
@@ -279,7 +263,7 @@
         const dropLabel = document.getElementById('pii-drop-zone');
         const fileInput = document.getElementById('pii-file-input');
         const nameDisplay = document.getElementById('pii-file-name');
-        const submitBtn = document.getElementById('pii-submit-button');
+        const form = document.getElementById('pii-upload-form');
         
         const servicesReady = {{ services_ready|default(false)|tojson }};
 
@@ -311,31 +295,14 @@
                 }
             });
 
-            // Change Handler
+            // Change Handler & AUTO SUBMIT
             fileInput.addEventListener('change', () => {
                 if (fileInput.files.length > 0) {
-                    nameDisplay.textContent = fileInput.files[0].name;
+                    nameDisplay.textContent = "Processing " + fileInput.files[0].name + "...";
                     nameDisplay.style.color = 'var(--brand-primary)';
                     
-                    // Update Icon to File type
-                    const icon = dropLabel.querySelector('i');
-                    if(icon) {
-                        icon.className = 'ph ph-file-doc'; // Phosphor file icon
-                        icon.style.color = 'var(--brand-primary)';
-                    }
-                    
-                    submitBtn.disabled = false;
-                } else {
-                    nameDisplay.textContent = 'Click to upload or drag and drop';
-                    nameDisplay.style.color = '';
-                    
-                    const icon = dropLabel.querySelector('i');
-                    if(icon) {
-                        icon.className = 'ph ph-file-lock';
-                        icon.style.color = '';
-                    }
-
-                    submitBtn.disabled = true;
+                    // Trigger HTMX Request Immediately
+                    htmx.trigger(form, 'submit');
                 }
             });
         } else if (!servicesReady && dropLabel) {

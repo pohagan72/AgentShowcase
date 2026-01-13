@@ -1,4 +1,5 @@
 # features/summarization/utils.py
+import os  # <--- Added this missing import
 import io
 import logging
 import fitz  # PyMuPDF
