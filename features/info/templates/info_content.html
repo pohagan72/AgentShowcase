@@ -2,273 +2,196 @@
 <style>
     /* Scoped styles for the Info Feature container */
     .info-feature-container {
-        padding: 20px;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        background-color: #f9f9f9;
+        padding: 40px; /* More breathing room */
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 16px;
+        background-color: rgba(255, 255, 255, 0.5); /* Glass-like */
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
-        color: #333;
+        color: #1e293b;
     }
 
+    /* Header with 3D Icon */
     .info-feature-container h1 {
-        font-size: 1.8em;
-        color: #2c3e50;
-        margin-bottom: 20px;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 10px;
+        font-size: 2rem;
+        color: #1e293b;
+        margin-bottom: 30px;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding-bottom: 20px;
         display: flex;
         align-items: center;
-        gap: 15px;
+        gap: 20px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
     }
 
+    /* Headings */
     .info-feature-container h2 {
         font-size: 1.5em;
-        color: #34495e;
-        margin-top: 25px;
-        margin-bottom: 15px;
-    }
-
-    .info-feature-container h3 {
-        font-size: 1.3em;
-        color: #34495e;
+        color: #334155;
+        margin-top: 30px;
+        margin-bottom: 20px;
+        font-weight: 600;
     }
 
     .info-feature-container h4 {
-        font-size: 1.1em;
-        color: #7f8c8d;
-        margin-top: 15px;
-        margin-bottom: 8px;
-    }
-
-    /* Tab Content - JS handles display */
-    .info-feature-container .feature-tab-content {
-        display: none; /* Hidden by default */
-        padding: 15px;
-        border: 1px solid #ddd;
-        border-top: none; 
-        background-color: #fff;
-        border-radius: 0 0 5px 5px;
-        animation: fadeIn 0.4s ease-out;
-    }
-
-    .info-feature-container .feature-tab-content.active-content {
-        display: block; 
-    }
-
-    /* Legal Notice Specifics */
-    .info-feature-container .legal-text-container {
-        line-height: 1.6;
-    }
-    .info-feature-container .legal-text-container ul {
-        list-style-type: disc;
-        padding-left: 20px;
-    }
-    .info-feature-container .legal-text-container ul li {
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        margin-top: 20px;
         margin-bottom: 10px;
-    }
-    .info-feature-container details {
-        border: 1px solid #e0e0e0;
-        border-radius: 5px;
-        margin-top: 1.5rem;
-    }
-    .info-feature-container summary {
-        padding: 1rem;
-        font-weight: bold;
-        cursor: pointer;
-        background-color: #f7f7f7;
-        color: #34495e;
-    }
-    .info-feature-container details[open] summary {
-        border-bottom: 1px solid #e0e0e0;
-    }
-    .info-feature-container .full-legal-text {
-        padding: 1rem;
-        background-color: #fff;
+        font-weight: 700;
     }
 
-    /* About Me Section Specifics */
+    /* --- PROFILE CARD STYLING --- */
     .info-feature-container .about-me-layout {
         display: flex;
         flex-wrap: wrap; 
-        gap: 30px; 
-        margin-top: 10px;
+        gap: 40px; 
+        margin-top: 20px;
     }
 
     .info-feature-container .profile-card {
-        flex: 0 0 280px; 
+        flex: 0 0 300px; 
         text-align: center;
-        padding: 20px; 
-        background-color: #fdfdfd;
-        border-radius: 8px; 
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+        padding: 30px; 
+        background-color: #ffffff;
+        border-radius: 20px; 
+        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 10px 30px -10px rgba(0,0,0,0.08); 
     }
 
+    /* The "Squircle" Profile Picture */
     .info-feature-container .profile-picture {
-        width: 150px;
-        height: 150px;
+        width: 160px;
+        height: 160px;
         object-fit: cover;
-        border-radius: 50%;
-        margin-bottom: 15px;
-        border: 3px solid #3498db;
+        border-radius: 36px; /* Apple Squircle Ratio */
+        margin-bottom: 20px;
+        box-shadow: 0 10px 25px rgba(79, 70, 229, 0.25); /* Brand colored shadow */
     }
 
     .info-feature-container .profile-name {
-        margin-top: 0;
+        margin-top: 5px;
         margin-bottom: 5px;
-        font-size: 1.4em;
-        color: #2c3e50;
+        font-size: 1.5em;
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: -0.01em;
     }
 
     .info-feature-container .profile-title {
         font-size: 0.95em;
-        color: #555;
-        margin-bottom: 20px; 
-        line-height: 1.4;
+        color: #64748b;
+        margin-bottom: 25px; 
+        line-height: 1.5;
     }
     
-    /* Credentials */
+    /* Credentials List */
     .info-feature-container .profile-credentials {
         text-align: left;
-        margin-bottom: 20px;
-        padding-top: 15px;
-        border-top: 1px solid #e0e0e0;
+        margin-bottom: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #f1f5f9;
     }
     .info-feature-container .credential-item {
         display: flex;
         align-items: flex-start;
         margin-bottom: 15px;
     }
-    .info-feature-container .credential-item:last-child {
-        margin-bottom: 0;
-    }
     .info-feature-container .credential-icon {
         font-size: 1.2em;
-        color: #3498db;
+        color: #4f46e5;
         margin-right: 12px;
-        margin-top: 3px;
+        margin-top: 2px;
         width: 20px; 
         text-align: center;
     }
-    .info-feature-container .credential-details {
-        flex: 1;
-    }
     .info-feature-container .credential-details h4 {
-        font-size: 1em;
-        color: #2c3e50;
-        font-weight: bold;
-        margin: 0 0 5px 0;
+        font-size: 0.9em;
+        color: #1e293b;
+        margin: 0 0 4px 0;
+        text-transform: none;
     }
-    .info-feature-container .credential-details p,
     .info-feature-container .credential-details ul {
-        margin: 0;
-        padding: 0;
-        list-style-type: none;
-        font-size: 0.85em;
-        color: #555;
-        line-height: 1.5;
+        margin: 0; padding: 0; list-style-type: none; font-size: 0.85em; color: #64748b; line-height: 1.5;
     }
-    .info-feature-container .credential-details ul li {
-        margin-bottom: 5px;
+    .info-feature-container .credential-details a {
+        color: #4f46e5; text-decoration: none; font-weight: 600;
     }
-     .info-feature-container .credential-details a {
-        color: #3498db;
-        text-decoration: none;
-        font-weight: bold;
-    }
-    .info-feature-container .credential-details a:hover {
-        text-decoration: underline;
+    .info-feature-container .credential-details a:hover { text-decoration: underline; }
+
+    /* --- CONTACT BUTTON GRID (Apple Style) --- */
+    .connect-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Two columns */
+        gap: 12px;
+        margin-top: 20px;
     }
 
+    .info-feature-container .connect-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+        border-radius: 12px; 
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        color: #fff !important;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+
+    .info-feature-container .connect-link i { margin-right: 8px; font-size: 1.1em; }
+    
+    /* Refined Button Colors */
+    .linkedin-link { background: #0077b5; }
+    .github-link { background: #24292e; }
+    .email-link { background: #64748b; }
+    .whatsapp-link { background: #25D366; }
+
+    .info-feature-container .connect-link:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.1);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    }
+
+    /* --- BIO TEXT --- */
     .info-feature-container .bio-details {
         flex: 1; 
         min-width: 300px; 
-        line-height: 1.6;
+        line-height: 1.7;
+        font-size: 1.05rem;
+        color: #334155;
     }
-    .info-feature-container .bio-details p {
-        margin-bottom: 15px;
-    }
-    .info-feature-container .bio-details p:last-child {
-        margin-bottom: 0;
-    }
+    .info-feature-container .bio-details p { margin-bottom: 20px; }
 
     .info-feature-container .bio-details .genai-development-highlight {
-        background-color: #e9f5fd;
-        border-left: 4px solid #3498db;
-        padding: 12px 15px;
-        margin-top: 15px;
-        margin-bottom: 20px;
-        border-radius: 4px;
-    }
-    .info-feature-container .bio-details .genai-development-highlight p {
-        margin-bottom: 0;
-        color: #2c3e50;
-    }
-
-    .info-feature-container .bio-details h4 {
-        margin-top: 25px;
-        margin-bottom: 10px;
-        color: #34495e;
+        background: linear-gradient(to right, #eff6ff, #ffffff);
+        border-left: 4px solid #4f46e5;
+        padding: 20px;
+        margin: 25px 0;
+        border-radius: 0 12px 12px 0;
+        color: #1e40af;
     }
 
     .info-feature-container .bio-details ul {
         padding-left: 20px;
         list-style-type: disc;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
     }
-    .info-feature-container .bio-details ul li {
-        margin-bottom: 10px;
-    }
+    .info-feature-container .bio-details ul li { margin-bottom: 10px; }
 
-    /* Connect Links */
-    .info-feature-container .connect-link {
-        display: block; 
-        width: 100%;
-        margin: 10px auto 0; 
-        padding: 10px 12px; 
-        color: #fff !important;
-        text-decoration: none;
-        border-radius: 4px;
-        font-size: 0.95em;
-        transition: background-color 0.3s ease;
-        box-sizing: border-box; 
-    }
+    /* Legal & Responsive */
+    .info-feature-container details { border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 1.5rem; overflow: hidden; }
+    .info-feature-container summary { padding: 1rem; font-weight: 600; cursor: pointer; background-color: #f8fafc; color: #334155; }
+    .info-feature-container .full-legal-text { padding: 1.5rem; background-color: #fff; }
 
-    .info-feature-container .connect-link .fab,
-    .info-feature-container .connect-link .fas {   
-        margin-right: 8px;
-        font-size: 1.1em; 
-    }
-    
-    .info-feature-container .linkedin-link { background-color: #0077b5; }
-    .info-feature-container .linkedin-link:hover { background-color: #005582; }
-    .info-feature-container .github-link { background-color: #333; }
-    .info-feature-container .github-link:hover { background-color: #1a1a1a; }
-    .info-feature-container .email-link { background-color: #6c757d; }
-    .info-feature-container .email-link:hover { background-color: #5a6268; }
-    .info-feature-container .whatsapp-link { background-color: #25D366; }
-    .info-feature-container .whatsapp-link:hover { background-color: #1DA851; }
-
-    @media (max-width: 768px) {
-        .info-feature-container .about-me-layout {
-            flex-direction: column; 
-            align-items: center; 
-        }
-        .info-feature-container .profile-card {
-            flex-basis: auto; 
-            width: 90%;
-            max-width: 350px; 
-            margin-bottom: 20px;
-        }
-        .info-feature-container .bio-details {
-            width: 100%;
-        }
-        .info-feature-container h1 { font-size: 1.6em; }
-        .info-feature-container h2 { font-size: 1.3em; }
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(5px); }
-        to { opacity: 1; transform: translateY(0); }
+    @media (max-width: 900px) {
+        .info-feature-container .about-me-layout { flex-direction: column; align-items: center; }
+        .info-feature-container .profile-card { width: 100%; max-width: 400px; margin-bottom: 20px; }
     }
 </style>
 
@@ -361,8 +284,9 @@
         <h2>About Paul</h2>
         <div class="about-me-content">
             <div class="about-me-layout">
+                <!-- Profile Card -->
                 <div class="profile-card">
-                    <img src="{{ url_for('static', filename='images/paulohagan-profile-pic.jpeg') }}" alt="Profile Picture Paul O'Hagan" class="profile-picture">
+                    <img src="{{ url_for('static', filename='images/paulohagan-profile-pic.jpeg') }}" alt="Paul O'Hagan" class="profile-picture">
                     <h3 class="profile-name">Paul O'Hagan</h3>
                     <p class="profile-title">AI Author, Inventor & Builder of High-Performance Product Teams</p>
                     
@@ -387,24 +311,24 @@
                         </div>
                     </div>
 
-                    <a href="https://www.linkedin.com/in/paul-ohagan-pm-leader" class="connect-link linkedin-link" target="_blank" rel="noopener noreferrer">
-                        <i class="fab fa-linkedin"></i> 
-                        Connect on LinkedIn
-                    </a>
-                    <a href="https://github.com/pohagan72" class="connect-link github-link" target="_blank" rel="noopener noreferrer">
-                        <i class="fab fa-github"></i> 
-                        View on GitHub
-                    </a>
-                    <a href="mailto:paulohagan@hotmail.com" class="connect-link email-link" target="_blank" rel="noopener noreferrer">
-                        <i class="fas fa-envelope"></i> 
-                        Email Paul
-                    </a>
-                    <a href="https://wa.me/16472852630" class="connect-link whatsapp-link" target="_blank" rel="noopener noreferrer">
-                        <i class="fab fa-whatsapp"></i> 
-                        Chat on WhatsApp
-                    </a>
+                    <!-- Connect Grid (Apple Style) -->
+                    <div class="connect-grid">
+                        <a href="https://www.linkedin.com/in/paul-ohagan-pm-leader" class="connect-link linkedin-link" target="_blank" rel="noopener noreferrer">
+                            <i class="fab fa-linkedin"></i> LinkedIn
+                        </a>
+                        <a href="https://github.com/pohagan72" class="connect-link github-link" target="_blank" rel="noopener noreferrer">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                        <a href="mailto:paulohagan@hotmail.com" class="connect-link email-link" target="_blank" rel="noopener noreferrer">
+                            <i class="fas fa-envelope"></i> Email
+                        </a>
+                        <a href="https://wa.me/16472852630" class="connect-link whatsapp-link" target="_blank" rel="noopener noreferrer">
+                            <i class="fab fa-whatsapp"></i> Chat
+                        </a>
+                    </div>
                 </div>
 
+                <!-- Bio Details -->
                 <div class="bio-details">
                     <p>
                         Welcome! This site is a passion project – a fully functional, live showcase of what’s possible when innovative use of AI meets practical application. It’s just the latest step in my 20 year journey as a business and technology leader dedicated to creating new ways of working by, securely and safely, leveraging the best of AI.
@@ -433,4 +357,4 @@
         </div>
     </div>
 </div>
-<!-- JS Logic is handled globally in layout.html -->
+<!-- JS handled globally -->
