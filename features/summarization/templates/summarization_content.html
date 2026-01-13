@@ -4,7 +4,6 @@
 
 <style>
     /* --- SCOPED CSS FOR SUMMARIZATION --- */
-    /* We keep wrapper for width, but ADD feature-container in HTML for logic */
     .summarization-wrapper { max-width: 900px; margin: 0 auto; }
 
     /* 1. HEADER */
@@ -13,6 +12,13 @@
         display: flex; align-items: center; gap: 12px; 
         font-size: 1.8rem; margin-bottom: 1rem; color: var(--text-primary); letter-spacing: -0.02em;
     }
+    
+    /* Image Header Styling */
+    .sum-header h1 img {
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
     .sum-header p { font-size: 1.05rem; color: var(--text-secondary); max-width: 700px; line-height: 1.6; }
 
     /* 2. INFO GRID */
@@ -59,32 +65,29 @@
 
     /* Section B: Upload Area */
     .cp-upload-area {
-        background: #f8fafc; padding: 2.5rem;
-        transition: background 0.2s; border-bottom: 1px solid var(--border-subtle);
+        background: #f8fafc; padding: 3rem 2rem;
+        transition: background 0.2s; 
     }
     .drop-zone-active { background: #eff6ff !important; }
 
     .upload-label {
-        display: flex; flex-direction: column; align-items: center;
-        border: 2px dashed #cbd5e1; border-radius: 8px; padding: 2.5rem;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        width: 100%;
+        border: 2px dashed #cbd5e1; border-radius: 8px; padding: 4rem 2rem; /* Larger touch target */
         text-align: center; cursor: pointer; background: white; transition: all 0.2s;
     }
     .upload-label:hover { border-color: var(--brand-primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-    .upload-label i { font-size: 3rem; color: #94a3b8; margin-bottom: 1rem; transition: color 0.2s; }
-    .upload-label h5 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; margin-top: 0; }
-    .upload-label .subtext { font-size: 0.9rem; color: var(--text-secondary); }
-
-    /* Section C: Action Bar */
-    .cp-action-bar { padding: 1.5rem 2rem; background: white; display: flex; justify-content: flex-end; }
-    .primary-action-btn { height: 46px; padding: 0 2rem; font-weight: 600; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; }
+    .upload-label i { font-size: 3.5rem; color: #94a3b8; margin-bottom: 1.5rem; transition: color 0.2s; }
+    .upload-label h5 { font-size: 1.2rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; margin-top: 0; }
+    .upload-label .subtext { font-size: 0.95rem; color: var(--text-secondary); }
 
     /* 4. DELIBERATION WORKBENCH (The "Matrix" UI) */
     .deliberation-workbench {
         display: none; flex-direction: column;
-        background: #0d1117; /* GitHub Dark Dimmed */
+        background: #0d1117; 
         border: 1px solid #30363d; border-radius: 12px;
         box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-        overflow: hidden; font-family: 'JetBrains Mono', monospace;
+        overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", monospace;
         color: #c9d1d9; margin-bottom: 2rem;
         animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
@@ -118,15 +121,15 @@
     }
 </style>
 
-<!-- FIX APPLIED: Added 'feature-container' here. Without it, global tabs break. -->
 <div class="summarization-wrapper feature-container">
     
     <!-- 1. HEADER -->
     <div class="sum-header">
-        <h1><img src="{{ url_for('static', filename='images/synzo-executive-briefer-icon.png') }}" 
-         alt="Icon" 
-         style="width: 48px; height: 48px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-         The Executive Briefer
+        <h1>
+            <img src="{{ url_for('static', filename='images/synzo-executive-briefer-icon.png') }}" 
+                 alt="Icon" 
+                 style="width: 48px; height: 48px; vertical-align: middle; margin-right: 12px;">
+            The Executive Briefer
         </h1>
         
         <!-- Tab Navigation -->
@@ -172,7 +175,7 @@
 
         <!-- INPUT PANEL -->
         <div id="input-panel-text">
-            <form id="text-summary-form" onsubmit="event.preventDefault(); submitRealAnalysisText(false);">
+            <form id="text-summary-form" onsubmit="event.preventDefault();">
                 <div class="control-panel">
                     
                     <!-- Speed Demo Bar -->
@@ -191,7 +194,7 @@
                         <label for="text-summary-file-input" class="upload-label" id="text-drop-zone">
                             <i class="ph ph-file-doc"></i>
                             <h5 id="text-file-name">Click to upload or drag and drop</h5>
-                            <span class="subtext">PDF, DOCX, PPTX (Max 10MB)</span>
+                            <span class="subtext">Drop file to start analysis immediately</span>
                             <div class="file-badges" style="margin-top: 1rem; display: flex; gap: 8px;">
                                 <span style="background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">PDF</span>
                                 <span style="background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">DOCX</span>
@@ -199,13 +202,8 @@
                         </label>
                         <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf" style="display: none;">
                     </div>
-
-                    <!-- Action Bar -->
-                    <div class="cp-action-bar">
-                        <button type="submit" id="text-summary-submit-btn" class="submit-button primary-action-btn" disabled>
-                            <i class="ph ph-magic-wand"></i> Generate Brief
-                        </button>
-                    </div>
+                    
+                    <!-- NO BUTTON HERE - Auto-submit logic takes over -->
                 </div>
             </form>
             <div id="error-display-text" class="message-item category-error" style="display:none;"></div>
@@ -266,7 +264,7 @@
         </div>
 
         <div id="input-panel-ppt">
-             <form id="ppt-form" onsubmit="event.preventDefault(); submitPPTStream(false);">
+             <form id="ppt-form" onsubmit="event.preventDefault();">
                 <div class="control-panel">
                     
                     <!-- Demo Bar -->
@@ -285,24 +283,19 @@
                         <label for="ppt-builder-file-input" class="upload-label" id="ppt-drop-zone">
                             <i class="ph ph-file-ppt"></i>
                             <h5 id="ppt-file-name">Click to upload or drag and drop</h5>
-                            <span class="subtext">Up to 5 files (DOCX, PDF)</span>
+                            <span class="subtext">Drop file to generate deck immediately</span>
                         </label>
                         <input type="file" id="ppt-builder-file-input" name="file" accept=".docx,.pdf" multiple style="display: none;">
                     </div>
-
-                    <!-- Action -->
-                    <div class="cp-action-bar">
-                        <button type="submit" id="ppt-builder-convert-btn" class="submit-button primary-action-btn" disabled>
-                            <i class="ph ph-slideshow"></i> Generate Presentation
-                        </button>
-                    </div>
+                    
+                    <!-- NO BUTTON HERE EITHER -->
                 </div>
             </form>
             <div id="error-display-ppt" class="message-item category-error" style="display:none;"></div>
         </div>
 
         <div id="ppt-progress-wrapper" style="display:none; margin-top: 2rem;">
-             <div id="ppt-status-log" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #475569; max-height: 250px; overflow-y: auto;"></div>
+             <div id="ppt-status-log" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', monospace; font-size: 0.85rem; color: #475569; max-height: 250px; overflow-y: auto;"></div>
              <div id="ppt-result-container" style="margin-top: 1.5rem;"></div>
              <button id="ppt-reset-btn" onclick="resetView('ppt')" class="btn-secondary" style="margin-top:1rem; display:none;">Create Another</button>
         </div>
@@ -313,13 +306,13 @@
     // --- UTILS ---
     let fullTextBuffer = ""; 
     
-    // --- UI HELPERS (Pure functionality, no global overrides) ---
-    function setupDropZone(areaId, labelId, inputId, displayId, btnId, iconClass) {
+    // --- UI HELPERS (Pure functionality) ---
+    // Updated signature to accept a 'callback' function for auto-submit
+    function setupDropZone(areaId, labelId, inputId, displayId, iconClass, callback) {
         const area = document.getElementById(areaId);
         const label = document.getElementById(labelId);
         const input = document.getElementById(inputId);
         const display = document.getElementById(displayId);
-        const btn = document.getElementById(btnId);
 
         if(!label || !input) return;
 
@@ -331,34 +324,51 @@
         });
 
         label.addEventListener('drop', (e) => {
-            if(e.dataTransfer.files.length) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
+            e.preventDefault();
+            if(e.dataTransfer.files.length) { 
+                input.files = e.dataTransfer.files; 
+                input.dispatchEvent(new Event('change')); 
+            }
         });
 
+        // AUTO-SUBMIT LOGIC:
         input.addEventListener('change', () => {
             if(input.files.length) {
-                display.textContent = input.files.length > 1 ? `${input.files.length} files selected` : input.files[0].name;
+                // Update UI visually
+                display.textContent = "Analyzing " + input.files[0].name + "...";
                 display.style.color = 'var(--brand-primary)';
                 const icon = label.querySelector('i');
-                if(icon) { icon.className = `ph ${iconClass || 'ph-file-text'}`; icon.style.color = 'var(--brand-primary)'; }
-                if(btn) btn.disabled = false;
-            } else {
-                display.textContent = 'Click to upload or drag and drop';
-                display.style.color = '';
-                const icon = label.querySelector('i');
-                if(icon) { icon.className = `ph ${iconClass || 'ph-file-doc'}`; icon.style.color = ''; }
-                if(btn) btn.disabled = true;
+                if(icon) { icon.className = `ph ph-spinner ph-spin`; icon.style.color = 'var(--brand-primary)'; }
+                
+                // EXECUTE THE ACTION IMMEDIATELY
+                if (typeof callback === 'function') {
+                    callback();
+                }
             }
         });
     }
 
     // --- INIT ---
     (function() {
-        // Tab switching is now handled GLOBALLY in layout.html via event delegation.
-        // We do NOT need to add tab listeners here.
-        
-        // Initialize Drop Zones
-        setupDropZone('text-drop-area', 'text-drop-zone', 'text-summary-file-input', 'text-file-name', 'text-summary-submit-btn', 'ph-file-text');
-        setupDropZone('ppt-drop-area', 'ppt-drop-zone', 'ppt-builder-file-input', 'ppt-file-name', 'ppt-builder-convert-btn', 'ph-file-ppt');
+        // Initialize Text Brief Drop Zone with Auto-Submit
+        setupDropZone(
+            'text-drop-area', 
+            'text-drop-zone', 
+            'text-summary-file-input', 
+            'text-file-name', 
+            'ph-file-text',
+            function() { submitRealAnalysisText(false); } // Callback
+        );
+
+        // Initialize PPT Drop Zone with Auto-Submit
+        setupDropZone(
+            'ppt-drop-area', 
+            'ppt-drop-zone', 
+            'ppt-builder-file-input', 
+            'ppt-file-name', 
+            'ph-file-ppt',
+            function() { submitPPTStream(false); } // Callback
+        );
     })();
 
     // --- LOGIC: TEXT SUMMARY ---
@@ -452,7 +462,7 @@
         } catch(e) { log.innerHTML += `<div style="color:red">Error: ${e}</div>`; document.getElementById('ppt-reset-btn').style.display = 'block'; }
     }
 
-    // --- HELPERS (Simplified) ---
+    // --- HELPERS ---
     function updateThinkingAndReport(context) {
         const marker = "### REPORT START";
         const splitIndex = fullTextBuffer.indexOf(marker);
