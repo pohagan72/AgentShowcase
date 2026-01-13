@@ -6,7 +6,7 @@
         border: 1px solid #e0e0e0;
         border-radius: 8px;
         background-color: #f9f9f9;
-        font-family: Arial, sans-serif; /* Basic font, adjust to your app's font */
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
         color: #333;
     }
 
@@ -16,10 +16,9 @@
         margin-bottom: 20px;
         border-bottom: 2px solid #3498db;
         padding-bottom: 10px;
-    }
-    .info-feature-container h1 .fas { /* Style for icon in H1 */
-        margin-right: 10px;
-        color: #3498db;
+        display: flex;
+        align-items: center;
+        gap: 15px;
     }
 
     .info-feature-container h2 {
@@ -34,99 +33,27 @@
         color: #34495e;
     }
 
-    .info-feature-container h4 { /* Global H4 style */
+    .info-feature-container h4 {
         font-size: 1.1em;
         color: #7f8c8d;
         margin-top: 15px;
         margin-bottom: 8px;
     }
 
-    /* Tab Styling */
-    .info-feature-container .feature-tabs {
-        display: flex;
-        border-bottom: 1px solid #ccc;
-        margin-bottom: 20px;
-    }
-
-    .info-feature-container .tab-link {
-        padding: 10px 20px;
-        cursor: pointer;
-        border: none;
-        background-color: transparent;
-        font-size: 1em;
-        margin-right: 5px;
-        border-bottom: 3px solid transparent; /* For active state */
-        transition: all 0.3s ease;
-        color: #555;
-    }
-    .info-feature-container .tab-link .fas { /* Style for icons in tabs */
-        margin-right: 8px;
-    }
-
-    .info-feature-container .tab-link:hover {
-        color: #3498db;
-        background-color: #ecf0f1;
-    }
-
-    .info-feature-container .tab-link.active {
-        color: #3498db;
-        font-weight: bold;
-        border-bottom: 3px solid #3498db;
-    }
-
-    /* Tab Content - JS handles display, but good to set initial state */
+    /* Tab Content - JS handles display */
     .info-feature-container .feature-tab-content {
-        display: none; /* Hidden by default, JS will show the active one */
+        display: none; /* Hidden by default */
         padding: 15px;
         border: 1px solid #ddd;
-        border-top: none; /* If tabs have a bottom border */
+        border-top: none; 
         background-color: #fff;
         border-radius: 0 0 5px 5px;
+        animation: fadeIn 0.4s ease-out;
     }
 
     .info-feature-container .feature-tab-content.active-content {
-        display: block; /* JS adds this class to show content */
+        display: block; 
     }
-
-    /* === Copied styles from Multimedia for consistency === */
-    .info-feature-container .feature-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        margin: 1.5rem 0;
-    }
-    @media (min-width: 992px) {
-        .info-feature-container .feature-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-    .info-feature-container .feature-item {
-        background: #ffffff;
-        padding: 2rem;
-        text-align: center;
-    }
-    @media (min-width: 992px) {
-        .info-feature-container .feature-item:not(:last-child) { border-right: 1px solid #e5e7eb; }
-    }
-    @media (max-width: 991.98px) {
-        .info-feature-container .feature-item:not(:last-child) { border-bottom: 1px solid #e5e7eb; }
-    }
-    .info-feature-container .feature-item h4 {
-        margin: 0 0 0.75rem 0;
-        font-family: Georgia, "Times New Roman", Times, serif;
-        font-size: 1.1em;
-        color: #1a2b48;
-        font-weight: 600;
-    }
-    .info-feature-container .feature-item p {
-        font-family: Georgia, "Times New Roman", Times, serif;
-        color: #5a6a7b;
-        line-height: 1.6;
-        margin: 0;
-        font-size: 0.95em;
-    }
-    /* === End of copied styles === */
 
     /* Legal Notice Specifics */
     .info-feature-container .legal-text-container {
@@ -138,11 +65,6 @@
     }
     .info-feature-container .legal-text-container ul li {
         margin-bottom: 10px;
-    }
-    .info-feature-container .legal-text-container h4 {
-        color: #34495e;
-        font-size: 1.2em;
-        margin-top: 20px;
     }
     .info-feature-container details {
         border: 1px solid #e0e0e0;
@@ -167,18 +89,18 @@
     /* About Me Section Specifics */
     .info-feature-container .about-me-layout {
         display: flex;
-        flex-wrap: wrap; /* Allow wrapping on smaller screens */
-        gap: 30px; /* Space between columns */
+        flex-wrap: wrap; 
+        gap: 30px; 
         margin-top: 10px;
     }
 
     .info-feature-container .profile-card {
-        flex: 0 0 280px; /* Profile card takes a fixed width */
+        flex: 0 0 280px; 
         text-align: center;
-        padding: 20px; /* Increased padding */
+        padding: 20px; 
         background-color: #fdfdfd;
-        border-radius: 8px; /* Slightly larger radius */
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* A bit more shadow */
+        border-radius: 8px; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
     }
 
     .info-feature-container .profile-picture {
@@ -200,11 +122,11 @@
     .info-feature-container .profile-title {
         font-size: 0.95em;
         color: #555;
-        margin-bottom: 20px; /* More space before credentials */
+        margin-bottom: 20px; 
         line-height: 1.4;
     }
     
-    /* === NEW Styles for Credentials in Profile Card === */
+    /* Credentials */
     .info-feature-container .profile-credentials {
         text-align: left;
         margin-bottom: 20px;
@@ -224,7 +146,7 @@
         color: #3498db;
         margin-right: 12px;
         margin-top: 3px;
-        width: 20px; /* Ensures text aligns neatly */
+        width: 20px; 
         text-align: center;
     }
     .info-feature-container .credential-details {
@@ -256,12 +178,10 @@
     .info-feature-container .credential-details a:hover {
         text-decoration: underline;
     }
-    /* === END of New Styles === */
-
 
     .info-feature-container .bio-details {
-        flex: 1; /* Bio details take up the remaining space */
-        min-width: 300px; /* Ensure it has some minimum width before wrapping */
+        flex: 1; 
+        min-width: 300px; 
         line-height: 1.6;
     }
     .info-feature-container .bio-details p {
@@ -299,7 +219,7 @@
         margin-bottom: 10px;
     }
 
-    /* Styling for the Connect Links (LinkedIn, Email, WhatsApp, GitHub) */
+    /* Connect Links */
     .info-feature-container .connect-link {
         display: block; 
         width: 100%;
@@ -313,11 +233,8 @@
         box-sizing: border-box; 
     }
 
-    /* Generic Icon styling within connect links */
     .info-feature-container .connect-link .fab,
-    .info-feature-container .connect-link .fas,
-    .info-feature-container .connect-link .fa-brands, 
-    .info-feature-container .connect-link .fa-solid {   
+    .info-feature-container .connect-link .fas {   
         margin-right: 8px;
         font-size: 1.1em; 
     }
@@ -331,7 +248,6 @@
     .info-feature-container .whatsapp-link { background-color: #25D366; }
     .info-feature-container .whatsapp-link:hover { background-color: #1DA851; }
 
-    /* Responsive adjustments */
     @media (max-width: 768px) {
         .info-feature-container .about-me-layout {
             flex-direction: column; 
@@ -346,24 +262,34 @@
         .info-feature-container .bio-details {
             width: 100%;
         }
-        .info-feature-container .tab-link {
-            padding: 10px 12px; 
-            font-size: 0.9em;
-        }
         .info-feature-container h1 { font-size: 1.6em; }
         .info-feature-container h2 { font-size: 1.3em; }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 </style>
 
 <div class="info-feature-container feature-container">
-    <h1><i class="fas fa-info-circle"></i> About</h1>
+    <!-- Updated Header with 3D Icon -->
+    <h1>
+        <img src="{{ url_for('static', filename='images/synzo-about-me-icon.png') }}" 
+             alt="Icon" 
+             style="width: 48px; height: 48px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        About
+    </h1>
 
+    <!-- Updated Tabs with 3D Icons -->
     <div class="feature-tabs">
         <button class="tab-link" data-target-tab="legal-notice-tab">
-            <i class="fas fa-gavel"></i> Legal Notice
+            <img src="{{ url_for('static', filename='images/tab-icon-legal.png') }}" class="tab-icon-img" alt="Legal">
+            Legal Notice
         </button>
         <button class="tab-link active" data-target-tab="about-me-tab">
-            <i class="fas fa-user-circle"></i> Meet Paul O'Hagan
+            <img src="{{ url_for('static', filename='images/tab-icon-profile.png') }}" class="tab-icon-img" alt="Profile">
+            Meet Paul O'Hagan
         </button>
     </div>
 
@@ -371,6 +297,7 @@
     <div id="legal-notice-tab" class="feature-tab-content">
         <h2>Platform Governance & Terms of Service</h2>
         <p style="margin-top: 1rem;">My commitment is to innovation, transparency, and responsible AI. Below are the key principles governing this showcase. For full details, please review the complete terms.</p>
+        
         <div class="feature-grid">
             <div class="feature-item">
                 <h4>Your Content, Your Ownership</h4>
@@ -385,6 +312,7 @@
                 <p>This platform is designed for professional and lawful use. We prohibit the generation of harmful or infringing content to ensure a safe environment.</p>
             </div>
         </div>
+
         <details>
             <summary>View Full Terms of Service</summary>
             <div class="full-legal-text">
@@ -505,53 +433,4 @@
         </div>
     </div>
 </div>
-
-<script>
-(function() {
-    // Script assumes it's placed after the HTML elements it targets, or wrapped in DOMContentLoaded
-    const infoFeatureContainer = document.querySelector('.info-feature-container');
-    if (!infoFeatureContainer) { 
-        return; 
-    }
-
-    // Tab Switching Logic for Info Feature
-    const tabLinksInfo = infoFeatureContainer.querySelectorAll('.feature-tabs .tab-link');
-    const tabContentsInfo = infoFeatureContainer.querySelectorAll('.feature-tab-content');
-
-    function openInfoFeatureTab(targetTabId) {
-        tabContentsInfo.forEach(tc => { 
-            tc.style.display = 'none'; // Directly hide
-            tc.classList.remove('active-content'); 
-        });
-        tabLinksInfo.forEach(tl => tl.classList.remove('active'));
-        
-        const currentTabContent = infoFeatureContainer.querySelector('#' + targetTabId);
-        const currentTabLink = infoFeatureContainer.querySelector(`.feature-tabs .tab-link[data-target-tab="${targetTabId}"]`);
-        
-        if (currentTabContent) { 
-            currentTabContent.style.display = 'block'; // Directly show
-            currentTabContent.classList.add('active-content'); 
-        }
-        if (currentTabLink) { 
-            currentTabLink.classList.add('active'); 
-        }
-    }
-
-    tabLinksInfo.forEach(link => {
-        link.addEventListener('click', function(event) {
-            event.preventDefault();
-            const targetTabId = this.dataset.targetTab;
-            if (targetTabId) { openInfoFeatureTab(targetTabId); }
-        });
-    });
-
-    // Ensure the default active tab is displayed on load based on HTML classes
-    const initiallyActiveTabLink = infoFeatureContainer.querySelector('.feature-tabs .tab-link.active');
-    if (initiallyActiveTabLink && initiallyActiveTabLink.dataset.targetTab) {
-        openInfoFeatureTab(initiallyActiveTabLink.dataset.targetTab);
-    } else if (tabLinksInfo.length > 0 && tabLinksInfo[0].dataset.targetTab) {
-        // Fallback: if no tab is marked active in HTML, activate the first one
-        openInfoFeatureTab(tabLinksInfo[0].dataset.targetTab);
-    }
-})();
-</script>
+<!-- JS Logic is handled globally in layout.html -->

@@ -93,10 +93,12 @@
         <!-- Navigation Tabs -->
         <div class="feature-tabs">
             <button class="tab-link active" data-target-tab="blurring-tab">
-                <i class="ph ph-eye-slash"></i> Facial Redaction
+                <img src="{{ url_for('static', filename='images/tab-icon-blur.png') }}" class="tab-icon-img" alt="Redaction">
+                Facial Redaction
             </button>
             <button class="tab-link" data-target-tab="analytics-tab">
-                <i class="ph ph-chart-bar"></i> Image Analytics
+                <img src="{{ url_for('static', filename='images/tab-icon-analytics.png') }}" class="tab-icon-img" alt="Analytics">
+                Image Analytics
             </button>
         </div>
     </div>
