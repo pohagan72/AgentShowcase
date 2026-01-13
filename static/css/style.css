@@ -11,8 +11,8 @@
     --surface-card: rgba(255, 255, 255, 0.85); /* Translucent for glass effect */
     --surface-ground: #f5f5f7;      /* Apple's signature off-white background */
     
-    --text-primary: #111827;        /* High contrast, nearly black */
-    --text-secondary: #6b7280;      /* Muted grey for subtext */
+    --text-primary: #1e293b;        /* High contrast, deep slate/black */
+    --text-secondary: #64748b;      /* Muted slate for subtext */
     
     /* Borders - Extremely subtle, barely visible */
     --border-subtle: rgba(0, 0, 0, 0.06); 
@@ -30,10 +30,10 @@
         0 10px 10px -5px rgba(0, 0, 0, 0.02);
     
     /* Layout & Geometry */
-    --sidebar-width: 260px;
     --radius-md: 10px;  /* Slightly rounded */
     --radius-lg: 16px;  /* Larger, modern curvature */
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* Apple-priority font stack */
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* --- GLOBAL RESET --- */
@@ -45,7 +45,6 @@
 
 body {
     font-family: var(--font-sans);
-    /* Apple-style font smoothing for crisp text */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     
@@ -69,108 +68,173 @@ body {
     height: 100%;
 }
 
-/* --- SIDEBAR (Frosted Glass) --- */
+/* ==========================================================================
+   SIDEBAR (Bold "App Dock" Style)
+   ========================================================================== */
+
 .sidebar {
-    width: var(--sidebar-width);
-    
-    /* Heavy Glassmorphism */
-    background: rgba(255, 255, 255, 0.65);
+    /* 1. Default State: Slightly wider to accommodate big icons */
+    width: 96px; 
+    background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    
-    /* No solid border, just a subtle line separation */
     border-right: 1px solid rgba(0, 0, 0, 0.05);
-    
     display: flex;
     flex-direction: column;
-    padding: 1.5rem 1rem;
+    padding: 1.5rem 0.75rem; 
     flex-shrink: 0;
     z-index: 50;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden; 
+    
+    /* Smooth Physics */
+    transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* 2. Hover State: Expanded */
+.sidebar:hover {
+    width: 300px; /* Wider to balance the large icons */
+    background: rgba(255, 255, 255, 0.98); 
+    box-shadow: 10px 0 50px rgba(0,0,0,0.1); 
+}
+
+/* --- THE HEADER & LOGO --- */
 .sidebar-header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0 0.5rem 2rem 0.5rem;
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: var(--text-primary);
-    letter-spacing: -0.02em; /* Tighter tracking */
+    padding: 0 0 2rem 0;
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    padding-left: 8px; /* Alignment fix */
 }
 
-.sidebar-header i {
-    color: var(--brand-primary);
-    /* Soft glowing background icon */
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
-    padding: 8px;
-    border-radius: 10px; /* Squircle-ish */
+.brand-logo {
+    width: 56px; /* Massive Brand Logo */
+    height: 56px;
+    min-width: 56px;
+    border-radius: 14px; /* Larger squircle radius */
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
+}
+
+.sidebar-header span {
     font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-left: 18px;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.3s ease;
 }
 
+.sidebar:hover .sidebar-header span {
+    opacity: 1;
+    transform: translateX(0);
+    transition-delay: 0.1s; 
+}
+
+/* --- THE LINKS --- */
 .sidebar ul {
     list-style: none !important; 
     padding-left: 0 !important;
     margin: 0 !important;
+    width: 100%;
 }
 
 .sidebar li {
-    margin-bottom: 6px;
+    margin-bottom: 12px; /* More breathing room between big tiles */
 }
 
 .sidebar-link {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 500;
-    border-radius: 8px;
+    height: 72px; /* Tall rows to fit the big icons */
+    padding: 0 10px; /* Tighter padding ensures icon centers in the 96px width */
+    border-radius: 18px; /* Very round, modern corners */
     transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-    border: 1px solid transparent;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
+/* THE STAR: The Icon (Now Massive) */
+.sidebar-icon-img {
+    width: 48px;       /* 50% larger than before */
+    height: 48px;
+    min-width: 48px;   
+    object-fit: contain;
+    border-radius: 12px; /* Perfect squircle for this size */
+    
+    /* Deep Shadows to make them float */
+    box-shadow: 
+        0 4px 10px rgba(0, 0, 0, 0.08), 
+        inset 0 0 0 1px rgba(255, 255, 255, 0.4); 
+    background-color: white;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* The Text */
+.sidebar-link span {
+    font-size: 1.1rem; /* Larger text to match icon weight */
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-left: 20px; 
+    
+    opacity: 0;
+    transform: translateX(-15px);
+    transition: all 0.2s ease;
+}
+
+/* --- INTERACTION STATES --- */
+
+/* 1. Reveal Text on Sidebar Hover */
+.sidebar:hover .sidebar-link span {
+    opacity: 1;
+    transform: translateX(0);
+    transition-delay: 0.05s;
+}
+
+/* 2. Hovering a LINK */
 .sidebar-link:hover {
-    background-color: rgba(0, 0, 0, 0.03);
+    background-color: rgba(0, 0, 0, 0.04);
+}
+.sidebar-link:hover .sidebar-icon-img {
+    transform: scale(1.15); /* Big pop effect */
+    box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+}
+.sidebar-link:hover span {
     color: var(--text-primary);
 }
 
+/* 3. Active State */
 .sidebar-link.active {
-    background-color: white;
+    background-color: transparent; 
+}
+.sidebar:hover .sidebar-link.active {
+    background-color: rgba(255, 255, 255, 0.7); 
+}
+
+/* Active Icon Styling */
+.sidebar-link.active .sidebar-icon-img {
+    transform: scale(1.05);
+    box-shadow: 
+        0 0 0 3px var(--brand-primary), /* Thick selection ring */
+        0 8px 20px rgba(79, 70, 229, 0.25);
+}
+
+.sidebar-link.active span {
     color: var(--brand-primary);
-    /* Subtle shadow for the active state to lift it */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-    border-color: rgba(0,0,0,0.02);
+    font-weight: 700;
 }
 
-/* Updated for Phosphor Icons */
-.sidebar-link i {
-    width: 24px;
-    text-align: center;
-    font-size: 1.25rem;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-    vertical-align: middle;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.sidebar-link.active i, .sidebar-link:hover i {
-    opacity: 1;
-}
+/* ==========================================================================
+   CONTENT & COMPONENTS
+   ========================================================================== */
 
 /* --- CONTENT AREA --- */
 .content-area {
     flex: 1;
     overflow-y: auto;
     padding: 2.5rem;
-    /* Transparent to let body gradient show */
     background-color: transparent; 
-    /* Smooth Scrolling */
     scroll-behavior: smooth;
 }
 
@@ -178,12 +242,10 @@ body {
 .mobile-header { 
     display: none; 
     padding: 1rem; 
-    
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border-subtle);
-    
     align-items: center; 
     justify-content: space-between;
     position: sticky;
@@ -199,14 +261,14 @@ body {
     cursor: pointer;
 }
 
-/* --- FEATURE CONTAINER (The Main Card) --- */
+/* --- FEATURE CONTAINER (Main Card) --- */
 .feature-container {
     background: var(--surface-card);
     backdrop-filter: blur(12px); 
     -webkit-backdrop-filter: blur(12px);
     
-    border: 1px solid rgba(255, 255, 255, 0.5); /* Inner light border */
-    box-shadow: var(--shadow-xl); /* Floating effect */
+    border: 1px solid rgba(255, 255, 255, 0.6); 
+    box-shadow: var(--shadow-xl); 
     border-radius: var(--radius-lg);
     
     padding: 3rem;
@@ -216,21 +278,22 @@ body {
     overflow: hidden; 
 }
 
-/* --- TYPOGRAPHY (Editorial / Premium) --- */
+/* --- TYPOGRAPHY --- */
 h1 {
     font-size: 2rem;
     font-weight: 700;
     margin-bottom: 1.5rem;
-    letter-spacing: -0.03em; /* Tight tracking is key for modern UI */
+    letter-spacing: -0.03em;
     color: var(--text-primary);
     line-height: 1.2;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 12px;
 }
 
-h1 i {
-    color: var(--brand-primary);
+h1 img {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 h2 {
@@ -251,19 +314,19 @@ h4 {
 }
 
 p {
-    line-height: 1.65; /* Relaxed reading */
+    line-height: 1.65;
     margin-bottom: 1rem;
     color: var(--text-secondary);
     font-size: 1rem;
 }
 
-/* --- COMPONENTS: DROP ZONE (Tactile & Flexbox Fix) --- */
+/* --- COMPONENTS: DROP ZONE --- */
 .drop-zone-style {
-    display: flex;           /* Force Flexbox */
-    flex-direction: column;  /* Stack children vertically */
-    align-items: center;     /* Center children horizontally */
-    justify-content: center; /* Center children vertically */
-    width: 100%;            /* Fill the container */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
     
     border: 2px dashed rgba(203, 213, 225, 0.6);
     background: rgba(248, 250, 252, 0.5);
@@ -273,64 +336,18 @@ p {
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     gap: 1rem;
-    box-sizing: border-box;
 }
 
 .drop-zone-style:hover {
     border-color: var(--brand-primary);
     background: rgba(239, 246, 255, 0.6);
-    transform: scale(1.01); /* Subtle lift */
+    transform: scale(1.01);
     box-shadow: var(--shadow-md);
 }
 
-/* Icons inside drop zone */
-.drop-zone-style i {
-    font-size: 3rem;
-    color: #9ca3af;
-    transition: color 0.3s;
-    margin-bottom: 0.5rem;
-}
-
-.drop-zone-style:hover i {
-    color: var(--brand-primary);
-}
-
-/* Text styling inside drop zone */
-.drop-zone-style p {
-    margin: 0;
-    color: var(--text-secondary);
-}
-.drop-zone-style p:first-of-type {
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 1.1rem;
-    margin-bottom: 0.25rem;
-}
-
-.drop-zone-style.file-selected {
-    border-color: #10b981; /* Success Green */
-    background: rgba(240, 253, 244, 0.7);
-}
-
-/* Format Badges */
-.format-badges {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-.format-badge {
-    background: rgba(0, 0, 0, 0.05);
-    color: var(--text-secondary);
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 6px;
-}
-
-/* --- BUTTONS (Physical Feel) --- */
+/* --- BUTTONS --- */
 .submit-button, button[type="submit"] {
-    background: var(--text-primary); /* Apple uses solid black/dark grey for primary */
+    background: var(--text-primary);
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
@@ -352,10 +369,8 @@ p {
     box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
 
-/* Interaction Physics: Button "press" down */
 .submit-button:active {
     transform: scale(0.97);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .submit-button:disabled {
@@ -366,7 +381,6 @@ p {
     box-shadow: none;
 }
 
-/* Secondary Button */
 .btn-secondary {
     background: white; 
     border: 1px solid var(--border-subtle); 
@@ -384,33 +398,27 @@ p {
     border-color: #d1d5db;
     transform: translateY(-1px);
 }
-.btn-secondary:active {
-    transform: scale(0.97);
-}
 
 /* --- FORMS & SLIDERS --- */
 input:focus, select:focus, textarea:focus {
     outline: none;
-    /* Soft Glow Focus Ring */
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); 
     border-color: var(--brand-primary);
 }
 
-/* Standardized Range Slider (iOS Style) */
+/* Range Slider (iOS Style) */
 input[type=range] {
     -webkit-appearance: none;
     width: 100%;
     background: transparent;
-    margin: 0;
     height: 24px;
     cursor: pointer;
 }
 input[type=range]:focus { outline: none; }
 
-/* WebKit Track & Thumb */
 input[type=range]::-webkit-slider-runnable-track {
     width: 100%; height: 6px; 
-    background: #e2e8f0; border-radius: 99px; border: none;
+    background: #e2e8f0; border-radius: 99px;
 }
 input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -423,19 +431,7 @@ input[type=range]::-webkit-slider-thumb {
 }
 input[type=range]:active::-webkit-slider-thumb { transform: scale(1.1); }
 
-/* Firefox Track & Thumb */
-input[type=range]::-moz-range-track {
-    width: 100%; height: 6px; 
-    background: #e2e8f0; border-radius: 99px; border: none;
-}
-input[type=range]::-moz-range-thumb {
-    height: 22px; width: 22px; 
-    border-radius: 50%; background: var(--brand-primary);
-    border: 2px solid #ffffff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
-
-/* --- GRID LAYOUTS (Feature Tiles) --- */
+/* --- GRID LAYOUTS --- */
 .feature-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -460,7 +456,7 @@ input[type=range]::-moz-range-thumb {
     border-color: rgba(79, 70, 229, 0.2);
 }
 
-/* --- TABS (Robust Logic) --- */
+/* --- TABS --- */
 .feature-tabs {
     display: flex;
     gap: 0.5rem;
@@ -496,18 +492,16 @@ input[type=range]::-moz-range-thumb {
 
 .feature-tabs .tab-link.active {
     color: var(--brand-primary);
-    background: rgba(79, 70, 229, 0.08); /* Soft pill shape active state */
+    background: rgba(79, 70, 229, 0.08); 
     font-weight: 600;
 }
 
-/* CRITICAL FIX: Robust Tab Visibility */
-/* We use !important to override any lingering inline styles from JS race conditions */
+/* Tab Visibility Logic */
 .feature-tab-content {
     display: none !important;
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
 }
-
 .feature-tab-content.active-content {
     display: block !important;
     opacity: 1;
@@ -519,7 +513,7 @@ input[type=range]::-moz-range-thumb {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- MESSAGES (Toasts) --- */
+/* --- MESSAGES --- */
 .message-item {
     padding: 1rem;
     border-radius: 8px;
@@ -548,7 +542,9 @@ input[type=range]::-moz-range-thumb {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* --- RESPONSIVE ADJUSTMENTS --- */
+/* ==========================================================================
+   RESPONSIVE (Mobile Overrides)
+   ========================================================================== */
 @media (max-width: 768px) {
     .app-container { flex-direction: column; }
     
@@ -557,15 +553,22 @@ input[type=range]::-moz-range-thumb {
         top: 0; 
         left: 0; 
         height: 100%; 
-        width: 80%;
-        max-width: 300px;
+        width: 280px; /* Full width on mobile */
         transform: translateX(-100%); 
         z-index: 1000;
         background: rgba(255, 255, 255, 0.98);
         box-shadow: 10px 0 30px rgba(0,0,0,0.15);
+        overflow: visible; /* Restore overflow for mobile */
     }
     
     .sidebar.show { transform: translateX(0); }
+    
+    /* Force text visibility on mobile since there is no hover */
+    .sidebar-link span,
+    .sidebar-header span {
+        opacity: 1 !important;
+        transform: none !important;
+    }
     
     .mobile-overlay {
         position: fixed;

@@ -8,31 +8,29 @@
     <!-- SEO: Meta Description -->
     <meta name="description" content="Synzo: Enterprise-grade AI agents for secure document summarization, translation, and PII redaction. Zero data retention.">
     
-    <!-- SEO: Canonical URL (Prevents duplicate content penalties) -->
+    <!-- SEO: Canonical URL -->
     <link rel="canonical" href="{{ request.url_root.rstrip('/') }}{{ request.path }}">
 
-    <!-- SOCIAL: Open Graph (Facebook/LinkedIn/iMessage) -->
+    <!-- PWA: Manifest & Theme -->
+    <link rel="manifest" href="{{ url_for('static', filename='files/manifest.json') }}">
+    <meta name="theme-color" content="#4f46e5">
+
+    <!-- SOCIAL: Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
     <meta property="og:title" content="{{ current_feature.name if current_feature else 'Synzo' }} - Secure AI Document Intelligence">
-    <meta property="og:description" content="Securely summarize, translate, and redact documents with enterprise-grade AI agents. Zero data retention.">
-    <meta property="og:image" content="{{ url_for('static', filename='images/social-preview.png', _external=True) }}">
-
-    <!-- SOCIAL: Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{{ current_feature.name if current_feature else 'Synzo' }}">
-    <meta name="twitter:description" content="Secure AI Agents for Document Processing.">
-    <meta name="twitter:image" content="{{ url_for('static', filename='images/social-preview.png', _external=True) }}">
+    <meta property="og:description" content="Securely summarize, translate, and redact documents with enterprise-grade AI agents.">
+    <meta property="og:image" content="{{ url_for('static', filename='images/synzo-icon.png', _external=True) }}">
 
     <!-- Page Title -->
     <title>{{ current_feature.name if current_feature else "Synzo" }} - Secure AI Document Intelligence</title>
     
-    <!-- FONTS: Inter (Clean, Modern Sans-Serif) -->
+    <!-- FONTS: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- ICONS: Phosphor Icons (Stroke-based, Apple-like aesthetics) -->
+    <!-- ICONS: Phosphor Icons (For UI elements inside pages) -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <!-- STYLES -->
@@ -40,29 +38,37 @@
     
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.12"></script> 
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+            .then(reg => console.log('Service Worker registered!', reg))
+            .catch(err => console.log('Service Worker registration failed', err));
+        });
+      }
+    </script>
 </head>
 
 <body>
-    <!-- Mobile-only overlay for closing the sidebar when clicking outside of it -->
+    <!-- Mobile-only overlay -->
     <div class="mobile-overlay" onclick="toggleSidebar()"></div>
 
     <div class="app-container">
         <!-- SIDEBAR -->
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <!-- Sparkle Icon for "AI Magic" -->
-                <i class="ph ph-sparkle" style="font-weight: bold;"></i> 
+                <!-- Main Brand Logo -->
+                <img src="{{ url_for('static', filename='images/synzo-icon.png') }}" 
+                     alt="Synzo Logo" 
+                     class="brand-logo">
+                <!-- Text fades in on hover via CSS -->
                 <span>Synzo AI</span>
             </div>
             <ul>
                 {% for key, feature_item in features.items() %}
                 <li>
-                    <!-- 
-                        SEO UPDATE:
-                        1. href: Uses the clean route (e.g., "/summarizer")
-                        2. hx-push-url: Updates browser bar to clean route
-                        3. hx-get: Fetches the partial content via the API endpoint
-                    -->
                     <a href="{{ feature_item.route }}"
                        hx-get="{{ url_for('main.get_feature_content', feature_key=key) }}"
                        hx-target="#main-content"
@@ -70,8 +76,13 @@
                        hx-indicator=".global-loader"
                        class="sidebar-link {{ 'active' if key == active_feature_key else '' }}"
                        onclick="closeSidebarIfMobile()">
-                        <!-- Dynamic Icon Class -->
-                        <i class="{{ feature_item.icon }}"></i>
+                        
+                        <!-- Feature Icon (Image) -->
+                        <img src="{{ url_for('static', filename='images/' + feature_item.icon) }}" 
+                             alt="{{ feature_item.name }} icon" 
+                             class="sidebar-icon-img">
+                        
+                        <!-- Feature Name (Wrapped in span for animation) -->
                         <span>{{ feature_item.name }}</span>
                     </a>
                 </li>
@@ -81,7 +92,7 @@
 
         <!-- MAIN CONTENT AREA -->
         <main class="content-area">
-            <!-- Mobile-only header with hamburger menu -->
+            <!-- Mobile-only header -->
             <header class="mobile-header">
                 <button class="mobile-menu-toggle" onclick="toggleSidebar()">
                     <i class="ph ph-list"></i>
@@ -106,16 +117,12 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // --- GLOBAL TAB LOGIC (Event Delegation) ---
-        // This solves the "Blank Tab" issue by handling clicks globally.
+        // --- GLOBAL TAB LOGIC ---
+        // Handles tab switching inside specific feature pages
         document.addEventListener('click', function(event) {
-            // Check if the clicked element (or its parent) is a tab-link
             const tabLink = event.target.closest('.tab-link');
-            
             if (tabLink) {
                 event.preventDefault();
-                
-                // Find the container (the specific feature wrapper)
                 const featureContainer = tabLink.closest('.feature-container');
                 if (!featureContainer) return;
 
@@ -123,11 +130,9 @@
                 const targetContent = featureContainer.querySelector('#' + targetId);
 
                 if (targetContent) {
-                    // 1. Deactivate all tabs in this specific container
                     featureContainer.querySelectorAll('.tab-link').forEach(link => link.classList.remove('active'));
                     featureContainer.querySelectorAll('.feature-tab-content').forEach(content => content.classList.remove('active-content'));
 
-                    // 2. Activate the clicked tab and its content
                     tabLink.classList.add('active');
                     targetContent.classList.add('active-content');
                 }
@@ -142,25 +147,21 @@
 
         function closeSidebarIfMobile() {
             const sidebar = document.getElementById('sidebar');
+            // Only toggle close if we are in mobile mode (class 'show' exists)
             if (sidebar.classList.contains('show')) {
                 toggleSidebar();
             }
         }
 
         // --- HTMX POST-SWAP RE-INITIALIZATION ---
+        // Updates the active sidebar link when navigating via HTMX
         document.body.addEventListener('htmx:afterSwap', function(event) {
-            // Update Sidebar Active State based on the new URL
             const pushedUrlPath = event.detail.pathInfo.requestPath;
-            
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
-                // Reset all
                 link.classList.remove('active');
-                
-                // Compare relative pathnames
                 const linkUrl = new URL(link.href, window.location.origin);
                 if (linkUrl.pathname === pushedUrlPath) {
                     link.classList.add('active');
-                    // Update Page Title
                     const featureName = link.querySelector('span').textContent;
                     document.title = featureName + " - Synzo";
                 }
@@ -168,14 +169,13 @@
         });
 
         // --- ON LOAD INITIALIZATION ---
+        // Sets the active sidebar link when the page first loads
         document.addEventListener('DOMContentLoaded', function() {
-            // Highlight correct sidebar link on full page refresh
             const currentPath = window.location.pathname;
             let activeFound = false;
             
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
                 const linkUrl = new URL(link.href, window.location.origin);
-                // Exact match (e.g. /summarizer == /summarizer)
                 if (linkUrl.pathname === currentPath) {
                     link.classList.add('active');
                     activeFound = true;
@@ -184,15 +184,11 @@
                 }
             });
 
-            // Fallback: If no match (e.g. root /), highlight the default
             if (!activeFound && currentPath === '/') {
-                 // Select the link that points to '/'
                  const defaultLink = document.querySelector('a.sidebar-link[href$="/"]'); 
-                 // Or fallback to welcome if strict match fails
                  if (defaultLink) {
                      defaultLink.classList.add('active');
                  } else {
-                     // Last resort: First link
                      const firstLink = document.querySelector('.sidebar-link');
                      if(firstLink) firstLink.classList.add('active');
                  }

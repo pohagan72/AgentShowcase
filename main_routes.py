@@ -8,37 +8,37 @@ bp = Blueprint('main', __name__)
 FEATURES_DATA = {
     "welcome": {
         "name": "Welcome", 
-        "icon": "ph ph-house", 
+        "icon": "synzo-welcome-icon.png", # Updated
         "template": "partials/_welcome_content.html",
-        "route": "/"  # The Root Domain
+        "route": "/" 
     },
     "summarization": {
         "name": "The Executive Briefer", 
-        "icon": "ph ph-article",
+        "icon": "synzo-executive-briefer-icon.png", # Updated
         "template": "summarization/templates/summarization_content.html",
-        "route": "/summarizer" # Keyword: Summarizer
+        "route": "/summarizer" 
     },
     "translation": {
         "name": "The Global Localizer", 
-        "icon": "ph ph-translate",
+        "icon": "synzo-translation-icon.png", # Updated
         "template": "translation/templates/translation_content.html",
-        "route": "/translator" # Keyword: Translator
+        "route": "/translator" 
     },
     "pii_redaction": {
         "name": "The Compliance Guardian", 
-        "icon": "ph ph-shield-check",
+        "icon": "synzo-guardian-icon.png", # Updated
         "template": "pii_redaction/templates/pii_redaction_content.html",
-        "route": "/redactor" # Keyword: Redactor
+        "route": "/redactor" 
     },
     "multimedia": {
         "name": "The Visual Analyst", 
-        "icon": "ph ph-aperture",
+        "icon": "synzo-visual-analyst-icon.png", # Updated
         "template": "multimedia/templates/multimedia_content.html",
-        "route": "/vision" # Keyword: Vision/Analysis
+        "route": "/vision" 
     },
     "info": {
         "name": "Meet the Architect", 
-        "icon": "ph ph-fingerprint",
+        "icon": "synzo-about-me-icon.png", # Updated
         "template": "info/templates/info_content.html",
         "route": "/about"
     },
