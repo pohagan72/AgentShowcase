@@ -139,7 +139,12 @@
     
     <!-- 1. Header -->
     <div class="trans-header">
-        <h1><i class="ph ph-translate" style="color: var(--brand-primary);"></i> Intelligent Document Translation</h1>
+        <h1>
+            <img src="{{ url_for('static', filename='images/synzo-translation-icon.png') }}" 
+                alt="Icon" 
+                style="width: 48px; height: 48px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            Intelligent Document Translation
+        </h1>
         <p>
             Executes a sophisticated processing pipeline to translate complex documents while preserving original layout and formatting. Supports Word, PowerPoint, and Excel with automated layout reconstruction.
         </p>
