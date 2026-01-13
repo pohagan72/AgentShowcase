@@ -132,10 +132,12 @@
         <!-- Tab Navigation -->
         <div class="feature-tabs">
             <button class="tab-link active" data-target-tab="text-summary-tab">
-                <i class="ph ph-file-text"></i> Text Brief
+                <img src="{{ url_for('static', filename='images/tab-icon-text.png') }}" class="tab-icon-img" alt="Text">
+                Text Brief
             </button>
             <button class="tab-link" data-target-tab="ppt-summary-tab">
-                <i class="ph ph-presentation"></i> PowerPoint Deck
+                <img src="{{ url_for('static', filename='images/tab-icon-ppt.png') }}" class="tab-icon-img" alt="PPT">
+                PowerPoint Deck
             </button>
         </div>
     </div>

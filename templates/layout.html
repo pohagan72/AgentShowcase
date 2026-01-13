@@ -11,6 +11,12 @@
     <!-- SEO: Canonical URL -->
     <link rel="canonical" href="{{ request.url_root.rstrip('/') }}{{ request.path }}">
 
+    <!-- FAVICONS -->
+    <!-- Assuming you generate these from your new prompt and save them in static/images/ -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon-16x16.png') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+
     <!-- PWA: Manifest & Theme -->
     <link rel="manifest" href="{{ url_for('static', filename='files/manifest.json') }}">
     <meta name="theme-color" content="#4f46e5">
@@ -30,7 +36,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- ICONS: Phosphor Icons (For UI elements inside pages) -->
+    <!-- ICONS: Phosphor Icons (For internal UI elements) -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <!-- STYLES -->
@@ -77,7 +83,7 @@
                        class="sidebar-link {{ 'active' if key == active_feature_key else '' }}"
                        onclick="closeSidebarIfMobile()">
                         
-                        <!-- Feature Icon (Image) -->
+                        <!-- Feature Icon (Your Custom 3D PNG) -->
                         <img src="{{ url_for('static', filename='images/' + feature_item.icon) }}" 
                              alt="{{ feature_item.name }} icon" 
                              class="sidebar-icon-img">
@@ -154,7 +160,7 @@
         }
 
         // --- HTMX POST-SWAP RE-INITIALIZATION ---
-        // Updates the active sidebar link when navigating via HTMX
+        // Updates the active sidebar link and window title when navigating via HTMX
         document.body.addEventListener('htmx:afterSwap', function(event) {
             const pushedUrlPath = event.detail.pathInfo.requestPath;
             document.querySelectorAll('.sidebar ul li a.sidebar-link').forEach(function(link) {
