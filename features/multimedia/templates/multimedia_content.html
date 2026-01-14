@@ -3,6 +3,19 @@
     /* --- SCOPED CSS FOR MULTIMEDIA --- */
     .media-wrapper { max-width: 900px; margin: 0 auto; }
 
+    /* CRITICAL FIX: Tab Visibility Logic (Local Fallback) */
+    .feature-tab-content {
+        display: none !important; /* Hide by default */
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+    .feature-tab-content.active-content {
+        display: block !important; /* Show when active */
+        opacity: 1;
+        animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
     /* 1. HEADER */
     .media-header { margin-bottom: 2rem; }
     .media-header h1 { 
@@ -92,7 +105,7 @@
     <!-- BLURRING TAB -->
     <div id="blurring-tab" class="feature-tab-content active-content">
         
-        <!-- Restored Info Grid -->
+        <!-- Info Grid -->
         <div class="info-grid">
             <div class="info-card">
                 <div class="info-card-header"><i class="ph ph-scan-dashed"></i><span>High-Accuracy</span></div>
@@ -148,7 +161,7 @@
     <!-- ANALYTICS TAB -->
     <div id="analytics-tab" class="feature-tab-content">
         
-        <!-- Restored Info Grid -->
+        <!-- Info Grid -->
         <div class="info-grid">
             <div class="info-card">
                 <div class="info-card-header"><i class="ph ph-brain"></i><span>Contextual Analysis</span></div>
