@@ -115,9 +115,30 @@
     .report-prose ul { padding-left: 1.2rem; }
     .report-prose li { margin-bottom: 0.5rem; color: #374151; }
 
+    /* RESPONSIVE FIXES (Mobile Matrix) */
     @media (max-width: 768px) {
-        .info-grid, .dw-grid { grid-template-columns: 1fr; }
-        .dw-col { height: 200px; border-right: none; border-bottom: 1px solid #30363d; }
+        .info-grid { grid-template-columns: 1fr; }
+        
+        /* Stack the Matrix vertically on mobile */
+        .dw-grid {
+            grid-template-columns: 1fr !important;
+            min-height: auto;
+            max-height: none !important;
+        }
+        .dw-col {
+            border-right: none !important;
+            border-bottom: 1px solid #30363d;
+            height: auto;
+            max-height: 250px; /* Cap height per section */
+        }
+        .dw-content {
+            height: 150px;
+        }
+        .dw-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
     }
 </style>
 
@@ -202,8 +223,6 @@
                         </label>
                         <input type="file" id="text-summary-file-input" name="file" accept=".docx,.pptx,.xlsx,.pdf" style="display: none;">
                     </div>
-                    
-                    <!-- NO BUTTON HERE - Auto-submit logic takes over -->
                 </div>
             </form>
             <div id="error-display-text" class="message-item category-error" style="display:none;"></div>
@@ -287,8 +306,6 @@
                         </label>
                         <input type="file" id="ppt-builder-file-input" name="file" accept=".docx,.pdf" multiple style="display: none;">
                     </div>
-                    
-                    <!-- NO BUTTON HERE EITHER -->
                 </div>
             </form>
             <div id="error-display-ppt" class="message-item category-error" style="display:none;"></div>
