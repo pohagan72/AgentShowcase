@@ -2,13 +2,26 @@
 <style>
     /* Scoped styles for the Info Feature container */
     .info-feature-container {
-        padding: 40px; /* More breathing room */
+        padding: 40px;
         border: 1px solid rgba(255, 255, 255, 0.6);
         border-radius: 16px;
-        background-color: rgba(255, 255, 255, 0.5); /* Glass-like */
+        background-color: rgba(255, 255, 255, 0.5);
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
         color: #1e293b;
     }
+
+    /* CRITICAL FIX: Tab Visibility Logic (Local Fallback) */
+    .feature-tab-content {
+        display: none !important; /* Hide by default */
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+    .feature-tab-content.active-content {
+        display: block !important; /* Show when active */
+        opacity: 1;
+        animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
     /* Header with 3D Icon */
     .info-feature-container h1 {
@@ -52,8 +65,7 @@
     }
 
     .info-feature-container .profile-card {
-        flex: 0 0 300px;
-        max-width: 100%; 
+        flex: 0 0 300px; 
         text-align: center;
         padding: 30px; 
         background-color: #ffffff;
@@ -122,7 +134,7 @@
     }
     .info-feature-container .credential-details a:hover { text-decoration: underline; }
 
-    /* --- CONTACT BUTTON GRID (Apple Style) --- */
+    /* --- CONTACT BUTTON GRID --- */
     .connect-grid {
         display: grid;
         grid-template-columns: 1fr 1fr; /* Two columns */
@@ -147,7 +159,6 @@
 
     .info-feature-container .connect-link i { margin-right: 8px; font-size: 1.1em; }
     
-    /* Refined Button Colors */
     .linkedin-link { background: #0077b5; }
     .github-link { background: #24292e; }
     .email-link { background: #64748b; }
@@ -217,7 +228,7 @@
         </button>
     </div>
 
-    <!-- Legal Notice Tab Content -->
+    <!-- Legal Notice Tab Content (Hidden by default via CSS) -->
     <div id="legal-notice-tab" class="feature-tab-content">
         <h2>Platform Governance & Terms of Service</h2>
         <p style="margin-top: 1rem;">My commitment is to innovation, transparency, and responsible AI. Below are the key principles governing this showcase. For full details, please review the complete terms.</p>
@@ -280,14 +291,13 @@
         </details>
     </div>
 
-    <!-- About Me Tab Content -->
+    <!-- About Me Tab Content (Active by default) -->
     <div id="about-me-tab" class="feature-tab-content active-content">
         <h2>About Paul</h2>
         <div class="about-me-content">
             <div class="about-me-layout">
-                <!-- Profile Card -->
                 <div class="profile-card">
-                    <img src="{{ url_for('static', filename='images/paulohagan-profile-pic.jpeg') }}" alt="Paul O'Hagan" class="profile-picture">
+                    <img src="{{ url_for('static', filename='images/paulohagan-profile-pic.jpeg') }}" alt="Profile Picture Paul O'Hagan" class="profile-picture">
                     <h3 class="profile-name">Paul O'Hagan</h3>
                     <p class="profile-title">AI Author, Inventor & Builder of High-Performance Product Teams</p>
                     
@@ -312,7 +322,6 @@
                         </div>
                     </div>
 
-                    <!-- Connect Grid (Apple Style) -->
                     <div class="connect-grid">
                         <a href="https://www.linkedin.com/in/paul-ohagan-pm-leader" class="connect-link linkedin-link" target="_blank" rel="noopener noreferrer">
                             <i class="fab fa-linkedin"></i> LinkedIn
@@ -329,7 +338,6 @@
                     </div>
                 </div>
 
-                <!-- Bio Details -->
                 <div class="bio-details">
                     <p>
                         Welcome! This site is a passion project – a fully functional, live showcase of what’s possible when innovative use of AI meets practical application. It’s just the latest step in my 20 year journey as a business and technology leader dedicated to creating new ways of working by, securely and safely, leveraging the best of AI.
@@ -358,4 +366,3 @@
         </div>
     </div>
 </div>
-<!-- JS handled globally -->
