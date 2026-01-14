@@ -6,6 +6,19 @@
     /* --- SCOPED CSS FOR SUMMARIZATION --- */
     .summarization-wrapper { max-width: 900px; margin: 0 auto; }
 
+    /* CRITICAL FIX: Tab Visibility Logic (Local Fallback) */
+    .feature-tab-content {
+        display: none !important; /* Hide by default */
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+    .feature-tab-content.active-content {
+        display: block !important; /* Show when active */
+        opacity: 1;
+        animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
     /* 1. HEADER */
     .sum-header { margin-bottom: 2rem; }
     .sum-header h1 { 
@@ -321,7 +334,7 @@
 
 <script>
     // --- UTILS ---
-    let fullTextBuffer = ""; 
+    var fullTextBuffer = ""; 
     
     // --- UI HELPERS (Pure functionality) ---
     // Updated signature to accept a 'callback' function for auto-submit
