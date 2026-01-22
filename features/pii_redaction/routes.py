@@ -7,12 +7,7 @@ import io
 import uuid
 from werkzeug.utils import secure_filename
 from docx import Document
-from docx.shared import RGBColor
-from docx.enum.text import WD_COLOR_INDEX
 from pptx import Presentation
-from pptx.dml.color import RGBColor as PptxRGBColor
-from pptx.util import Pt
-from pptx.enum.dml import MSO_COLOR_TYPE
 import logging
 
 # Define the Blueprint
@@ -22,90 +17,116 @@ def allowed_file_pii(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in current_app.config.get('PII_ALLOWED_EXTENSIONS', {'docx', 'pptx'})
 
+def apply_redaction_to_text(text, analysis_results):
+    """
+    Helper function to apply character-level redaction to a string.
+    Returns the redacted string.
+    """
+    if not analysis_results:
+        return text
+    
+    # Convert to list for mutable character replacement
+    text_chars = list(text)
+    
+    for res in analysis_results:
+        start = res.start
+        end = res.end
+        # Ensure indices are within bounds
+        start = max(0, start)
+        end = min(len(text_chars), end)
+        
+        # Replace characters with block symbol
+        for i in range(start, end):
+            text_chars[i] = '█'
+            
+    return "".join(text_chars)
+
+def redact_runs_in_paragraph(paragraph, analyzer):
+    """
+    Analyzes a paragraph and redacts PII within its runs strictly where overlap occurs.
+    """
+    text = paragraph.text
+    if not text.strip():
+        return False
+
+    try:
+        # Analyze the full paragraph text to get contextual PII positions
+        results = analyzer.analyze(text=text, language='en')
+    except Exception as e:
+        logging.error(f"Error analyzing paragraph text: {e}")
+        return False
+
+    if not results:
+        return False
+
+    current_offset = 0
+    redaction_occurred = False
+
+    # Iterate through runs and map global PII indices to local run indices
+    for run in paragraph.runs:
+        run_text = run.text
+        run_len = len(run_text)
+        
+        # Skip empty runs
+        if run_len == 0:
+            continue
+            
+        run_start = current_offset
+        run_end = current_offset + run_len
+        
+        # We process the run if it overlaps with any PII result
+        # We rebuild the run string char by char to handle multiple PIIs in one run
+        new_run_chars = list(run_text)
+        run_modified = False
+
+        for res in results:
+            pii_start = res.start
+            pii_end = res.end
+            
+            # Check overlap
+            overlap_start = max(run_start, pii_start)
+            overlap_end = min(run_end, pii_end)
+            
+            if overlap_start < overlap_end:
+                # Calculate local indices relative to this run
+                local_start = overlap_start - run_start
+                local_end = overlap_end - run_start
+                
+                # Replace specific characters
+                for i in range(local_start, local_end):
+                    new_run_chars[i] = '█'
+                
+                run_modified = True
+                redaction_occurred = True
+
+        if run_modified:
+            run.text = "".join(new_run_chars)
+        
+        current_offset += run_len
+    
+    return redaction_occurred
+
 def redact_word_document_pii(file_stream, analyzer):
     try:
         document = Document(file_stream)
-        redacted_runs_count = 0
+        redacted_count = 0
         logging.info(f"[{g.request_id if hasattr(g, 'request_id') else 'PII_REDACT'}] Starting Word document redaction.")
 
-        for para_idx, para in enumerate(document.paragraphs):
-            if not para.text.strip(): continue
-            try:
-                analyzer_results = analyzer.analyze(text=para.text, language='en')
-            except Exception as e:
-                logging.error(f"[{g.request_id if hasattr(g, 'request_id') else 'PII_REDACT'}] Error analyzing paragraph text (Para {para_idx}): {para.text[:50]}... Error: {e}")
-                continue
+        # 1. Process Paragraphs
+        for para in document.paragraphs:
+            if redact_runs_in_paragraph(para, analyzer):
+                redacted_count += 1
 
-            current_offset = 0
-            run_idx_doc = 0 
-            runs = para.runs
-            redaction_ranges = sorted([(res.start, res.end) for res in analyzer_results])
-            range_idx_doc = 0 
-
-            while run_idx_doc < len(runs) and range_idx_doc < len(redaction_ranges):
-                run = runs[run_idx_doc]
-                run_len = len(run.text)
-                run_start = current_offset
-                run_end = current_offset + run_len
-                if run_len == 0: 
-                    run_idx_doc += 1
-                    continue
-
-                redact_start, redact_end = redaction_ranges[range_idx_doc]
-                overlap_start = max(run_start, redact_start)
-                overlap_end = min(run_end, redact_end)
-
-                if overlap_start < overlap_end:
-                    run.font.highlight_color = WD_COLOR_INDEX.BLACK
-                    run.font.color.rgb = RGBColor(0, 0, 0)
-                    redacted_runs_count += 1
-                    if redact_end <= run_end:
-                        range_idx_doc += 1
-                
-                current_offset += run_len 
-                run_idx_doc += 1 
-
-        for table_idx, table in enumerate(document.tables):
-            for row_idx, row in enumerate(table.rows):
-                for cell_idx, cell in enumerate(row.cells):
-                    for para_idx_cell, para in enumerate(cell.paragraphs):
-                        if not para.text.strip(): continue
-                        try:
-                            analyzer_results = analyzer.analyze(text=para.text, language='en')
-                        except Exception as e:
-                            logging.error(f"[{g.request_id if hasattr(g, 'request_id') else 'PII_REDACT'}] Error analyzing table cell (T{table_idx}R{row_idx}C{cell_idx}P{para_idx_cell}): {para.text[:50]}... Error: {e}")
-                            continue
-                        
-                        current_offset = 0
-                        run_idx_cell = 0 
-                        runs = para.runs
-                        redaction_ranges = sorted([(res.start, res.end) for res in analyzer_results])
-                        range_idx_cell = 0
-
-                        while run_idx_cell < len(runs) and range_idx_cell < len(redaction_ranges):
-                            run = runs[run_idx_cell]
-                            run_len = len(run.text)
-                            run_start = current_offset
-                            run_end = current_offset + run_len
-                            if run_len == 0:
-                                run_idx_cell += 1
-                                continue
-
-                            redact_start, redact_end = redaction_ranges[range_idx_cell]
-                            overlap_start = max(run_start, redact_start)
-                            overlap_end = min(run_end, redact_end)
-
-                            if overlap_start < overlap_end:
-                                run.font.highlight_color = WD_COLOR_INDEX.BLACK
-                                run.font.color.rgb = RGBColor(0, 0, 0)
-                                redacted_runs_count += 1
-                                if redact_end <= run_end:
-                                    range_idx_cell += 1
-                            
-                            current_offset += run_len
-                            run_idx_cell += 1
+        # 2. Process Tables
+        for table in document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        if redact_runs_in_paragraph(para, analyzer):
+                            redacted_count += 1
         
-        logging.info(f"[{g.request_id if hasattr(g, 'request_id') else 'PII_REDACT'}] Attempted to redact {redacted_runs_count} runs in Word document.")
+        logging.info(f"[{g.request_id if hasattr(g, 'request_id') else 'PII_REDACT'}] Modified approx {redacted_count} paragraphs/cells in Word document.")
+        
         output_stream = io.BytesIO()
         document.save(output_stream)
         output_stream.seek(0)
@@ -114,79 +135,74 @@ def redact_word_document_pii(file_stream, analyzer):
         logging.error(f"[{g.request_id if hasattr(g, 'request_id') else 'PII_REDACT'}] Error processing Word document for PII: {e}", exc_info=True)
         return None
 
-
 def redact_powerpoint_document_pii(file_stream, analyzer):
     try:
         presentation = Presentation(file_stream)
-        redacted_runs_count = 0
+        redacted_count = 0
         req_id_tag = g.request_id if hasattr(g, 'request_id') else 'PII_REDACT_PPTX'
         logging.info(f"[{req_id_tag}] Starting PowerPoint document redaction.")
 
         for i, slide in enumerate(presentation.slides):
-            for shape_idx, shape in enumerate(slide.shapes):
+            for shape in slide.shapes:
                 if not shape.has_text_frame:
                     continue
+                
                 text_frame = shape.text_frame
-                for para_idx, para in enumerate(text_frame.paragraphs):
-                    if not para.text.strip(): continue
+                for para in text_frame.paragraphs:
+                    text = para.text
+                    if not text.strip():
+                        continue
+
                     try:
-                        analyzer_results = analyzer.analyze(text=para.text, language='en')
+                        results = analyzer.analyze(text=text, language='en')
                     except Exception as e:
-                        logging.error(f"[{req_id_tag}] Error analyzing PPTX paragraph (S{i} Sh{shape_idx} P{para_idx}): {para.text[:50]}... Error: {e}")
+                        logging.error(f"[{req_id_tag}] Error analyzing PPTX paragraph: {e}")
+                        continue
+
+                    if not results:
                         continue
 
                     current_offset = 0
-                    run_idx_ppt = 0 
-                    runs = para.runs
-                    redaction_ranges = sorted([(res.start, res.end) for res in analyzer_results])
-                    range_idx_ppt = 0 
                     
-                    while run_idx_ppt < len(runs) and range_idx_ppt < len(redaction_ranges):
-                        run = runs[run_idx_ppt]
-                        if not hasattr(run, 'text') or run.text is None:
-                            run_idx_ppt += 1
+                    # Similar logic to Word: Map global paragraph offsets to run offsets
+                    for run in para.runs:
+                        # Some runs in PPTX might be empty or None
+                        if not hasattr(run, 'text') or not run.text:
                             continue
+
+                        run_text = run.text
+                        run_len = len(run_text)
                         
-                        run_len = len(run.text)
                         run_start = current_offset
                         run_end = current_offset + run_len
-                        if run_len == 0:
-                            run_idx_ppt += 1
-                            continue
+                        
+                        new_run_chars = list(run_text)
+                        run_modified = False
 
-                        redact_start, redact_end = redaction_ranges[range_idx_ppt]
-                        overlap_start = max(run_start, redact_start)
-                        overlap_end = min(run_end, redact_end)
-
-                        if overlap_start < overlap_end:
-                            original_text_run = run.text
-                            redaction_char = '█'
+                        for res in results:
+                            pii_start = res.start
+                            pii_end = res.end
                             
-                            font_color_obj = run.font.color
-                            if font_color_obj.type == MSO_COLOR_TYPE.RGB:
-                                pass 
+                            overlap_start = max(run_start, pii_start)
+                            overlap_end = min(run_end, pii_end)
                             
-                            original_font_size = run.font.size
-                            
-                            run.text = redaction_char * len(original_text_run)
-                            
-                            run.font.color.rgb = PptxRGBColor(0,0,0)
-                            if original_font_size:
-                                run.font.size = original_font_size
-                            elif para.font.size:
-                                run.font.size = para.font.size
-                            else:
-                                run.font.size = Pt(11)
-
-                            logging.debug(f"  - Redacted PPTX run (S{i} Sh{shape_idx} P{para_idx} R{run_idx_ppt}): '{original_text_run[:20]}...'")
-                            redacted_runs_count += 1
-                            if redact_end <= run_end:
-                                range_idx_ppt += 1
+                            if overlap_start < overlap_end:
+                                local_start = overlap_start - run_start
+                                local_end = overlap_end - run_start
+                                
+                                for k in range(local_start, local_end):
+                                    new_run_chars[k] = '█'
+                                
+                                run_modified = True
+                                redacted_count += 1
+                        
+                        if run_modified:
+                            run.text = "".join(new_run_chars)
                         
                         current_offset += run_len
-                        run_idx_ppt += 1
+
+        logging.info(f"[{req_id_tag}] Redacted content in approx {redacted_count} runs in PowerPoint document.")
         
-        logging.info(f"[{req_id_tag}] Attempted to redact {redacted_runs_count} runs in PowerPoint document.")
         output_stream = io.BytesIO()
         presentation.save(output_stream)
         output_stream.seek(0)
