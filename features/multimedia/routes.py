@@ -12,6 +12,10 @@ from flask import (
 from werkzeug.utils import secure_filename
 import google.generativeai as genai
 from PIL import Image, ImageOps
+from pillow_heif import register_heif_opener
+
+# Register HEIC/HEIF support for PIL
+register_heif_opener()
 
 from .blur_utils import allowed_file, blur_image_opencv
 from .analytics_utils import analyze_image_with_gemini, extract_dominant_colors
@@ -30,16 +34,17 @@ def normalize_and_resize_image(image_bytes: bytes) -> bytes:
         img = ImageOps.exif_transpose(img)
         img.thumbnail(TARGET_RESOLUTION, Image.Resampling.LANCZOS)
         output_buffer = io.BytesIO()
+        # Handle HEIC/HEIF format by converting to JPEG
         img_format = img.format if img.format in ['JPEG', 'PNG', 'WEBP'] else 'JPEG'
-        if img.mode != 'RGB':
+        if img.mode not in ['RGB', 'L']:
             img = img.convert('RGB')
         img.save(output_buffer, format=img_format, quality=85)
         resized_bytes = output_buffer.getvalue()
-        logging.info(f"Image normalized from {len(image_bytes) / 1024 / 1024:.2f}MB to {len(resized_bytes) / 1024 / 1024:.2f}MB.")
+        logging.info(f"Image normalized from {len(image_bytes) / 1024 / 1024:.2f}MB to {len(resized_bytes) / 1024 / 1024:.2f}MB (format: {img_format}).")
         return resized_bytes
     except Exception as e:
         logging.error(f"Failed to normalize image: {e}", exc_info=True)
-        return image_bytes
+        raise ValueError(f"Cannot process this image format. Please convert to JPG, PNG, or WEBP and try again.")
 
 @bp.route('/process/multimedia/blur/process_image', methods=['POST'])
 def process_multimedia_blur_image_route():

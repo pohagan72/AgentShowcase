@@ -19,6 +19,7 @@ PyMuPDF
 python-docx
 python-dotenv
 python-pptx
+pillow-heif
 requests
 # scikit-learn
 spacy
