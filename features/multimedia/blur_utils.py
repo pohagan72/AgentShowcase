@@ -6,7 +6,7 @@ import numpy as np
 # from mtcnn import MTCNN  <-- REMOVE THIS GLOBAL IMPORT
 from werkzeug.utils import secure_filename
 
-VALID_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp')
+VALID_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif')
 
 def allowed_file(filename: str) -> bool:
     """Check if the file has one of the valid extensions."""

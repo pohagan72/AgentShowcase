@@ -4,6 +4,10 @@ import json
 import logging
 from PIL import Image
 import io
+from pillow_heif import register_heif_opener
+
+# Register HEIC/HEIF support for PIL
+register_heif_opener()
 
 def build_analytics_prompt():
     """
