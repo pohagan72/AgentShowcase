@@ -76,14 +76,14 @@ if 'reddit.com' in source_lower:
 
 | ID | Severity | Location | Reason accepted |
 |---|---|---|---|
-| Bandit B104 | Medium | [run.py:13](run.py#L13) | Production entrypoint binds `0.0.0.0` for Cloud Run; network exposure is controlled by the platform ingress, not the process. |
+| Bandit B104 | Medium | [run.py:13](run.py#L13) | Production entrypoint binds `0.0.0.0` because Railway routes traffic to the container on its assigned `PORT`; network exposure is controlled by the platform ingress, not the process. |
 | Bandit B104 | Medium | [app.py:93](app.py#L93) | After fix, `0.0.0.0` is opt-in via `FLASK_BIND_ALL=1`; default is loopback. |
 | Bandit B110 | Low | [features/translation/routes.py:235](features/translation/routes.py#L235) | `try/except/pass` swallows formatting errors in optional docx run-styling. Suggest follow-up to log the exception. |
 
 ## SCA (dependency vulnerabilities)
 
 - **Tool:** pip-audit
-- **Environment:** `python:3.10-slim-bullseye` Docker image — matches the `FROM` line in [Dockerfile](Dockerfile) so the audit reflects what actually ships to Cloud Run.
+- **Environment:** Docker image matching the `FROM` line in [Dockerfile](Dockerfile) so the audit reflects what actually ships to Railway.
 - **Input:** unfiltered [requirements.txt](requirements.txt) (29 packages including `tensorflow-cpu`, `Flask`, `boto3`, `requests`, `numpy`, `pandas`, `lxml_html_clean`, `PyMuPDF`, `presidio-analyzer`, `playwright`, `waitress`, etc.).
 - **Result:** `No known vulnerabilities found` — 0 advisories across all resolved transitive dependencies.
 - **Raw output:** [pip_audit_report.json](pip_audit_report.json)

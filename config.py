@@ -12,9 +12,8 @@ class Config:
     GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
     GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL")
     
-    # Storage (Mapped from S3 env vars for compatibility with S3Adapter)
-    GCS_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME") 
-    GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "railway-deployment")
+    # Storage (S3-compatible; Railway provides bucket + credentials via env vars)
+    GCS_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
     AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
 
     # --- Feature: Translation ---

@@ -11,8 +11,8 @@ Synzo is a production-grade, AI-native web application designed to demonstrate e
 *   **Backend:** Python (Flask), Waitress (Server).
 *   **Frontend:** HTML5, CSS3 (Custom "Apple-style" Design System), HTMX (for SPA-like dynamic swapping without React), Jinja2 Templating.
 *   **AI Engine:** Google Gemini (Generative Content & Vision), Presidio (PII Detection).
-*   **Storage:** Google Cloud Storage (via S3 Adapter pattern) for ephemeral file handling.
-*   **Deployment:** Dockerized, optimized for Railway or Google Cloud Run. PWA (Progressive Web App) enabled.
+*   **Storage:** S3-compatible object storage (via S3 Adapter pattern) for ephemeral file handling.
+*   **Deployment:** Dockerized, deployed on Railway. PWA (Progressive Web App) enabled.
 
 **Design System ("2026 Modern")**
 *   **Aesthetic:** High-end "Glassmorphism" (frosted glass), Deep Indigo/Violet mesh gradients, and "Squircle" geometry.
@@ -71,7 +71,7 @@ Synzo is an AI-native document intelligence platform engineered to demonstrate h
 *   **AI Orchestration:**
     *   *Generative:* Google Gemini Pro (Vision & Text) via API.
     *   *Deterministic:* Microsoft Presidio (Spacy NLP) for PII recognition.
-*   **Infrastructure:** Dockerized container (Debian-slim base). Cloud-agnostic design (currently optimized for Google Cloud Run / Railway).
+*   **Infrastructure:** Dockerized container (Debian-slim base). Deployed on Railway.
 
 **Key Engineering Implementations**
 
