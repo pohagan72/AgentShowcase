@@ -25,6 +25,7 @@ requests
 spacy
 # stanza
 tensorflow-cpu
+keras>=3.13.2
 # torch
 trafilatura
 validators
