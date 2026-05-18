@@ -85,7 +85,10 @@ def create_app(config_class=Config):
         # Nonce-in script-src disabled: combined with 'unsafe-inline' it cancels out and
         # browsers ignore 'unsafe-inline', breaking all the existing inline handlers.
         content_security_policy_nonce_in=[],
-        force_https=os.environ.get("FLASK_INSECURE_COOKIES") != "1",
+        # Don't force HTTPS at the app layer — Railway terminates TLS at the edge and
+        # already redirects http://->https://. Doing it here too causes redirect loops.
+        # HSTS (below) ensures browsers refuse plaintext after the first visit.
+        force_https=False,
         strict_transport_security=True,
         strict_transport_security_max_age=31536000,
         session_cookie_secure=True,
