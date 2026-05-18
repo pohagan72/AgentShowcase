@@ -96,6 +96,177 @@ MANDATES = {
             "Ignore the abstract/intro; look for the actual data findings.",
             "Assess the replicability and limitations of the study."
         ]
+    },
+    "Patent": {
+        "role": "Patent Attorney",
+        "decision": "claim scope, prior-art exposure, and enforcement leverage",
+        "constraints": [
+            "Focus on the independent claims; treat dependent claims as scope-narrowing fallbacks.",
+            "Identify the specific novelty being claimed and the prior-art examples cited.",
+            "Flag overly broad or vague claim language that could invite a challenge."
+        ]
+    },
+    "Service Level Agreement (SLA)": {
+        "role": "Vendor Management Lead",
+        "decision": "operational risk, credit recourse, and renewal posture",
+        "constraints": [
+            "Focus on measurable service metrics (uptime, response time, throughput) and their definitions.",
+            "Quantify credits, remedies, and exclusions; flag carve-outs that gut the SLA in practice.",
+            "Identify reporting cadence, measurement methodology, and dispute mechanisms."
+        ]
+    },
+    "Privacy Policy": {
+        "role": "Chief Privacy Officer",
+        "decision": "regulatory exposure (GDPR/CCPA/HIPAA) and user-trust impact",
+        "constraints": [
+            "Focus on data categories collected, lawful basis, retention, and third-party sharing.",
+            "Identify cross-border transfers, automated decision-making, and consent mechanics.",
+            "Flag any rights restrictions or terms that appear non-compliant with major jurisdictions."
+        ]
+    },
+    "Informational Guide/Manual": {
+        "role": "Subject Matter Expert reviewer",
+        "decision": "whether the guide is fit-for-purpose for its stated audience",
+        "constraints": [
+            "Identify the intended audience and pre-requisites; flag gaps where assumed knowledge is missing.",
+            "Distinguish between procedural steps, reference material, and conceptual explanation.",
+            "Surface inconsistencies, outdated references, or steps that could cause user error."
+        ]
+    },
+    "Technical Report/Documentation": {
+        "role": "Engineering Lead",
+        "decision": "technical correctness, implementation readiness, and operational risk",
+        "constraints": [
+            "Focus on specifications, interfaces, failure modes, and explicit assumptions.",
+            "Identify undocumented dependencies, missing error handling, and ambiguous requirements.",
+            "Distinguish between current behavior and proposed/aspirational behavior."
+        ]
+    },
+    "Marketing Plan/Proposal": {
+        "role": "Chief Marketing Officer",
+        "decision": "budget approval, channel mix, and expected return",
+        "constraints": [
+            "Focus on target segments, positioning, channel allocation, and measurable KPIs.",
+            "Identify the conversion math (CAC, LTV, payback) and challenge the underlying assumptions.",
+            "Distinguish creative vision from operational plan; flag where the plan lacks executable steps."
+        ]
+    },
+    "Meeting Notes/Summary": {
+        "role": "Chief of Staff",
+        "decision": "follow-through accountability and unresolved blockers",
+        "constraints": [
+            "Extract decisions made, action items with owners, and explicit deadlines.",
+            "Flag items that were discussed but left unresolved or have ambiguous ownership.",
+            "Ignore meta-discussion (agenda, attendance, schedule logistics) unless they are blockers."
+        ]
+    },
+    "Case Study / Research Report": {
+        "role": "Strategy Consultant",
+        "decision": "whether the findings generalize to the reader's situation",
+        "constraints": [
+            "Focus on the specific context (industry, size, market) of the subject; flag transferability limits.",
+            "Distinguish causation from correlation; identify confounding factors.",
+            "Extract the operational levers that produced the outcome, not just the outcome itself."
+        ]
+    },
+    "Web Page Content": {
+        "role": "Market Intelligence Analyst",
+        "decision": "informational value vs. promotional noise",
+        "constraints": [
+            "Distinguish factual claims from marketing copy and editorial framing.",
+            "Identify the source's incentive (vendor, journalist, advocate) and adjust trust accordingly.",
+            "Extract specific entities, dates, and verifiable claims; discard vague qualifiers."
+        ]
+    },
+    "Reddit Thread": {
+        "role": "Community Sentiment Analyst",
+        "decision": "signal strength and representativeness of community feedback",
+        "constraints": [
+            "Separate top-voted consensus from outlier or low-effort comments.",
+            "Identify the subreddit's demographic bias and whether claims are anecdote or verified.",
+            "Surface specific user-reported issues, workarounds, and points of disagreement."
+        ]
+    },
+    "Legal Case Brief": {
+        "role": "Litigation Counsel",
+        "decision": "precedential weight and applicability to current matters",
+        "constraints": [
+            "Focus on the holding, the rule applied, and the specific facts that drove it.",
+            "Distinguish binding precedent from persuasive authority based on jurisdiction.",
+            "Identify dissents or concurrences that signal future doctrinal shifts."
+        ]
+    },
+    "Legislative Bill/Regulation": {
+        "role": "Government Affairs Lead",
+        "decision": "compliance obligation, effective date, and lobbying posture",
+        "constraints": [
+            "Focus on regulated entities, prohibited conduct, effective dates, and penalty structures.",
+            "Identify carve-outs, safe harbors, and grandfathering provisions.",
+            "Flag delegated rulemaking authority that defers specifics to future agency action."
+        ]
+    },
+    "Business Plan": {
+        "role": "Venture Partner",
+        "decision": "fundability and execution credibility",
+        "constraints": [
+            "Focus on the problem-solution fit, unit economics, and go-to-market specificity.",
+            "Challenge financial projections; identify hockey-stick assumptions without operational basis.",
+            "Assess team capability against the plan's demands; flag execution gaps."
+        ]
+    },
+    "SWOT Analysis Document": {
+        "role": "Strategy Consultant",
+        "decision": "strategic posture and resource reallocation",
+        "constraints": [
+            "Flag items miscategorized (e.g., external trends labeled as Strengths).",
+            "Identify which Weaknesses are addressable vs. structural.",
+            "Surface the implicit strategy (offensive/defensive/transformative) that the quadrants imply."
+        ]
+    },
+    "Press Release": {
+        "role": "Communications Director",
+        "decision": "newsworthiness and competitive signal",
+        "constraints": [
+            "Separate the announcement from the spin; identify what is genuinely new vs. repackaged.",
+            "Extract verifiable specifics (dates, names, numbers) from boilerplate corporate language.",
+            "Flag what the release notably omits or downplays."
+        ]
+    },
+    "User Story / Feature Requirement Document": {
+        "role": "Product Manager",
+        "decision": "scope clarity, build feasibility, and acceptance criteria",
+        "constraints": [
+            "Focus on the user, the job-to-be-done, and explicit acceptance criteria.",
+            "Identify ambiguous or untestable requirements that will create scope disputes.",
+            "Flag missing edge cases, dependencies, and non-functional requirements (perf, security, accessibility)."
+        ]
+    },
+    "Medical Journal Article": {
+        "role": "Clinical Research Lead",
+        "decision": "clinical applicability and evidence quality",
+        "constraints": [
+            "Focus on study design, sample size, primary endpoints, and effect size with confidence intervals.",
+            "Distinguish efficacy (controlled conditions) from effectiveness (real-world); flag generalizability limits.",
+            "Identify conflicts of interest, funding sources, and any pre-registration deviations."
+        ]
+    },
+    "General Business Document": {
+        "role": "Chief of Staff",
+        "decision": "strategic prioritization and resource allocation",
+        "constraints": [
+            "Focus on the 'Bottom Line Up Front' (BLUF).",
+            "Highlight immediate action items and specific owners.",
+            "Ignore generic background information and marketing fluff."
+        ]
+    },
+    "Other": {
+        "role": "Chief of Staff",
+        "decision": "strategic prioritization and resource allocation",
+        "constraints": [
+            "Identify the document's apparent purpose before summarizing.",
+            "Highlight the most decision-relevant information regardless of document type.",
+            "Flag if the content does not fit a clear category and explain why."
+        ]
     }
 }
 
@@ -284,38 +455,79 @@ def _get_heuristic_classification(source_lower, metadata=None):
 
 def _get_llm_classification(cleaned_response):
     """
-    Match LLM response to known categories using fuzzy matching.
-    Returns None if no match found.
+    Match LLM response to known categories.
+
+    Order of attempts (each requires a clean, unambiguous match):
+      1. Exact equality with a category name.
+      2. The cleaned response IS a category name with optional surrounding noise
+         (whole-word match on category boundaries, not substring-anywhere).
+      3. Keyword map for known LLM variations ("resume" -> "Resume/CV", etc.).
+
+    Substring-anywhere matching is intentionally NOT used: a response of
+    "contract/agreement or terms of service" would otherwise return whichever
+    category happens to come first in the list, silently picking wrong.
     """
-    # Try exact match first
+    if not cleaned_response:
+        return None
+
+    # 1. Exact match
     for cat in CLASSIFICATION_CATEGORIES:
         if cat.lower() == cleaned_response:
             return cat
-    
-    # Try substring match
+
+    # 2. Whole-string match against a single category (allow surrounding whitespace/punct only)
+    #    e.g. "the document is a contract/agreement." -> still ambiguous, skip.
+    #    e.g. "contract/agreement" with trailing period -> match.
+    import re as _re
+    stripped = _re.sub(r'[\s.\'"`]+$', '', cleaned_response).strip()
+    stripped = _re.sub(r'^[\s.\'"`]+', '', stripped).strip()
     for cat in CLASSIFICATION_CATEGORIES:
-        if cat.lower() in cleaned_response:
+        if cat.lower() == stripped:
             return cat
-    
-    # Try partial keyword matching for common variations
+
+    # 3. Keyword map for common short-form responses.
+    #    Each key must appear as a whole word (bounded by non-alphanumeric chars or string edges).
     keyword_map = {
         "financial": "Financial Report (Annual/10-K/10-Q)",
+        "10-k": "Financial Report (Annual/10-K/10-Q)",
+        "10-q": "Financial Report (Annual/10-K/10-Q)",
+        "annual report": "Financial Report (Annual/10-K/10-Q)",
         "resume": "Resume/CV",
         "cv": "Resume/CV",
         "code": "Python Source Code",
+        "source code": "Python Source Code",
         "contract": "Contract/Agreement",
         "agreement": "Contract/Agreement",
         "academic": "Scientific/Academic Paper",
         "paper": "Scientific/Academic Paper",
         "research": "Scientific/Academic Paper",
         "terms of service": "Terms of Service (ToS)",
-        "privacy": "Privacy Policy"
+        "tos": "Terms of Service (ToS)",
+        "privacy policy": "Privacy Policy",
+        "privacy": "Privacy Policy",
+        "patent": "Patent",
+        "sla": "Service Level Agreement (SLA)",
+        "service level": "Service Level Agreement (SLA)",
+        "press release": "Press Release",
+        "user story": "User Story / Feature Requirement Document",
+        "swot": "SWOT Analysis Document",
+        "business plan": "Business Plan",
+        "case study": "Case Study / Research Report",
+        "meeting notes": "Meeting Notes/Summary",
+        "medical": "Medical Journal Article",
+        "clinical": "Medical Journal Article",
+        "legislation": "Legislative Bill/Regulation",
+        "regulation": "Legislative Bill/Regulation",
+        "bill": "Legislative Bill/Regulation",
+        "case brief": "Legal Case Brief",
     }
-    
+
     for keyword, category in keyword_map.items():
-        if keyword in cleaned_response:
+        # Whole-word match: keyword bounded by start/end or non-alphanumeric chars.
+        pattern = r'(?:^|[^a-z0-9])' + _re.escape(keyword) + r'(?:[^a-z0-9]|$)'
+        if _re.search(pattern, cleaned_response):
             return category
-    
+
     return None
 
 def build_analyst_prompt(text_to_summarize, classification, metadata=None):
