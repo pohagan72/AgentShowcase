@@ -1,7 +1,7 @@
 import os
 import logging
 import google.generativeai as genai
-from flask import Flask
+from flask import Flask, jsonify
 from flask_wtf.csrf import CSRFProtect
 from flask_talisman import Talisman
 from jinja2 import ChoiceLoader, FileSystemLoader
@@ -9,6 +9,9 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Import Config
 from config import Config
+
+# Shared extensions (limiter)
+from extensions import limiter
 
 # Import S3 Adapter and Presidio
 from s3_adapter import S3Client
@@ -44,6 +47,18 @@ def create_app(config_class=Config):
     # 1a. CSRF protection on all state-changing requests.
     # GETs (sitemap, robots, downloads) are unaffected.
     csrf = CSRFProtect(app)
+
+    # 1a.i. Rate limiting. Defaults are global; per-route caps live in each
+    # blueprint (see @limiter.limit on AI endpoints). Defaults to in-memory
+    # storage — set RATELIMIT_STORAGE_URI=redis://... in prod for multi-replica.
+    limiter.init_app(app)
+
+    @app.errorhandler(429)
+    def _ratelimit_handler(e):
+        # Generic message — don't leak which limit was hit.
+        return jsonify({
+            "error": "Too many requests. Please slow down and try again shortly."
+        }), 429
 
     # 1b. Security headers via Talisman: HSTS, X-Frame-Options, X-Content-Type-Options,
     # Referrer-Policy, and a CSP that allowlists the exact CDNs used in layout.html.

@@ -17,6 +17,9 @@ import pandas as pd
 import google.generativeai as genai
 import mistune
 
+# Shared rate limiter
+from extensions import limiter
+
 # Define Blueprint
 bp = Blueprint('translation', __name__)
 
@@ -104,6 +107,7 @@ def translate_excel_from_map(file_stream, translation_map):
         print(f"Error translating Excel from map: {e}"); flash(f"Error re-assembling Excel file: {e}", "error"); return None
 
 @bp.route("/process/translation/translate_document", methods=["POST"])
+@limiter.limit("3 per hour; 1 per minute")
 def process_translate_document():
     g.request_id = uuid.uuid4().hex
     render_context = {"file_id": None, "translated_markdown": None}
@@ -164,7 +168,7 @@ def process_translate_document():
                     text_to_objects_map[text].append(p)
                     if text not in seen_texts:
                         limited_segments_with_style.append((style_name, text)); seen_texts.add(text)
-            MAX_DOCX_SEGMENTS = 100
+            MAX_DOCX_SEGMENTS = 50
             if len(limited_segments_with_style) > MAX_DOCX_SEGMENTS:
                 flash(f"For this demo, we've translated the first {MAX_DOCX_SEGMENTS} content blocks.", "info")
                 limited_segments_with_style = limited_segments_with_style[:MAX_DOCX_SEGMENTS]
@@ -172,7 +176,7 @@ def process_translate_document():
         else:
             text_segments_generator = None; limit = 0; unit = "segments"
             if file_extension == ".pptx": limit, unit, text_segments_generator = 10, "slides", read_pptx_structured(uploaded_file_stream)
-            elif file_extension == ".xlsx": limit, unit, text_segments_generator = 200, "cells", read_excel_structured(uploaded_file_stream)
+            elif file_extension == ".xlsx": limit, unit, text_segments_generator = 50, "cells", read_excel_structured(uploaded_file_stream)
             all_segments = list(itertools.islice(text_segments_generator, limit))
             if next(text_segments_generator, None) is not None: flash(f"For this demo, we've translated the first {limit} {unit}.", "info")
             seen_texts = set()
@@ -182,7 +186,7 @@ def process_translate_document():
         if not unique_segments_to_translate:
             flash("No text content was found to translate.", "warning")
             return render_template("translation/templates/_translation_results_partial.html", **render_context)
-        with ThreadPoolExecutor(max_workers=16) as executor:
+        with ThreadPoolExecutor(max_workers=3) as executor:
             future_to_segment = {executor.submit(translate_text_util, s, target_lang, gemini_model_name): s for s in unique_segments_to_translate}
             for future in as_completed(future_to_segment):
                 original_segment = future_to_segment[future]

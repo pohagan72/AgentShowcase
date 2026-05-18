@@ -20,6 +20,9 @@ register_heif_opener()
 from .blur_utils import allowed_file, blur_image_opencv
 from .analytics_utils import analyze_image_with_gemini, extract_dominant_colors
 
+# Shared rate limiter
+from extensions import limiter
+
 # Define the Blueprint
 bp = Blueprint('multimedia', __name__)
 
@@ -47,6 +50,7 @@ def normalize_and_resize_image(image_bytes: bytes) -> bytes:
         raise ValueError(f"Cannot process this image format. Please convert to JPG, PNG, or WEBP and try again.")
 
 @bp.route('/process/multimedia/blur/process_image', methods=['POST'])
+@limiter.limit("15 per hour; 3 per minute")
 def process_multimedia_blur_image_route():
     g.request_id = uuid.uuid4().hex
     req_start_time = time.time()
@@ -125,6 +129,7 @@ def process_multimedia_blur_image_route():
         return render_template("multimedia/templates/_blurring_results_partial.html", error_message=f'An unexpected error occurred: {str(e)}')
 
 @bp.route('/process/multimedia/analytics/analyze_image', methods=['POST'])
+@limiter.limit("5 per hour; 1 per minute")
 def process_multimedia_analyze_image_route():
     g.request_id = uuid.uuid4().hex
     log_extra = {'extra_data': {'request_id': g.request_id, 'feature': 'multimedia-analytics'}}
