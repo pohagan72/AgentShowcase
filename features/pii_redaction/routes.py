@@ -10,6 +10,9 @@ from docx import Document
 from pptx import Presentation
 import logging
 
+# Shared rate limiter
+from extensions import limiter
+
 # Define the Blueprint
 bp = Blueprint('pii_redaction', __name__)
 
@@ -212,6 +215,7 @@ def redact_powerpoint_document_pii(file_stream, analyzer):
         return None
 
 @bp.route("/process/pii_redaction/redact", methods=["POST"])
+@limiter.limit("10 per hour; 2 per minute")
 def process_redact():
     g.request_id = uuid.uuid4().hex
     logging.info(f"Processing PII redaction request {g.request_id}...")

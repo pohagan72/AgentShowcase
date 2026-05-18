@@ -1,6 +1,7 @@
 # --extra-index-url https://download.pytorch.org/whl/cpu
 beautifulsoup4
 Flask
+Flask-Limiter
 Flask-WTF
 flask-talisman
 boto3

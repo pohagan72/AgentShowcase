@@ -14,6 +14,9 @@ from .agents import analyst_agent
 from .agents import designer_agent
 from . import utils  # Shared utilities for text extraction
 
+# Shared rate limiter
+from extensions import limiter
+
 bp = Blueprint('summarization', __name__)
 
 def get_input_data():
@@ -55,6 +58,7 @@ def get_input_data():
 
 # --- Route 1: Text Analysis (The Analyst Agent) ---
 @bp.route("/process/summarization/summarize", methods=["POST"])
+@limiter.limit("5 per hour; 1 per minute")
 def process_summarize():
     """
     Endpoint for the 'Create Text Summary' tab.
@@ -82,6 +86,7 @@ def process_summarize():
 
 # --- Route 2: PPT Generation (The Designer Agent) ---
 @bp.route("/process/summarization/create_ppt", methods=["POST"])
+@limiter.limit("3 per hour; 1 per minute")
 def process_create_ppt():
     """
     Endpoint for the 'Create Executive PowerPoint' tab.
