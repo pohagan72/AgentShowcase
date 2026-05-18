@@ -40,20 +40,21 @@ def get_slide_design_prompt(text, template_style="professional", metadata=None):
     - Audience: C-level executives with 5 minutes to review
     - Goal: Enable a critical business decision, not just inform
     {metadata_context}
-    --- GROUNDING RULES (CRITICAL — VIOLATIONS DESTROY CREDIBILITY) ---
+    --- GROUNDING & SYNTHESIS RULES ---
 
-    - Every numeric claim (dollar amounts, percentages, dates, counts, ratios) MUST be quoted or
-      paraphrased from the source document. Do NOT invent metrics, even if the slide structure
-      seems to want one.
-    - When the source lacks specific numbers, use qualitative language ("rapid growth",
-      "majority share", "significant exposure") rather than fabricating figures.
-    - Distinguish what the source explicitly says ("Revenue grew 23%") from inference
-      ("This suggests margin pressure"). The latter belongs in Key Message or Speaker Notes,
-      not as a bullet claim.
-    - If a section cannot be supported by the source, write "Insufficient data in source to
-      assess [topic]" rather than padding with generic statements.
-    - Redact or paraphrase any personal identifiers, credentials, or sensitive data when
-      quoting from the source.
+    - Specific figures (dollar amounts, percentages, dates, counts) must come from the source.
+      Don't invent numbers the source doesn't contain.
+    - Synthesis and inference are encouraged — that's the value you add. Combining two source
+      facts to draw a conclusion ("Revenue up 23% but CAC up 45% — unit economics are
+      deteriorating") is interpretation, not invention. Lead with this kind of reasoning.
+    - When you make an inferential claim, signal it with framing like "this suggests",
+      "implies", "the data points toward" — so the audience can distinguish quoted data
+      from analyst interpretation.
+    - If the source is thin on a decision-relevant topic, name the gap as part of the
+      analysis ("Source provides limited detail on debt structure — a gap worth probing
+      in diligence"). Do not produce filler slides.
+    - When quoting from the source, redact or paraphrase any personal identifiers,
+      credentials, or sensitive data.
 
     --- CRITICAL OUTPUT FORMAT RULES (YOU MUST FOLLOW EXACTLY) ---
     
@@ -74,28 +75,50 @@ def get_slide_design_prompt(text, template_style="professional", metadata=None):
        Generate more (maximum 7) only if the source is rich enough that compressing to 5 would
        lose decision-critical information. Quality over quantity — never pad.
 
-    --- SLIDE CONTENT REQUIREMENTS ---
+    --- SLIDE STRUCTURE (adapt to the source — these are roles, not rigid templates) ---
 
-    SLIDE 1 (Title/Overview):
-    - Slide Title: Compelling headline that captures the main decision point
-    - Key Message: The single most important takeaway (one sentence)
-    - Strategic Takeaway: High-level context or framing for the presentation
-    - Bullets: 3-4 bullets outlining what the deck will cover
-    - Speaker Notes: Opening remarks and framing for the audience
-    
-    SLIDES 2-4 (Core Analysis):
-    - Slide Title: Specific, actionable headlines (not generic like "Analysis")
-    - Key Message: The "so what" for this slide in one sentence
-    - Strategic Takeaway: A specific data point, metric, or insight that supports the message
-    - Bullets: 3-5 bullets with concrete details (include numbers where possible)
-    - Speaker Notes: Additional context, caveats, or talking points
-    
-    SLIDE 5 (Conclusion/Recommendations):
-    - Slide Title: Clear call to action or decision recommendation
-    - Key Message: The bottom line recommendation
-    - Strategic Takeaway: The most critical risk or opportunity
-    - Bullets: 3-4 specific next steps with implied owners/timelines
-    - Speaker Notes: Closing remarks and discussion prompts
+    The deck has three functional roles. Map them to the source's actual structure:
+
+    OPENING (1 slide):
+    - Slide Title: What this document is fundamentally about — a finding, decision, claim,
+      or central thesis. Choose what fits the source. Examples:
+        - Decision doc: "Thailand Expansion Requires $12M Investment"
+        - Research paper: "MRNA Vaccine Shows 94% Efficacy in Phase 3 Trial"
+        - Annual report: "Revenue Growth Masks Margin Compression and Rising Leverage"
+        - Patent: "Independent Claim 1 Covers a Narrow but Defensible Method"
+    - Key Message: The single most important takeaway in one sentence.
+    - Strategic Takeaway: Framing or context the audience needs to evaluate what follows.
+    - Bullets: 3-4 bullets previewing the substantive content.
+    - Speaker Notes: How to open and frame the discussion.
+
+    MIDDLE (2-5 slides — the substance):
+    Organize by the source's natural structure, not a fixed template. Examples of valid
+    organizing principles depending on document type:
+        - Themes / findings (analytical reports, research)
+        - Financial segments or time periods (financial filings)
+        - Risk factors, opportunity factors (due diligence)
+        - Claim structure or argument flow (patents, legal briefs)
+        - Phases or workstreams (project plans, business plans)
+        - Stakeholder impact (regulations, policies)
+    For each middle slide:
+    - Slide Title: A specific, substantive headline — not generic ("Analysis", "Details").
+      Title should state the slide's conclusion, not just its topic.
+    - Key Message: The "so what" in one sentence.
+    - Strategic Takeaway: A specific quoted data point or evidence anchor.
+    - Bullets: 3-5 bullets that combine source data with interpretation.
+    - Speaker Notes: 2-4 sentences of additional context, caveats, or supporting reasoning.
+
+    CLOSING (1 slide):
+    Match the source. Use whichever of these fits:
+        - Recommendations + next steps (decision documents, due diligence)
+        - Implications or applications (research, scientific papers)
+        - Open questions or follow-on diligence (financial reports, patents)
+        - Risk summary or call-to-action (regulatory, strategic docs)
+    - Slide Title: The bottom line — what the audience should do, watch for, or conclude.
+    - Key Message: The single most important closing point.
+    - Strategic Takeaway: The biggest risk, opportunity, or unresolved question.
+    - Bullets: 3-4 closing items (recommendations, implications, questions, risks).
+    - Speaker Notes: Closing remarks and discussion prompts.
     
     --- EXAMPLE OUTPUT (FOLLOW THIS EXACT STRUCTURE) ---
     

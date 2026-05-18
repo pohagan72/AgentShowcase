@@ -287,8 +287,9 @@ def stream_ppt_generation(text_content, model_name, template, req_id, filename="
         if filename and 'filename' not in prompt_metadata:
             prompt_metadata['filename'] = filename
         
-        # Build prompt
-        truncated_text = text_content[:50000]
+        # Build prompt — Gemini 1.5/2.x handles ~1M tokens; 200k chars (~50k tokens)
+        # gives the model the full document for most filings while keeping latency reasonable.
+        truncated_text = text_content[:200000]
         prompt = designer_prompts.get_slide_design_prompt(
             truncated_text, 
             template_style=template,
