@@ -101,6 +101,9 @@ def process_create_ppt():
 
     # 3. Get Options
     template = request.form.get('template', 'professional')
+    allowed_templates = current_app.config.get('PPT_TEMPLATES', ['professional'])
+    if template not in allowed_templates:
+        template = current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME', 'professional')
     model_name = current_app.config.get('GEMINI_MODEL_NAME')
     
     # 4. Stream Designer Response

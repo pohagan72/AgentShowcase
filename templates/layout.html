@@ -40,13 +40,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Icons: Phosphor (UI Elements) -->
+    <!-- SECURITY: Pin to a fixed version and add integrity="sha384-..." crossorigin="anonymous" before going to production. -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <!-- Core Styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     
+    <!-- CSRF token for HTMX + fetch() -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <!-- HTMX (Frontend Logic) -->
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script> 
+    <!-- SECURITY: Add integrity="sha384-..." crossorigin="anonymous" before going to production. -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>
+        // Attach CSRF token to every HTMX request as X-CSRFToken header.
+        document.body && document.body.addEventListener('htmx:configRequest', function(e) {
+            const tok = document.querySelector('meta[name="csrf-token"]');
+            if (tok) e.detail.headers['X-CSRFToken'] = tok.getAttribute('content');
+        });
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.addEventListener('htmx:configRequest', function(e) {
+                const tok = document.querySelector('meta[name="csrf-token"]');
+                if (tok) e.detail.headers['X-CSRFToken'] = tok.getAttribute('content');
+            });
+        });
+    </script>
 
     <!-- STRICT DEVICE DETECTION SCRIPT 
          Prevents CSS bleeding between Mobile/Desktop layouts -->

@@ -379,30 +379,18 @@ def stream_ppt_generation(text_content, model_name, template, req_id, filename="
             logging.error("GCS not available for PPT upload")
             raise EnvironmentError("Cloud Storage is not configured.")
 
-        # Success Link
+        # Success payload — client builds DOM safely via textContent/setAttribute.
         dl_url = url_for('summarization.download_generated_ppt', file_id=req_id, filename=dl_filename)
-        
+
         avg_confidence = sum(extract_slide_confidence_score(s) for s in slides_data) / len(slides_data) if slides_data else 0.0
-        
-        success_html = f"""
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 2rem; border-radius: 8px; text-align: center; color: #166534; animation: fadeIn 0.5s;">
-            <div style="background: #dcfce7; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto;">
-                <i class="fas fa-check" style="font-size: 1.5rem; color: #16a34a;"></i>
-            </div>
-            <h3 style="margin: 0 0 0.5rem 0; color: #14532d; font-size: 1.25rem;">Presentation Ready</h3>
-            <p style="margin-bottom: 1.5rem; color: #166534;">
-                Created {count} slides using '{template}' template.
-                <span style="font-size: 0.9em; opacity: 0.8;">
-                    (Quality score: {avg_confidence:.0%})
-                </span>
-            </p>
-            <a href="{dl_url}" class="submit-button" style="background: #16a34a; border: none; box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.4); padding: 0.75rem 1.5rem; color: white; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-download"></i> Download .pptx
-            </a>
-        </div>
-        """
-        
-        yield json.dumps({"type": "result", "html": success_html}) + "\n"
+
+        yield json.dumps({
+            "type": "result",
+            "slide_count": count,
+            "template": template,
+            "confidence": avg_confidence,
+            "download_url": dl_url,
+        }) + "\n"
 
     except ValueError as ve:
         error_msg = str(ve)

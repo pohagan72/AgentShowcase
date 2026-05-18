@@ -2,6 +2,8 @@ import os
 import logging
 import google.generativeai as genai
 from flask import Flask
+from flask_wtf.csrf import CSRFProtect
+from flask_talisman import Talisman
 from jinja2 import ChoiceLoader, FileSystemLoader
 
 # Import Config
@@ -32,6 +34,57 @@ def create_app(config_class=Config):
         app.jinja_loader,
         FileSystemLoader('features')
     ])
+
+    # 1a. CSRF protection on all state-changing requests.
+    # GETs (sitemap, robots, downloads) are unaffected.
+    csrf = CSRFProtect(app)
+
+    # 1b. Security headers via Talisman: HSTS, X-Frame-Options, X-Content-Type-Options,
+    # Referrer-Policy, and a CSP that allowlists the exact CDNs used in layout.html.
+    Talisman(
+        app,
+        content_security_policy={
+            'default-src': "'self'",
+            'script-src': [
+                "'self'",
+                'https://unpkg.com',
+                'https://cdn.jsdelivr.net',
+                "'unsafe-inline'",  # inline onclick=/onchange= handlers used across templates; remove when migrated to addEventListener
+            ],
+            'script-src-elem': [
+                "'self'",
+                'https://unpkg.com',
+                'https://cdn.jsdelivr.net',
+                "'unsafe-inline'",
+            ],
+            'style-src': [
+                "'self'",
+                "'unsafe-inline'",  # required by inline style="..." attributes used across templates
+                'https://fonts.googleapis.com',
+                'https://unpkg.com',
+            ],
+            'style-src-elem': [
+                "'self'",
+                "'unsafe-inline'",
+                'https://fonts.googleapis.com',
+                'https://unpkg.com',
+            ],
+            'font-src': ["'self'", 'https://fonts.gstatic.com', 'https://unpkg.com', 'data:'],
+            'img-src': ["'self'", 'data:', 'blob:'],
+            'connect-src': ["'self'", 'https://cdn.jsdelivr.net'],  # allow DOMPurify source map fetch
+            'frame-ancestors': "'none'",
+            'base-uri': "'self'",
+            'object-src': "'none'",
+        },
+        # Nonce-in script-src disabled: combined with 'unsafe-inline' it cancels out and
+        # browsers ignore 'unsafe-inline', breaking all the existing inline handlers.
+        content_security_policy_nonce_in=[],
+        force_https=os.environ.get("FLASK_INSECURE_COOKIES") != "1",
+        strict_transport_security=True,
+        strict_transport_security_max_age=31536000,
+        session_cookie_secure=True,
+        referrer_policy='strict-origin-when-cross-origin',
+    )
 
     # 2. Initialize Google Gemini
     if app.config['GOOGLE_API_KEY']:

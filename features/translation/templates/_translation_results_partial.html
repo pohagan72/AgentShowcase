@@ -39,12 +39,15 @@
         (function() {
             const markdownContent = {{ translated_markdown|tojson }};
             const container = document.getElementById('translation-output-container');
-            if (container && typeof window.renderMarkdownSummary === 'function') {
-                window.renderMarkdownSummary(markdownContent, container);
-            } else if (container) { 
-                console.warn("renderMarkdownSummary function not found, using basic render.");
-                container.innerHTML = '<p>' + markdownContent.replace(/\n/g, '<br>') + '</p>';
-            }
+            if (!container) return;
+            container.textContent = '';
+            const p = document.createElement('p');
+            const lines = String(markdownContent).split('\n');
+            lines.forEach((line, idx) => {
+                p.appendChild(document.createTextNode(line));
+                if (idx < lines.length - 1) p.appendChild(document.createElement('br'));
+            });
+            container.appendChild(p);
         })();
     </script>
 {% endif %}
