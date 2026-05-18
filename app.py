@@ -5,6 +5,7 @@ from flask import Flask
 from flask_wtf.csrf import CSRFProtect
 from flask_talisman import Talisman
 from jinja2 import ChoiceLoader, FileSystemLoader
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Import Config
 from config import Config
@@ -28,6 +29,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    # Trust Railway's reverse proxy headers so Flask sees the original https://
+    # scheme. Without this, Talisman's force_https sees http:// from the proxy
+    # and redirects in an infinite loop.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     # 1. Configure Jinja Loader (Preserves your folder structure)
     app.jinja_loader = ChoiceLoader([
