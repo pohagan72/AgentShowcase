@@ -1,6 +1,9 @@
 <!-- features/summarization/templates/summarization_content.html -->
 
+<!-- SECURITY: Pin to fixed versions and add integrity="sha384-..." crossorigin="anonymous" before going to production. -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- DOMPurify sanitizes Marked output before innerHTML insertion (LLM output is untrusted). -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
 <style>
     /* --- SCOPED CSS FOR SUMMARIZATION --- */
@@ -417,7 +420,12 @@
         }
 
         try {
-            const response = await fetch("{{ url_for('summarization.process_summarize') }}", { method: "POST", body: formData });
+            const csrfTok = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const response = await fetch("{{ url_for('summarization.process_summarize') }}", {
+                method: "POST",
+                body: formData,
+                headers: { 'X-CSRFToken': csrfTok }
+            });
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = "";
@@ -453,7 +461,13 @@
         const prog = document.getElementById('ppt-progress-wrapper');
         prog.style.display = 'block';
         const log = document.getElementById('ppt-status-log');
-        log.innerHTML = '<div><i class="ph ph-spinner ph-spin"></i> Initializing Designer Agent...</div>';
+        log.textContent = '';
+        const initRow = document.createElement('div');
+        const initIcon = document.createElement('i');
+        initIcon.className = 'ph ph-spinner ph-spin';
+        initRow.appendChild(initIcon);
+        initRow.appendChild(document.createTextNode(' Initializing Designer Agent...'));
+        log.appendChild(initRow);
 
         const formData = new FormData();
         if(useSample) formData.append("use_sample", "true");
@@ -463,7 +477,12 @@
         }
         
         try {
-            const response = await fetch("{{ url_for('summarization.process_create_ppt') }}", { method: "POST", body: formData });
+            const csrfTok = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const response = await fetch("{{ url_for('summarization.process_create_ppt') }}", {
+                method: "POST",
+                body: formData,
+                headers: { 'X-CSRFToken': csrfTok }
+            });
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = "";
@@ -480,16 +499,79 @@
                     try {
                         const msg = JSON.parse(line);
                         if(msg.type === "status") {
-                            log.innerHTML += `<div><i class="ph ph-check" style="color:#22c55e"></i> ${msg.message}</div>`;
+                            const row = document.createElement('div');
+                            const icon = document.createElement('i');
+                            icon.className = 'ph ph-check';
+                            icon.style.color = '#22c55e';
+                            row.appendChild(icon);
+                            row.appendChild(document.createTextNode(' ' + (msg.message || '')));
+                            log.appendChild(row);
                             log.scrollTop = log.scrollHeight;
                         } else if(msg.type === "result") {
-                            document.getElementById('ppt-result-container').innerHTML = msg.html;
+                            renderPPTSuccess(msg);
                             document.getElementById('ppt-reset-btn').style.display = 'block';
                         }
                     } catch(e) {}
                 }
             }
-        } catch(e) { log.innerHTML += `<div style="color:red">Error: ${e}</div>`; document.getElementById('ppt-reset-btn').style.display = 'block'; }
+        } catch(e) {
+            const errRow = document.createElement('div');
+            errRow.style.color = 'red';
+            errRow.textContent = 'Error: ' + (e && e.message ? e.message : String(e));
+            log.appendChild(errRow);
+            document.getElementById('ppt-reset-btn').style.display = 'block';
+        }
+    }
+
+    function renderPPTSuccess(msg) {
+        const container = document.getElementById('ppt-result-container');
+        container.textContent = '';
+
+        const card = document.createElement('div');
+        card.style.cssText = 'background:#f0fdf4;border:1px solid #bbf7d0;padding:2rem;border-radius:8px;text-align:center;color:#166534;';
+
+        const iconWrap = document.createElement('div');
+        iconWrap.style.cssText = 'background:#dcfce7;width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem auto;';
+        const checkIcon = document.createElement('i');
+        checkIcon.className = 'fas fa-check';
+        checkIcon.style.cssText = 'font-size:1.5rem;color:#16a34a;';
+        iconWrap.appendChild(checkIcon);
+
+        const h3 = document.createElement('h3');
+        h3.style.cssText = 'margin:0 0 0.5rem 0;color:#14532d;font-size:1.25rem;';
+        h3.textContent = 'Presentation Ready';
+
+        const p = document.createElement('p');
+        p.style.cssText = 'margin-bottom:1.5rem;color:#166534;';
+        const slideCount = Number(msg.slide_count) || 0;
+        const tmpl = String(msg.template || '');
+        const conf = Number(msg.confidence) || 0;
+        p.textContent = `Created ${slideCount} slides using '${tmpl}' template.`;
+        const confSpan = document.createElement('span');
+        confSpan.style.cssText = 'font-size:0.9em;opacity:0.8;margin-left:0.4em;';
+        confSpan.textContent = `(Quality score: ${Math.round(conf * 100)}%)`;
+        p.appendChild(confSpan);
+
+        const link = document.createElement('a');
+        // Only allow same-origin relative download URLs.
+        const dlUrl = String(msg.download_url || '');
+        if (dlUrl.startsWith('/')) {
+            link.setAttribute('href', dlUrl);
+        } else {
+            link.setAttribute('href', '#');
+        }
+        link.className = 'submit-button';
+        link.style.cssText = 'background:#16a34a;border:none;box-shadow:0 4px 6px -1px rgba(22,163,74,0.4);padding:0.75rem 1.5rem;color:white;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;';
+        const dlIcon = document.createElement('i');
+        dlIcon.className = 'fas fa-download';
+        link.appendChild(dlIcon);
+        link.appendChild(document.createTextNode(' Download .pptx'));
+
+        card.appendChild(iconWrap);
+        card.appendChild(h3);
+        card.appendChild(p);
+        card.appendChild(link);
+        container.appendChild(card);
     }
 
     // --- HELPERS ---
@@ -523,7 +605,9 @@
         }
 
         if(report) {
-            document.getElementById('summary-output-container').innerHTML = marked.parse(report);
+            const rendered = marked.parse(report);
+            const safe = (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(rendered) : '';
+            document.getElementById('summary-output-container').innerHTML = safe;
             updateStatus(context, "FINALIZING BRIEF...");
         }
     }

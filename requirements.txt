@@ -1,6 +1,8 @@
 # --extra-index-url https://download.pytorch.org/whl/cpu
 beautifulsoup4
 Flask
+Flask-WTF
+flask-talisman
 boto3
 google-generativeai
 lxml_html_clean
