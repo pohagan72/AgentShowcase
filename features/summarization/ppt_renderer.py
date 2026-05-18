@@ -150,31 +150,44 @@ def create_presentation(all_slides_data, template_name='professional', any_trunc
         for i, s_data in enumerate(slides):
             slide = prs.slides.add_slide(prs.slide_layouts[6]) # Blank
             
-            # 1. Slide Title Bar
-            title_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.3), Inches(12.33), Inches(0.8))
+            # 1. Slide Title Bar — sized to fit wrapped two-line titles
+            title_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.3), Inches(12.33), Inches(1.3))
             title_bar.fill.background() # Transparent
             title_bar.line.color.rgb = t_config['accent_color']
             title_bar.line.width = Pt(2)
-            
+
             # Title Text
-            tb = slide.shapes.add_textbox(Inches(0.6), Inches(0.4), Inches(12), Inches(0.6))
-            tp = tb.text_frame.paragraphs[0]
+            tb = slide.shapes.add_textbox(Inches(0.6), Inches(0.4), Inches(12.13), Inches(1.1))
+            tf_title = tb.text_frame
+            tf_title.word_wrap = True
+            tf_title.margin_left = Inches(0.05)
+            tf_title.margin_right = Inches(0.05)
+            tp = tf_title.paragraphs[0]
             tp.text = s_data.get('title', f'Slide {i+1}')
-            tp.font.size = Pt(28)
+            # Auto-shrink long titles so they always fit the bar
+            title_len = len(tp.text)
+            if title_len > 90:
+                tp.font.size = Pt(20)
+            elif title_len > 60:
+                tp.font.size = Pt(24)
+            else:
+                tp.font.size = Pt(28)
             tp.font.color.rgb = t_config['title_color']
             tp.font.bold = True
 
-            # 2. Key Message (The "So What")
+            # 2. Key Message (The "So What") — positioned below the taller title bar
             if s_data.get('key_message'):
-                km_box = slide.shapes.add_textbox(Inches(0.6), Inches(1.2), Inches(8), Inches(0.6))
-                km = km_box.text_frame.paragraphs[0]
+                km_box = slide.shapes.add_textbox(Inches(0.6), Inches(1.75), Inches(8), Inches(0.6))
+                km_tf = km_box.text_frame
+                km_tf.word_wrap = True
+                km = km_tf.paragraphs[0]
                 km.text = s_data.get('key_message', '')
                 km.font.size = Pt(14)
                 km.font.color.rgb = t_config['accent_color']
                 km.font.italic = True
 
             # 3. Main Content (Bullets)
-            body_box = slide.shapes.add_textbox(Inches(0.6), Inches(2.0), Inches(8), Inches(4.5))
+            body_box = slide.shapes.add_textbox(Inches(0.6), Inches(2.4), Inches(8), Inches(4.3))
             tf = body_box.text_frame
             tf.word_wrap = True
             for bullet in s_data.get('bullets', []):

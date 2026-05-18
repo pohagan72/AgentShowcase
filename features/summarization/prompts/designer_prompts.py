@@ -40,6 +40,21 @@ def get_slide_design_prompt(text, template_style="professional", metadata=None):
     - Audience: C-level executives with 5 minutes to review
     - Goal: Enable a critical business decision, not just inform
     {metadata_context}
+    --- GROUNDING RULES (CRITICAL — VIOLATIONS DESTROY CREDIBILITY) ---
+
+    - Every numeric claim (dollar amounts, percentages, dates, counts, ratios) MUST be quoted or
+      paraphrased from the source document. Do NOT invent metrics, even if the slide structure
+      seems to want one.
+    - When the source lacks specific numbers, use qualitative language ("rapid growth",
+      "majority share", "significant exposure") rather than fabricating figures.
+    - Distinguish what the source explicitly says ("Revenue grew 23%") from inference
+      ("This suggests margin pressure"). The latter belongs in Key Message or Speaker Notes,
+      not as a bullet claim.
+    - If a section cannot be supported by the source, write "Insufficient data in source to
+      assess [topic]" rather than padding with generic statements.
+    - Redact or paraphrase any personal identifiers, credentials, or sensitive data when
+      quoting from the source.
+
     --- CRITICAL OUTPUT FORMAT RULES (YOU MUST FOLLOW EXACTLY) ---
     
     1. **Field Separator**: Use exactly THREE DASHES on a line by themselves to separate slides: ---
@@ -54,10 +69,13 @@ def get_slide_design_prompt(text, template_style="professional", metadata=None):
     
     4. **Bullet Format**: Each bullet starts with a dash (-) on a new line under "Bullets:"
     
-    5. **Exactly 5 Slides**: You must create exactly 5 slides, no more, no less
-    
+    5. **Target 5 Slides** (range: 3-7 acceptable): Aim for exactly 5 slides as the default.
+       Generate fewer (minimum 3) if the source is thin and padding would mean inventing content.
+       Generate more (maximum 7) only if the source is rich enough that compressing to 5 would
+       lose decision-critical information. Quality over quantity — never pad.
+
     --- SLIDE CONTENT REQUIREMENTS ---
-    
+
     SLIDE 1 (Title/Overview):
     - Slide Title: Compelling headline that captures the main decision point
     - Key Message: The single most important takeaway (one sentence)
@@ -133,8 +151,8 @@ def get_slide_design_prompt(text, template_style="professional", metadata=None):
     ---
     
     --- YOUR TASK ---
-    
-    Now create a 5-slide deck following the EXACT format shown above. Use the source document below as input.
+
+    Now create a deck (target 5 slides, range 3-7) following the EXACT format shown above. Use the source document below as input.
     
     CRITICAL REMINDERS:
     - Do NOT use markdown code blocks (no ```)
@@ -149,7 +167,7 @@ def get_slide_design_prompt(text, template_style="professional", metadata=None):
     {text}
     \"\"\"
     
-    Begin generating the 5-slide deck now, starting with Slide 1:
+    Begin generating the deck now (target 5 slides, range 3-7), starting with Slide 1:
     """
     return prompt
 
