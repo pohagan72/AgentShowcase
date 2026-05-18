@@ -3,7 +3,6 @@ beautifulsoup4
 Flask
 boto3
 google-generativeai
-langdetect
 lxml_html_clean
 mistune
 mtcnn

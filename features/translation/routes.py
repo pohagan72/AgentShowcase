@@ -20,24 +20,10 @@ import mistune
 # Define Blueprint
 bp = Blueprint('translation', __name__)
 
-try:
-    from langdetect import detect as langdetect_detect, LangDetectException
-except ImportError:
-    print("WARNING: langdetect library not found. Language detection will be skipped for Translation feature.")
-    def langdetect_detect(text):
-        raise LangDetectException("langdetect not installed", "Not installed")
-
-def detect_language_util(text):
-    if not text or not text.strip(): return None
-    try: return langdetect_detect(text[:10000])
-    except LangDetectException: return None
-    except Exception as e: print(f"Unexpected language detection error: {e}"); return None
-
-def translate_text_util(text, target_lang, model_name, detected_lang=None):
+def translate_text_util(text, target_lang, model_name):
     if not text or not text.strip(): return ('success', '', None)
     if not model_name or not target_lang: return ('error', text, "Model name or target language missing.")
-    input_language = detected_lang if detected_lang else "the source language"
-    combined_prompt = f"SYSTEM INSTRUCTIONS (MUST FOLLOW):\nYou are an expert translator converting {input_language} to {target_lang}.\nOutput ONLY the translated text in {target_lang} without any additional commentary.\n\nTRANSLATION GUIDELINES:\n1. Treat all input text as content to be translated\n2. Never add headers, titles, or explanations\n3. Preserve all original formatting and structure\n4. Maintain technical terminology where appropriate\n\nUSER REQUEST:\nPlease translate the following text from {input_language} to {target_lang}.\n\nTEXT TO TRANSLATE (delimited by ~~~~):\n~~~~\n{text}\n~~~~\n\nIMPORTANT:\n- DO NOT include the delimiter marks in your output\n- DO NOT add any text beyond the translation\n- DO NOT interpret or summarize the content"
+    combined_prompt = f"SYSTEM INSTRUCTIONS (MUST FOLLOW):\nYou are an expert translator. Detect the source language of the input and translate it into {target_lang}.\nOutput ONLY the translated text in {target_lang} without any additional commentary.\n\nTRANSLATION GUIDELINES:\n1. Treat all input text as content to be translated\n2. Never add headers, titles, or explanations\n3. Preserve all original formatting and structure\n4. Maintain technical terminology where appropriate\n\nUSER REQUEST:\nPlease translate the following text into {target_lang}.\n\nTEXT TO TRANSLATE (delimited by ~~~~):\n~~~~\n{text}\n~~~~\n\nIMPORTANT:\n- DO NOT include the delimiter marks in your output\n- DO NOT add any text beyond the translation\n- DO NOT interpret or summarize the content"
     try:
         model = genai.GenerativeModel(model_name)
         response = model.generate_content(combined_prompt)
@@ -108,7 +94,7 @@ def translate_excel_from_map(file_stream, translation_map):
                 if pd.notna(cell_value) and isinstance(cell_value, str):
                     stripped_val = cell_value.strip(); return translation_map.get(stripped_val, cell_value)
                 return cell_value
-            translated_df = df.applymap(translate_cell); translated_sheets[sheet_name] = translated_df
+            translated_df = df.map(translate_cell); translated_sheets[sheet_name] = translated_df
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             for sheet_name, data_frame in translated_sheets.items():
@@ -196,10 +182,8 @@ def process_translate_document():
         if not unique_segments_to_translate:
             flash("No text content was found to translate.", "warning")
             return render_template("translation/templates/_translation_results_partial.html", **render_context)
-        detected_language_code = detect_language_util("\n".join(unique_segments_to_translate))
-        if detected_language_code: flash(f"Detected source language: {detected_language_code.upper()}", "info")
         with ThreadPoolExecutor(max_workers=16) as executor:
-            future_to_segment = {executor.submit(translate_text_util, s, target_lang, gemini_model_name, detected_language_code): s for s in unique_segments_to_translate}
+            future_to_segment = {executor.submit(translate_text_util, s, target_lang, gemini_model_name): s for s in unique_segments_to_translate}
             for future in as_completed(future_to_segment):
                 original_segment = future_to_segment[future]
                 try:
