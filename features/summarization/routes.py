@@ -5,7 +5,7 @@ import uuid
 import logging
 from flask import (
     Blueprint, request, current_app, jsonify, Response, 
-    stream_with_context, g, url_for, send_file, flash, redirect
+    stream_with_context, g, url_for, send_file, flash, redirect, session
 )
 from werkzeug.utils import secure_filename
 
@@ -110,6 +110,8 @@ def process_create_ppt():
     if template not in allowed_templates:
         template = current_app.config.get('PPT_DEFAULT_TEMPLATE_NAME', 'professional')
     model_name = current_app.config.get('GEMINI_MODEL_NAME')
+    output_info = designer_agent.build_ppt_output_info(filename, g.request_id)
+    session['generated_ppt_file'] = output_info
     
     # 4. Stream Designer Response
     return Response(
@@ -119,7 +121,8 @@ def process_create_ppt():
                 model_name=model_name,
                 template=template,
                 req_id=g.request_id,
-                filename=filename
+                filename=filename,
+                output_info=output_info
             )
         ),
         mimetype='application/x-ndjson'
@@ -131,7 +134,20 @@ def download_generated_ppt(file_id, filename):
     """
     Serves the generated PPTX file from Cloud Storage.
     """
-    gcs_path = f"{file_id}/output/{filename}" 
+    file_info = session.get('generated_ppt_file')
+    expected_gcs_path = f"{file_id}/output/{filename}"
+
+    if (
+        not file_info
+        or file_info.get('file_id') != file_id
+        or file_info.get('filename') != filename
+        or file_info.get('gcs_path') != expected_gcs_path
+    ):
+        logging.warning("Unauthorized PPT download attempt for %s", expected_gcs_path)
+        flash("File not found or download link expired/invalid.", "error")
+        return redirect(url_for('main.index', feature_key='summarization'))
+
+    gcs_path = file_info['gcs_path']
     
     if not current_app.config.get('GCS_AVAILABLE'):
         flash("Cloud storage is unavailable.", "error")
@@ -146,6 +162,7 @@ def download_generated_ppt(file_id, filename):
         buffer = io.BytesIO()
         blob.download_to_file(buffer)
         buffer.seek(0)
+        session.pop('generated_ppt_file', None)
         
         return send_file(
             buffer, 

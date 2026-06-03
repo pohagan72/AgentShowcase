@@ -273,7 +273,17 @@ def parse_slides_from_llm_output(llm_text):
     return slides
 
 
-def stream_ppt_generation(text_content, model_name, template, req_id, filename="Presentation", metadata=None):
+def build_ppt_output_info(filename, req_id):
+    safe_name = re.sub(r'[^\w\-]+', '_', os.path.splitext(filename)[0])[:50]
+    dl_filename = f"{safe_name}_Deck_{req_id}.pptx"
+    return {
+        "file_id": req_id,
+        "filename": dl_filename,
+        "gcs_path": f"{req_id}/output/{dl_filename}",
+    }
+
+
+def stream_ppt_generation(text_content, model_name, template, req_id, filename="Presentation", metadata=None, output_info=None):
     """
     Main generator function for the Designer Agent.
     """
@@ -361,9 +371,9 @@ def stream_ppt_generation(text_content, model_name, template, req_id, filename="
         # Upload
         yield json.dumps({"type": "status", "message": "Uploading to secure storage..."}) + "\n"
         
-        safe_name = re.sub(r'[^\w\-]+', '_', os.path.splitext(filename)[0])[:50]
-        dl_filename = f"{safe_name}_Deck_{req_id}.pptx"
-        gcs_path = f"{req_id}/output/{dl_filename}"
+        output_info = output_info or build_ppt_output_info(filename, req_id)
+        dl_filename = output_info["filename"]
+        gcs_path = output_info["gcs_path"]
         
         if current_app.config.get('GCS_AVAILABLE') and current_app.gcs_bucket:
             try:
