@@ -13,6 +13,9 @@ from config import Config
 # Shared extensions (limiter)
 from extensions import limiter
 
+# Shared SQLAlchemy instance
+from db import db
+
 # Import S3 Adapter and Presidio
 from s3_adapter import S3Client
 from presidio_analyzer import AnalyzerEngine
@@ -52,6 +55,13 @@ def create_app(config_class=Config):
     # blueprint (see @limiter.limit on AI endpoints). Defaults to in-memory
     # storage — set RATELIMIT_STORAGE_URI=redis://... in prod for multi-replica.
     limiter.init_app(app)
+
+    # 1a.ii. Database. DATABASE_URL configured via Config.SQLALCHEMY_DATABASE_URI.
+    # Schema lives in db/models.py and is managed via Alembic migrations.
+    if app.config.get("SQLALCHEMY_DATABASE_URI"):
+        db.init_app(app)
+    else:
+        logging.warning("Global: DATABASE_URL not set — db extension not initialized.")
 
     @app.errorhandler(429)
     def _ratelimit_handler(e):

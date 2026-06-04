@@ -2,8 +2,13 @@
 beautifulsoup4
 Flask
 Flask-Limiter
+Flask-SQLAlchemy
 Flask-WTF
 flask-talisman
+alembic
+SQLAlchemy
+psycopg[binary]
+pytest
 boto3
 google-generativeai
 lxml_html_clean

@@ -34,6 +34,20 @@ class Config:
     # --- Cloud / AI Settings ---
     GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
     GEMINI_MODEL_NAME = os.environ.get("GEMINI_MODEL")
+
+    # --- Database ---
+    # Same env var name everywhere; value differs per environment (local proxy
+    # vs Railway internal). See MCP_SUBMISSION_PLAN.md s8. We pin the psycopg
+    # (v3) driver explicitly because SQLAlchemy still defaults postgresql:// to
+    # the older psycopg2.
+    _raw_db_url = os.environ.get("DATABASE_URL")
+    if _raw_db_url and _raw_db_url.startswith("postgresql://"):
+        SQLALCHEMY_DATABASE_URI = "postgresql+psycopg://" + _raw_db_url[len("postgresql://"):]
+    elif _raw_db_url and _raw_db_url.startswith("postgres://"):
+        SQLALCHEMY_DATABASE_URI = "postgresql+psycopg://" + _raw_db_url[len("postgres://"):]
+    else:
+        SQLALCHEMY_DATABASE_URI = _raw_db_url
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Storage (S3-compatible; Railway provides bucket + credentials via env vars)
     GCS_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
