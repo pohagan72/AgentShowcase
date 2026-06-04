@@ -21,6 +21,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db import db
 
+# SQLite's rowid-alias autoincrement only kicks in for literal INTEGER PRIMARY
+# KEY columns, not BIGINT. Production runs on Postgres (BigInteger -> bigserial)
+# but the test suite uses sqlite:///:memory: and would fail NOT NULL on insert
+# without this variant. with_variant keeps Postgres on BigInteger and falls
+# back to Integer only when the dialect is sqlite.
+BigIntPk = BigInteger().with_variant(Integer(), "sqlite")
+
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -35,7 +42,7 @@ class Org(db.Model):
 
     __tablename__ = "orgs"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     workos_org_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     plan: Mapped[str] = mapped_column(String(32), nullable=False, default="free")
@@ -59,7 +66,7 @@ class ApiKey(db.Model):
 
     __tablename__ = "api_keys"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     org_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("orgs.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -91,7 +98,7 @@ class Quota(db.Model):
         Index("ix_quotas_org_period", "org_id", "period_start"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     org_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("orgs.id", ondelete="CASCADE"), nullable=False
     )
@@ -117,7 +124,7 @@ class UsageEvent(db.Model):
         Index("ix_usage_events_tool_created", "tool", "created_at"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
     org_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("orgs.id", ondelete="RESTRICT"), nullable=False
     )
