@@ -206,21 +206,27 @@ def _decrement_quota(org_id: int) -> bool:
     """Atomically decrement `calls_remaining` for the current period.
 
     Returns True on success, False if exhausted or no period row exists.
+
+    Period match is a range (`period_start <= now < period_end`) rather than an
+    exact equality on `period_start`. Equality looks tidier but breaks on
+    SQLite-backed test runs where TIMESTAMP WITH TIME ZONE round-trips through
+    a tz-naive string and never matches. The range form is also what we
+    semantically mean — "the quota row that covers right now."
     """
     now = datetime.now(timezone.utc)
-    period_start, _ = _period_bounds(now)
     result = db.session.execute(
         sql_text(
             """
             UPDATE quotas
                SET calls_remaining = calls_remaining - 1
              WHERE org_id = :org_id
-               AND period_start = :period_start
+               AND period_start <= :now
+               AND period_end > :now
                AND calls_remaining > 0
             RETURNING id
             """
         ),
-        {"org_id": org_id, "period_start": period_start},
+        {"org_id": org_id, "now": now},
     ).first()
     db.session.commit()
     return result is not None
@@ -228,18 +234,18 @@ def _decrement_quota(org_id: int) -> bool:
 
 def _refund_quota(org_id: int) -> None:
     now = datetime.now(timezone.utc)
-    period_start, _ = _period_bounds(now)
     db.session.execute(
         sql_text(
             """
             UPDATE quotas
                SET calls_remaining = calls_remaining + 1
              WHERE org_id = :org_id
-               AND period_start = :period_start
+               AND period_start <= :now
+               AND period_end > :now
                AND calls_remaining < calls_limit
             """
         ),
-        {"org_id": org_id, "period_start": period_start},
+        {"org_id": org_id, "now": now},
     )
     db.session.commit()
 
