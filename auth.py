@@ -88,6 +88,10 @@ def _resolve_oauth(bearer_token: str) -> Principal:
         signing_key = _get_jwks_client().get_signing_key_from_jwt(bearer_token).key
     except jwt.PyJWKClientError as e:
         raise AuthError(f"Token signing key not found: {e}", status=401) from e
+    except jwt.DecodeError as e:
+        # Token isn't a well-formed JWT at all (e.g. random string). Treat as 401
+        # rather than letting it bubble to a 500.
+        raise AuthError("Malformed token", status=401) from e
 
     audience = os.environ.get("WORKOS_CLIENT_ID")
     issuer = os.environ.get("WORKOS_ISSUER")  # e.g. https://api.workos.com/user_management/<env_id>
