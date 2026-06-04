@@ -8,6 +8,8 @@ flask-talisman
 alembic
 SQLAlchemy
 psycopg[binary]
+pyjwt[crypto]
+workos
 pytest
 boto3
 google-generativeai

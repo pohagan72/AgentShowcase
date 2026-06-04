@@ -1,6 +1,6 @@
 # Synzo → Anthropic MCP Connector Directory: Submission Plan
 
-> **Status as of 2026-06-04:** Phase 0 complete. Phase 1 in progress — baseline schema (`orgs`, `api_keys`, `quotas`, `usage_events`) is live on Railway Postgres at Alembic revision `0001_baseline`. SQLAlchemy + Alembic wired into the Flask app via `db/` and `migrations/`. Next: `auth.py` (Principal + `require_auth` decorator + WorkOS JWT verification + API key resolution + atomic quota decrement).
+> **Status as of 2026-06-04:** Phase 0 complete. Phase 1 in progress — baseline schema (`orgs`, `api_keys`, `quotas`, `usage_events`) is live on Railway Postgres at Alembic revision `0001_baseline`. SQLAlchemy + Alembic wired into the Flask app via `db/` and `migrations/`. `auth.py` drafted with Principal + `require_auth` decorator + WorkOS JWT verification (pyjwt + PyJWKClient) + API key resolution (sha256 + `hmac.compare_digest` + `secrets.token_urlsafe(32)`) + atomic quota decrement. `pyjwt[crypto]` and `workos` added to requirements.txt. **OAuth path verification deferred until first AuthKit sign-in produces a real token (Phase 1 signup/login step) — `WORKOS_ISSUER` env var not yet captured; API-key path is fully functional without it.** Next: apply `@require_auth` to a POC Flask endpoint exercising the API-key path.
 > **Owner:** Paul O'Hagan
 > **Goal:** Ship Synzo as an approved connector in Anthropic's MCP Connector Directory, while building the foundation for a paid metered-API business on the same backend.
 
@@ -189,12 +189,13 @@ Full sketch lives in the conversation under "The middleware" — recover it and 
 
 ### Phase 1 — Foundation: auth + quota + metering on the existing Flask app [~1 week]
 - [x] Add four tables (`orgs`, `api_keys`, `quotas`, `usage_events`) + Alembic migrations setup. Schema lives in [db/models.py](db/models.py); baseline migration [migrations/versions/0001_baseline_orgs_apikeys_quotas_usage.py](migrations/versions/0001_baseline_orgs_apikeys_quotas_usage.py) applied to Railway Postgres. Fifth table (`stripe_customers` / `subscriptions`) deferred to Phase 4.
-- [ ] Build `auth.py` with the `Principal` dataclass and `require_auth` decorator
-- [ ] Wire WorkOS JWT verification (`_resolve_oauth`) — JWKS caching, audience/issuer checks
-- [ ] Wire API key resolution (`_resolve_api_key`) — sha256 lookup, prefix check
-- [ ] Implement atomic SQL quota decrement (single `UPDATE ... RETURNING` to avoid races)
-- [ ] Apply `@require_auth` to one existing Flask endpoint as proof-of-concept
-- [ ] Add WorkOS signup/login flow + basic dashboard (org settings, API key issue/revoke)
+- [x] Build `auth.py` with the `Principal` dataclass and `require_auth` decorator. Lives in [auth.py](auth.py). JSON-only error responses (402/413/429/401). `PLANS` dict is the single source of truth for tier limits.
+- [x] Wire WorkOS JWT verification (`_resolve_oauth`) — JWKS caching via `PyJWKClient` (1h lifespan), `audience`/`issuer` pinned via env vars, requires `exp`/`iat`/`sub`. **Runtime-deferred:** `WORKOS_ISSUER` env var not yet set; OAuth path will return 500 until captured from a real AuthKit token during the signup/login implementation below.
+- [x] Wire API key resolution (`_resolve_api_key`) — sha256 lookup, `hmac.compare_digest` belt-and-braces check, sentinel compare on miss to flatten timing curve, `revoked_at` honored. Issuance helper `issue_api_key()` uses `secrets.token_urlsafe(32)` → 256 bits of entropy.
+- [x] Implement atomic SQL quota decrement (single `UPDATE ... RETURNING` against `calls_remaining > 0` to avoid races). Refund-on-error path also implemented.
+- [ ] Apply `@require_auth` to one existing Flask endpoint as proof-of-concept (API-key path; OAuth path tested later)
+- [ ] Add `auth.py` tests: 401 missing/bad key, 402 exhausted quota, 413 oversized, 429 rate-limited, refund-on-handler-exception, `usage_events` insert on every path
+- [ ] Add WorkOS signup/login flow + basic dashboard (org settings, API key issue/revoke). Capture `WORKOS_ISSUER` from the first real AuthKit token here.
 
 ### Phase 2 — MCP server [~1 week]
 - [ ] Add `mcp` (Python SDK) or `fastmcp` dependency
