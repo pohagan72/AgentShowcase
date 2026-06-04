@@ -134,4 +134,6 @@ class UsageEvent(db.Model):
         DateTime(timezone=True), nullable=False, default=_utcnow, index=True
     )
 
+    org: Mapped["Org"] = relationship(back_populates="usage_events")
+
 

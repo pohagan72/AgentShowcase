@@ -25,6 +25,15 @@ def app():
         TESTING=True,
         WTF_CSRF_ENABLED=False,
     )
+
+    # Create the billing schema in the in-memory SQLite so auth.py queries
+    # (api_keys lookup, etc.) hit real tables instead of raising NoSuchTable.
+    # Real prod uses Alembic migrations; this is a test-only shortcut.
+    from db import db
+
+    with app.app_context():
+        db.create_all()
+
     yield app
 
 

@@ -23,6 +23,7 @@ from presidio_analyzer.nlp_engine import NlpEngineProvider
 
 # Import Blueprints
 from main_routes import bp as main_bp
+from api_routes import bp as api_bp
 from features.info.routes import bp as info_bp
 from features.multimedia.routes import bp as multimedia_bp
 from features.pii_redaction.routes import bp as pii_bp
@@ -166,11 +167,17 @@ def create_app(config_class=Config):
 
     # 5. Register Blueprints
     app.register_blueprint(main_bp)
+    app.register_blueprint(api_bp)
     app.register_blueprint(info_bp)
     app.register_blueprint(multimedia_bp)
     app.register_blueprint(pii_bp)
     app.register_blueprint(summarization_bp)
     app.register_blueprint(translation_bp)
+
+    # /api/v1/* is JSON-only and authenticated via API key — Flask-WTF's CSRF
+    # token doesn't apply (no cookie session, no form submission). Exempt the
+    # blueprint so curl/MCP callers aren't blocked by missing X-CSRFToken.
+    csrf.exempt(api_bp)
 
     return app
 
