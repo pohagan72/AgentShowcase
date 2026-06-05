@@ -1,12 +1,12 @@
 # Synzo → Anthropic MCP Connector Directory: Submission Plan
 
-> **Status as of 2026-06-05:** Phase 0 and Phase 1 complete. **Phase 1.5 (multi-tenant auth wiring) is the active phase** — see §6.5 for the implementation-ready spec.
+> **Status as of 2026-06-05:** Phase 0, Phase 1, and Phase 1.5 complete. **Phase 2 (MCP server) is the active phase** — see §6.
 >
-> Phase 1 shipped: baseline schema (`orgs`, `api_keys`, `quotas`, `usage_events`) live on Railway Postgres at Alembic `0001_baseline`; [auth.py](auth.py) with `Principal`, `require_auth` decorator, WorkOS JWT verification, API-key resolution, atomic quota decrement, refund-on-exception; POC endpoint `POST /api/v1/summarize` verified end-to-end against prod Postgres (50→49 quota, `usage_events` row inserted); failure-path test suite (402 / 413 / 429 / refund / refund-clamp) all green (21/21). Four latent bugs surfaced and fixed during Phase 1.
+> Phase 1 shipped: baseline schema (`orgs`, `api_keys`, `quotas`, `usage_events`) on Railway Postgres at Alembic `0001_baseline`; [auth.py](auth.py) with `Principal`, `require_auth`, WorkOS JWT verification, API-key resolution, atomic quota decrement, refund-on-exception; POC endpoint `POST /api/v1/summarize` verified end-to-end; failure-path test suite (402/413/429/refund/refund-clamp) green.
 >
-> WorkOS dashboard prepped 2026-06-04: redirect URIs (`/auth/callback` for localhost + synzo.ai), sign-out URIs, AuthKit hosted UI, Email+Password + Google/MS/GitHub/Apple SSO with demo creds. JWT template still needs the `org_id` claim added — that's the first task of Phase 1.5.
+> Phase 1.5 shipped: multi-tenant user/membership graph at Alembic `0002_users_memberships`; WorkOS AuthKit OAuth flow via `/auth/{login,callback,logout}` ([auth_routes.py](auth_routes.py)); cookie-session dashboard at `/dashboard/*` with role-gated key issuance, member invites, role updates, and org switching ([auth_session.py](auth_session.py) — `require_session` / `require_role`); `_resolve_oauth` now populates the membership graph for OAuth callers too; public-site polish (nav sign-in/sign-up, `/pricing` reading live from `PLANS`, homepage SaaS hero). Full test suite: 47/47 passing (including the cross-tenant isolation suite proving 404-not-200 on every dashboard mutation route). End-to-end verified live 2026-06-05: signed up as `paulohagan@…`, org auto-created, issued key from dashboard, called `/api/v1/summarize` against prod with that key, watched quota tick 50→49 and `last_used_at` populate. `WORKOS_ISSUER` captured and set in Railway + `.env`. One SDK-shape bug surfaced and fixed during deploy (`create_organization_membership` takes typed `role`, not `role_slug` — see commit `79b99a3`).
 >
-> **Path A (multi-tenant) confirmed** — see §3.4 for the model and §8 for why we rejected Path B. Phase 1.5 expands the schema with `users` + `org_memberships`, adds role-based access (`owner`/`admin`/`member`), ships the signup/login/dashboard surface, and refreshes the public site (nav sign-up button, `/pricing`, homepage hero) so synzo.ai reads as a real SaaS rather than a portfolio site with a dashboard bolted on. Estimated 4–5 days.
+> **Path A (multi-tenant) is the model.** See §3.4 for the data model and §8 for why we rejected Path B.
 >
 > **Owner:** Paul O'Hagan
 > **Goal:** Ship Synzo as an approved connector in Anthropic's MCP Connector Directory, while building the foundation for a paid metered-API business on the same backend.
@@ -25,15 +25,15 @@ Phase 1 turned the codebase from "Flask portfolio app" into "Flask portfolio app
 |---|---|
 | API-key auth + atomic quota + metering | **IMPLEMENTED** ([auth.py](auth.py)) |
 | Failure-path test coverage (402/413/429/refund) | **IMPLEMENTED** ([tests/test_auth_failures.py](tests/test_auth_failures.py)) |
-| OAuth JWT verification code | **IMPLEMENTED** — but unverified end-to-end until Phase 1.5 captures `WORKOS_ISSUER` |
-| Multi-tenant user/membership model | **MISSING** — Phase 1.5 |
-| WorkOS signup/login flow + dashboard | **MISSING** — Phase 1.5 |
+| OAuth JWT verification code | **IMPLEMENTED + VERIFIED LIVE** (`WORKOS_ISSUER` captured 2026-06-05) |
+| Multi-tenant user/membership model | **IMPLEMENTED** ([db/models.py](db/models.py): `User`, `OrgMembership`; Alembic `0002_users_memberships`) |
+| WorkOS signup/login flow + dashboard | **IMPLEMENTED + VERIFIED LIVE** ([auth_routes.py](auth_routes.py), [templates/dashboard.html](templates/dashboard.html)) |
 | MCP server / protocol handlers | MISSING — Phase 2 |
 | Tool registry, JSON Schemas, annotations | MISSING — Phase 2 |
 | Streamable HTTP / SSE transport | MISSING — Phase 2 |
 | `/.well-known/oauth-protected-resource` + CORS for `claude.ai` | MISSING — Phase 2 |
 | MCP Inspector validation | MISSING — Phase 3 |
-| Tenant-isolation test suite | MISSING — Phase 1.5 |
+| Tenant-isolation test suite | **IMPLEMENTED** ([tests/test_multi_tenant_isolation.py](tests/test_multi_tenant_isolation.py)) |
 | Security headers, rate limiting, CSRF | IMPLEMENTED (Flask side) |
 | Logging | IMPLEMENTED |
 | HTTPS / TLS | Handled by Railway edge |
@@ -216,9 +216,11 @@ PLANS = {
   - `BigInteger` PK on SQLite (test backend) — added `BigInteger().with_variant(Integer(), "sqlite")` shim; no-op on Postgres.
   - `_decrement_quota` / `_refund_quota` keyed on exact `period_start =` equality — rewrote as range matches.
 
-### Phase 1.5 — Multi-tenant auth wiring + public-site polish [~4–5 days, ACTIVE]
+### Phase 1.5 — Multi-tenant auth wiring + public-site polish [DONE 2026-06-05]
 
-See §6.5 for the implementation-ready spec. High-level: schema migration adding `users` + `org_memberships`, the JWT template edit in WorkOS, four Flask routes (`/auth/login`, `/auth/callback`, `/auth/logout`, plus the `/dashboard/*` surface), a session helper, a small tweak to `_resolve_oauth` to populate `users`/`org_memberships` on OAuth callers, the tenant-isolation test suite, the one-time `WORKOS_ISSUER` capture, **and the public-site polish** (nav sign-in/sign-up entry points, `/pricing` page, homepage hero refresh) that makes synzo.ai read as a real SaaS instead of a portfolio site with a dashboard bolted on.
+Shipped as scoped in §6.5. Schema migration `0002_users_memberships` applied to Railway Postgres; `auth_routes.py` + `auth_session.py` wired; dashboard at `/dashboard/*` with role-gated key/member management; OAuth callback provisions WorkOS org + local mirror on first signup; `_resolve_oauth` populates membership graph for OAuth callers; nav sign-in/sign-up, `/pricing` (reads `PLANS` dynamically), and homepage hero refresh deployed. Test suite: 47/47 (was 21/21; +25 covering auth routes with mocked WorkOS + cross-tenant isolation). End-to-end verified live: signup → org creation → key issuance → API call → quota decrement.
+
+One execution-time bug fixed during deploy: `create_organization_membership` in WorkOS SDK v8 takes a typed `role` (`RoleSingle`/`RoleMultiple`), not a string `role_slug` (commit `79b99a3`). Local `org_memberships.role` is the column that actually drives dashboard auth, so we omit the WorkOS-side role and let it default.
 
 ### Phase 2 — MCP server [~1 week]
 - [ ] Add `mcp` (Python SDK) or `fastmcp` dependency.
@@ -306,9 +308,9 @@ Non-code deliverables for the submission form. Pull together in parallel with Ph
 
 ---
 
-## 6.5 Phase 1.5 detail (implementation-ready spec)
+## 6.5 Phase 1.5 detail (shipped 2026-06-05 — kept as historical record)
 
-This is the active phase. Concrete enough to execute without re-planning.
+Implementation matched this spec except where noted inline. Kept as the design rationale for what's now in `auth_routes.py` / `auth_session.py` / Alembic `0002_users_memberships`, and because the WorkOS SDK-shape footnotes (§6.5.E and the `role_slug` correction) are worth preserving for future maintenance.
 
 ### A. Schema additions
 
@@ -680,6 +682,7 @@ Phase 3.5 is submission deliverables (screenshots, listing copy, reviewer creden
 1. Re-read this file end-to-end — the top-of-file status line tells you where we left off.
 2. Check the Anthropic MCP spec page for any updates since the last edit date — auth and transport specs evolve.
 3. Confirm `PLANS` numbers still make sense given current Gemini pricing.
-4. As of 2026-06-05: Phase 0 + Phase 1 are done. **Phase 1.5 is the active phase** — resume at the first unchecked item in §6.5.J's sequencing list. First concrete action is the schema migration; second is the WorkOS JWT template edit.
-5. WorkOS staging credentials live in local `.env` (never committed). Confirm they still work before relying on them — if the application was deleted or rotated, recapture from the WorkOS dashboard.
-6. The audit prompt from the original conversation can be re-run any time against the repo to track progress against Anthropic's requirements matrix.
+4. As of 2026-06-05: Phase 0, Phase 1, and Phase 1.5 are done. **Phase 2 (MCP server) is the active phase** — see §6's Phase 2 checklist. First concrete action is adding the `mcp` (or `fastmcp`) dependency and standing up an MCP server with Streamable HTTP transport mounted on the same Flask app.
+5. WorkOS staging credentials + `WORKOS_ISSUER` live in local `.env` (never committed) and in Railway service vars. Confirm they still work before relying on them.
+6. The auth/quota/metering pipeline ([auth.py](auth.py), [auth_routes.py](auth_routes.py)) and the tenant-isolation test suite ([tests/test_multi_tenant_isolation.py](tests/test_multi_tenant_isolation.py)) are the foundation Phase 2's MCP tools sit on top of. Every MCP tool handler must (a) use `@require_auth` (b) read `Principal.org_id` from `g.principal` and scope DB reads/writes on it, and (c) get parallel cross-tenant isolation tests.
+7. The audit prompt from the original conversation can be re-run any time against the repo to track progress against Anthropic's requirements matrix.
