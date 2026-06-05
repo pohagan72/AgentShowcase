@@ -1,6 +1,6 @@
 # Synzo → Anthropic MCP Connector Directory: Submission Plan
 
-> **Status as of 2026-06-05:** Phase 0, Phase 1, and Phase 1.5 complete. **Phase 2 (MCP server) is the active phase** — see §6.
+> **Status as of 2026-06-05:** Phase 0, Phase 1, Phase 1.5 complete and verified live. **Phase 2 vertical slice is complete** — MCP server + `summarize_document` tool wired end-to-end through the existing auth/quota/metering pipeline, 17 new tests green (66/66 total). The remaining five tools follow the same pattern; live MCP Inspector validation is the gate to Phase 3 — see §6.
 >
 > Phase 1 shipped: baseline schema (`orgs`, `api_keys`, `quotas`, `usage_events`) on Railway Postgres at Alembic `0001_baseline`; [auth.py](auth.py) with `Principal`, `require_auth`, WorkOS JWT verification, API-key resolution, atomic quota decrement, refund-on-exception; POC endpoint `POST /api/v1/summarize` verified end-to-end; failure-path test suite (402/413/429/refund/refund-clamp) green.
 >
@@ -28,10 +28,10 @@ Phase 1 turned the codebase from "Flask portfolio app" into "Flask portfolio app
 | OAuth JWT verification code | **IMPLEMENTED + VERIFIED LIVE** (`WORKOS_ISSUER` captured 2026-06-05) |
 | Multi-tenant user/membership model | **IMPLEMENTED** ([db/models.py](db/models.py): `User`, `OrgMembership`; Alembic `0002_users_memberships`) |
 | WorkOS signup/login flow + dashboard | **IMPLEMENTED + VERIFIED LIVE** ([auth_routes.py](auth_routes.py), [templates/dashboard.html](templates/dashboard.html)) |
-| MCP server / protocol handlers | MISSING — Phase 2 |
-| Tool registry, JSON Schemas, annotations | MISSING — Phase 2 |
-| Streamable HTTP / SSE transport | MISSING — Phase 2 |
-| `/.well-known/oauth-protected-resource` + CORS for `claude.ai` | MISSING — Phase 2 |
+| MCP server / protocol handlers | **IMPLEMENTED** ([mcp_routes.py](mcp_routes.py): JSON-RPC dispatch for `initialize` / `tools/list` / `tools/call` / `ping` / `notifications/initialized`) |
+| Tool registry, JSON Schemas, annotations | **IMPLEMENTED** ([mcp_tools.py](mcp_tools.py): `summarize_document` shipped; 5 more tools = mechanical clones) |
+| Streamable HTTP / SSE transport | **IMPLEMENTED** (Flask-native, `application/json` responses — synchronous tool shapes don't need SSE upgrade; see §6 Phase 2 footnote) |
+| `/.well-known/oauth-protected-resource` + CORS for `claude.ai` | **IMPLEMENTED** ([mcp_routes.py](mcp_routes.py): RFC 9728 discovery, Origin allowlist with claude.ai + localhost for MCP Inspector) |
 | MCP Inspector validation | MISSING — Phase 3 |
 | Tenant-isolation test suite | **IMPLEMENTED** ([tests/test_multi_tenant_isolation.py](tests/test_multi_tenant_isolation.py)) |
 | Security headers, rate limiting, CSRF | IMPLEMENTED (Flask side) |
@@ -223,20 +223,46 @@ Shipped as scoped in §6.5. Schema migration `0002_users_memberships` applied to
 One execution-time bug fixed during deploy: `create_organization_membership` in WorkOS SDK v8 takes a typed `role` (`RoleSingle`/`RoleMultiple`), not a string `role_slug` (commit `79b99a3`). Local `org_memberships.role` is the column that actually drives dashboard auth, so we omit the WorkOS-side role and let it default.
 
 ### Phase 2 — MCP server [~1 week]
-- [ ] Add `mcp` (Python SDK) or `fastmcp` dependency.
-- [ ] Stand up MCP server with Streamable HTTP transport, mounted on the same Flask app.
+
+> **Architectural footnote (decided 2026-06-05):** `fastmcp` is ASGI-only; mounting it on Flask requires an asgiref bridge + uvicorn swap. The 2025-06-18 Streamable HTTP spec permits returning `Content-Type: application/json` for request/response pairs (no SSE), which is sufficient for our synchronous tool shapes. We implement the JSON-RPC envelope directly as a Flask blueprint ([mcp_routes.py](mcp_routes.py)) — no new dep, no deployment topology change. SSE can be layered later if we wire incremental-progress notifications.
+
+- [x] Stand up MCP server with Streamable HTTP transport on the same Flask app ([mcp_routes.py](mcp_routes.py): `/mcp` POST/OPTIONS, JSON-RPC 2.0, supports protocol versions 2025-06-18 + 2025-03-26).
 - [ ] Define tools (each with JSON Schema input, title, `readOnlyHint`, `destructiveHint`):
-  - `summarize_document` (write — produces new content)
-  - `translate_document`
-  - `redact_pii`
-  - `analyze_image`
-  - `detect_faces`
-  - `transcribe_audio`
-- [ ] Each tool calls into the existing Flask feature code via internal function calls (not HTTP).
-- [ ] Apply `@require_auth` to every tool handler.
-- [ ] **Tenancy contract for MCP tools:** every tool handler reads `Principal.org_id` from the decorator and scopes any DB read/write on it. The isolation test suite gets a parallel set of tests per tool.
-- [ ] Expose discovery endpoints — `/.well-known/oauth-protected-resource` on the MCP server pointing at WorkOS.
-- [ ] Add CORS allowing `https://claude.ai` and Anthropic-documented origins.
+  - [x] `summarize_document` (annotations: idempotent, non-destructive, non-readOnly because quota is consumed)
+  - [ ] `translate_document`
+  - [ ] `redact_pii`
+  - [ ] `analyze_image`
+  - [ ] `detect_faces`
+  - [ ] `transcribe_audio`
+- [x] Each tool calls into the existing Flask feature code via internal function calls (not HTTP). `summarize_document` reuses `features.summarization.utils.read_text_from_file` + `analyst_agent.stream_analysis` so MCP and `/api/v1/*` paths return identical results.
+- [x] Wire each tool handler through the auth/quota/metering pipeline. Introduced `auth.run_metered_tool(principal, tool_name, units, fn)` — extracted from `require_auth` — so the MCP layer can run the same pipeline but receive `AuthError` exceptions (translated to JSON-RPC error envelopes with codes `-32001` auth / `-32002` quota / `-32003` rpm / `-32004` units) instead of Flask HTTP responses.
+- [x] **Tenancy contract for MCP tools:** every tool handler receives the resolved `Principal` (from `_identify_principal()`) and scopes any DB read/write on `principal.org_id`. Isolation test asserts Org A's MCP call records `usage_events` only against A's org_id, never B's.
+- [x] Expose `/.well-known/oauth-protected-resource` (RFC 9728) pointing at WorkOS via `WORKOS_ISSUER`. Honors `SYNZO_PUBLIC_URL` env var so the resource URL is the externally-reachable one, not Railway's internal hostname.
+- [x] CORS allowlist for `https://claude.ai` + localhost (MCP Inspector). DNS rebinding mitigation: Origin header validated on every POST before any tool runs.
+- [ ] Deploy to Railway; verify `/mcp` reachable on `synzo.ai` and discovery endpoint serves the WorkOS issuer.
+- [ ] Live MCP Inspector validation against the deployed URL — gate to Phase 3.
+
+### Phase 2.5 — Concurrency hardening: thread bump → SSE streaming [must precede public-launch traffic]
+
+**Why this phase exists.** The Phase 2 slice runs synchronously: a `tools/call` holds one Waitress worker thread for the entire Gemini turnaround. Default `threads=4`, so four concurrent summarize calls block every other request to the entire Flask app (homepage, dashboard, `/api/v1/*`, `/mcp` health). A 600-page PDF on the `pro` plan can hold a thread for 60-90 seconds. This is latent today (free-tier per-call cap is 20 pages, so reviewers can't trigger it), but becomes a real outage risk the moment paying customers exist.
+
+**Phase 2.5.A — Thread bump + hard timeout (immediate, before any public launch).** Small, ships with the rest of Phase 2.
+
+- [ ] Bump waitress to `--threads=32` in the Railway start command. 8× the headroom for blocking handlers.
+- [ ] Wrap every MCP tool handler (and `/api/v1/*` handler) in a hard wall-clock timeout (~60s). On timeout: refund quota, meter as `refunded`/`timeout`, return JSON-RPC error / HTTP 504.
+- [ ] Add a load test (locust or a simple asyncio script) that fires 32 concurrent `summarize_document` calls against a stubbed Gemini and confirms the homepage stays responsive throughout. Run before any public-launch deploy.
+- [ ] Document the cap: "single Railway replica = ~32 concurrent in-flight tool calls before backpressure." When we cross that, do Phase 2.5.B.
+
+**Phase 2.5.B — SSE streaming + background workers (before "real customer" traffic).** The proper fix. The 2025-06-18 Streamable HTTP spec already permits this — we picked the JSON branch for the slice because it was sufficient, not because the SSE branch was wrong.
+
+- [ ] Add Redis to Railway (already deferred in Phase 0; this is the trigger).
+- [ ] Add a worker process (RQ first — simpler than Celery; switch if we need scheduled jobs). One worker dyno on Railway alongside the Flask web dyno.
+- [ ] Refactor `mcp_routes.py`'s `tools/call` to support the SSE branch: when a tool's expected duration > 5s (heuristic on `units_fn`), enqueue the job, hold the HTTP connection open, emit JSON-RPC `notifications/progress` events from the worker via Redis pub/sub, send the final JSON-RPC response when the worker finishes, then close the stream.
+- [ ] `/api/v1/*` gets a parallel async surface: either keep synchronous + add an `Accept: text/event-stream` branch, or split into `POST /api/v1/jobs` + `GET /api/v1/jobs/<id>`. Decide at implementation time.
+- [ ] Web workers stop blocking on Gemini entirely; one Waitress thread per *connection*, not per *Gemini call*. Concurrency ceiling becomes Redis + Postgres connection pool size, not Waitress thread count.
+- [ ] **Tenancy invariant survives:** the worker reads `principal.org_id` from the enqueued job payload and scopes everything on it. Cross-tenant isolation tests get extended to cover the worker path (Org A's job never writes Org B's `usage_events`).
+
+**Sequencing decision.** Phase 2.5.A ships with Phase 2 — it's the minimum to safely take Anthropic submission traffic. Phase 2.5.B is **not** required for submission (reviewers won't hammer us with 600-page PDFs) but **is** required before any "you can buy a `pro` plan" public launch. The trigger to start 2.5.B is the first of: (a) we hit the 32-thread ceiling in production logs, (b) a real customer asks about long-doc support, or (c) we're starting Phase 4.
 
 ### Phase 3 — Submission readiness [~3 days]
 - [ ] Validate with MCP Inspector locally + against the deployed Railway URL.
