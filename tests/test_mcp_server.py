@@ -405,3 +405,552 @@ def test_oauth_protected_resource_returns_resource_and_authorization_servers(
         "https://api.workos.com/user_management/client_abc"
     ]
     assert "header" in body["bearer_methods_supported"]
+
+
+# --- tools/list now advertises all five Phase 2 tools -------------------------
+
+
+def test_tools_list_advertises_all_phase2_tools(client):
+    """All five Phase 2 tools must show up in tools/list with annotations.
+    transcribe_audio is intentionally NOT shipped in Phase 2 — its underlying
+    pipeline is a stub. If you're re-adding it, also update this list."""
+    resp = _rpc(client, "tools/list")
+    assert resp.status_code == 200
+    tools = resp.get_json()["result"]["tools"]
+    names = {t["name"] for t in tools}
+    expected = {
+        "summarize_document",
+        "translate_document",
+        "redact_pii",
+        "analyze_image",
+        "detect_faces",
+    }
+    assert expected.issubset(names), f"Missing tools: {expected - names}"
+    # Every tool must declare destructiveHint=false (we never destroy state).
+    for tool in tools:
+        ann = tool.get("annotations") or {}
+        assert ann.get("destructiveHint") is False, tool["name"]
+
+
+# --- translate_document -------------------------------------------------------
+
+
+@pytest.fixture
+def fake_translate(monkeypatch, app):
+    """Stub the Gemini call so translate_document tests stay offline."""
+    app.config["GEMINI_CONFIGURED"] = True
+
+    from features.summarization import utils as summarization_utils
+    from features.translation import routes as translation_routes
+
+    monkeypatch.setattr(
+        summarization_utils, "extract_text_from_stream",
+        lambda stream, ext: "Hello world. This is the source text.",
+    )
+
+    def fake_translate_util(text, target_lang, model_name):
+        return ("success", f"[{target_lang}] {text}", None)
+
+    monkeypatch.setattr(translation_routes, "translate_text_util", fake_translate_util)
+
+
+def test_tools_call_translate_document_returns_translated_text(
+    client, app, fake_translate
+):
+    org = _seed_org(app, name="mcp_translate_ok")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "translate_document",
+            "arguments": {
+                "filename": "memo.docx",
+                "content_base64": base64.b64encode(b"PK fake docx").decode(),
+                "target_language": "Spanish",
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert "error" not in body, body
+    result = body["result"]
+    assert result["isError"] is False
+    sc = result["structuredContent"]
+    assert sc["target_language"] == "Spanish"
+    assert sc["filename"] == "memo.docx"
+    assert "[Spanish]" in sc["translated_text"]
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        assert len(events) == 1
+        assert events[0].status == "ok"
+        assert events[0].tool == "translate_document"
+
+
+def test_translate_document_blocked_by_safety_filter_returns_isError(
+    client, app, monkeypatch
+):
+    """If translate_text_util returns 'blocked', the tool surfaces it as a
+    ToolError so the model can react, with the quota refunded."""
+    app.config["GEMINI_CONFIGURED"] = True
+    from features.summarization import utils as summarization_utils
+    from features.translation import routes as translation_routes
+
+    monkeypatch.setattr(
+        summarization_utils, "extract_text_from_stream",
+        lambda stream, ext: "some text",
+    )
+    monkeypatch.setattr(
+        translation_routes, "translate_text_util",
+        lambda text, lang, model: ("blocked", text, "blocked by safety filter"),
+    )
+
+    org = _seed_org(app, name="mcp_translate_blocked")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "translate_document",
+            "arguments": {
+                "filename": "memo.docx",
+                "content_base64": base64.b64encode(b"PK fake").decode(),
+                "target_language": "French",
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "safety" in body["result"]["content"][0]["text"].lower()
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        statuses = sorted(e.status for e in events)
+        assert "refunded" in statuses
+
+
+def test_translate_document_unsupported_extension_returns_isError(
+    client, app, fake_translate
+):
+    """PDFs aren't a supported source for translate (the HTMX route only does
+    docx/pptx/xlsx). Make sure we don't accidentally accept them."""
+    org = _seed_org(app, name="mcp_translate_bad_ext")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "translate_document",
+            "arguments": {
+                "filename": "doc.pdf",
+                "content_base64": base64.b64encode(b"%PDF-1.4").decode(),
+                "target_language": "Spanish",
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "unsupported" in body["result"]["content"][0]["text"].lower()
+
+
+# --- redact_pii ---------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_redact(monkeypatch, app):
+    """Stub Presidio + the docx redactor so tests don't need spaCy installed."""
+    import io as _io
+
+    app.config["PRESIDIO_ANALYZER_AVAILABLE"] = True
+    app.presidio_analyzer = object()  # sentinel; the stub doesn't call it
+
+    from features.pii_redaction import routes as pii_routes
+
+    def fake_word_redact(stream, analyzer):
+        # Pretend we redacted; return a small distinct byte payload so tests
+        # can spot it round-trip out via base64.
+        return _io.BytesIO(b"REDACTED-DOCX-BYTES")
+
+    def fake_pptx_redact(stream, analyzer):
+        return _io.BytesIO(b"REDACTED-PPTX-BYTES")
+
+    monkeypatch.setattr(pii_routes, "redact_word_document_pii", fake_word_redact)
+    monkeypatch.setattr(pii_routes, "redact_powerpoint_document_pii", fake_pptx_redact)
+
+
+def test_tools_call_redact_pii_returns_base64_redacted_document(
+    client, app, fake_redact
+):
+    org = _seed_org(app, name="mcp_redact_ok")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "redact_pii",
+            "arguments": {
+                "filename": "contract.docx",
+                "content_base64": base64.b64encode(b"PK original docx").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert "error" not in body, body
+    result = body["result"]
+    assert result["isError"] is False
+    sc = result["structuredContent"]
+    assert sc["filename"] == "redacted_contract.docx"
+    # Round-trip the base64 and confirm the stub's output payload made it back.
+    assert base64.b64decode(sc["content_base64"]) == b"REDACTED-DOCX-BYTES"
+    assert "wordprocessingml" in sc["mimetype"]
+    assert sc["original_size_bytes"] > 0
+    assert sc["redacted_size_bytes"] > 0
+
+
+def test_redact_pii_pptx_uses_pptx_pipeline(client, app, fake_redact):
+    org = _seed_org(app, name="mcp_redact_pptx")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "redact_pii",
+            "arguments": {
+                "filename": "deck.pptx",
+                "content_base64": base64.b64encode(b"PK pptx").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    sc = resp.get_json()["result"]["structuredContent"]
+    assert base64.b64decode(sc["content_base64"]) == b"REDACTED-PPTX-BYTES"
+    assert "presentationml" in sc["mimetype"]
+
+
+def test_redact_pii_unsupported_extension_returns_isError(client, app, fake_redact):
+    org = _seed_org(app, name="mcp_redact_bad_ext")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "redact_pii",
+            "arguments": {
+                "filename": "doc.pdf",
+                "content_base64": base64.b64encode(b"%PDF").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "unsupported" in body["result"]["content"][0]["text"].lower()
+
+
+def test_redact_pii_when_presidio_unavailable_refunds_quota(client, app, monkeypatch):
+    """If Presidio isn't configured the handler raises RuntimeError; the MCP
+    layer should refund the quota and surface isError=true to the model."""
+    app.config["PRESIDIO_ANALYZER_AVAILABLE"] = False
+    monkeypatch.setattr(app, "presidio_analyzer", None, raising=False)
+
+    org = _seed_org(app, name="mcp_redact_no_presidio")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "redact_pii",
+            "arguments": {
+                "filename": "doc.docx",
+                "content_base64": base64.b64encode(b"PK").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        statuses = sorted(e.status for e in events)
+        assert "refunded" in statuses
+
+
+# --- analyze_image ------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_analyze_image(monkeypatch, app):
+    """Stub the Gemini vision call + PIL normalization."""
+    app.config["GEMINI_CONFIGURED"] = True
+
+    from features.multimedia import routes as multimedia_routes
+    from features.multimedia import analytics_utils
+
+    monkeypatch.setattr(
+        multimedia_routes, "normalize_and_resize_image",
+        lambda data: data,
+    )
+
+    fake_analysis = {
+        "description": "A test image.",
+        "rich_description": "A short, fake description for a unit test.",
+        "extracted_text": "",
+        "safety_flags": {
+            "contains_people": False,
+            "contains_potential_pii": False,
+            "is_graphic_or_violent": False,
+        },
+        "detected_objects": ["test", "image"],
+    }
+    monkeypatch.setattr(
+        analytics_utils, "analyze_image_with_gemini",
+        lambda image_bytes, model: fake_analysis,
+    )
+    monkeypatch.setattr(
+        analytics_utils, "extract_dominant_colors",
+        lambda image_bytes, num_colors=5: ["#aabbcc", "#112233"],
+    )
+
+    # Avoid instantiating a real Gemini model.
+    import google.generativeai as genai
+    monkeypatch.setattr(genai, "GenerativeModel", lambda name: object())
+
+
+def test_tools_call_analyze_image_returns_structured_analysis(
+    client, app, fake_analyze_image
+):
+    org = _seed_org(app, name="mcp_analyze_ok")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "analyze_image",
+            "arguments": {
+                "filename": "photo.jpg",
+                "content_base64": base64.b64encode(b"\xff\xd8\xff\xe0 fake").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert "error" not in body, body
+    sc = body["result"]["structuredContent"]
+    assert sc["filename"] == "photo.jpg"
+    assert sc["analysis"]["description"] == "A test image."
+    assert sc["dominant_colors"] == ["#aabbcc", "#112233"]
+
+
+def test_analyze_image_unsupported_extension_returns_isError(
+    client, app, fake_analyze_image
+):
+    org = _seed_org(app, name="mcp_analyze_bad_ext")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "analyze_image",
+            "arguments": {
+                "filename": "doc.pdf",
+                "content_base64": base64.b64encode(b"%PDF").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "unsupported" in body["result"]["content"][0]["text"].lower()
+
+
+def test_analyze_image_when_model_returns_error_dict_returns_isError(
+    client, app, monkeypatch
+):
+    """analytics_utils encodes some failures as {"error": "..."}. The MCP
+    handler should surface those as isError=true (not a JSON-RPC error)."""
+    app.config["GEMINI_CONFIGURED"] = True
+    from features.multimedia import routes as multimedia_routes
+    from features.multimedia import analytics_utils
+
+    monkeypatch.setattr(multimedia_routes, "normalize_and_resize_image", lambda d: d)
+    monkeypatch.setattr(
+        analytics_utils, "analyze_image_with_gemini",
+        lambda image_bytes, model: {"error": "AI model returned an invalid format."},
+    )
+    monkeypatch.setattr(analytics_utils, "extract_dominant_colors", lambda d, num_colors=5: [])
+    import google.generativeai as genai
+    monkeypatch.setattr(genai, "GenerativeModel", lambda name: object())
+
+    org = _seed_org(app, name="mcp_analyze_model_err")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "analyze_image",
+            "arguments": {
+                "filename": "photo.png",
+                "content_base64": base64.b64encode(b"\x89PNG fake").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "invalid format" in body["result"]["content"][0]["text"].lower()
+
+
+# --- detect_faces -------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_detect_faces(monkeypatch, app):
+    """Stub MTCNN + OpenCV so the test doesn't pull TensorFlow into RAM."""
+    from features.multimedia import routes as multimedia_routes
+    from features.multimedia import blur_utils
+
+    monkeypatch.setattr(multimedia_routes, "normalize_and_resize_image", lambda d: d)
+    # Return a recognizable PNG-ish byte payload.
+    monkeypatch.setattr(
+        blur_utils, "blur_image_opencv",
+        lambda image_bytes, blur_size: b"\x89PNG\r\n\x1a\nFAKE-PNG-" + str(blur_size).encode(),
+    )
+
+
+def test_tools_call_detect_faces_default_blur_returns_png(
+    client, app, fake_detect_faces
+):
+    org = _seed_org(app, name="mcp_faces_ok")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "detect_faces",
+            "arguments": {
+                "filename": "group.jpg",
+                "content_base64": base64.b64encode(b"\xff\xd8\xff\xe0").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert "error" not in body, body
+    sc = body["result"]["structuredContent"]
+    assert sc["filename"] == "group-faces-blurred.png"
+    assert sc["mode"] == "blur"
+    assert sc["mimetype"] == "image/png"
+    out = base64.b64decode(sc["content_base64"])
+    # blur_strength default = 2 -> blur_size=151
+    assert b"FAKE-PNG-151" in out
+
+
+def test_detect_faces_redact_mode_uses_opaque_rect(client, app, fake_detect_faces):
+    org = _seed_org(app, name="mcp_faces_redact")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "detect_faces",
+            "arguments": {
+                "filename": "group.jpg",
+                "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+                "mode": "redact",
+            },
+        },
+        headers=org["auth_header"],
+    )
+    sc = resp.get_json()["result"]["structuredContent"]
+    assert sc["mode"] == "redact"
+    assert sc["filename"] == "group-faces-redacted.png"
+    # blur_size=-1 is the redaction sentinel.
+    out = base64.b64decode(sc["content_base64"])
+    assert b"FAKE-PNG--1" in out
+
+
+def test_detect_faces_invalid_mode_returns_isError(client, app, fake_detect_faces):
+    org = _seed_org(app, name="mcp_faces_bad_mode")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "detect_faces",
+            "arguments": {
+                "filename": "x.jpg",
+                "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+                "mode": "annihilate",
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "mode" in body["result"]["content"][0]["text"].lower()
+
+
+def test_detect_faces_invalid_blur_strength_returns_isError(
+    client, app, fake_detect_faces
+):
+    org = _seed_org(app, name="mcp_faces_bad_strength")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "detect_faces",
+            "arguments": {
+                "filename": "x.jpg",
+                "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+                "blur_strength": 9,
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+
+
+# --- Cross-tenant isolation across the new tools ------------------------------
+
+
+def test_mcp_new_tools_record_usage_against_caller_org_only(
+    client, app, fake_translate, fake_redact, fake_analyze_image, fake_detect_faces
+):
+    """The Phase 1.5 non-negotiable extends to every new tool: a call from
+    Org A must never write a usage_events row against Org B. This test runs
+    one call of each tool from Org A and asserts Org B sees nothing."""
+    a = _seed_org(app, name="mcp_iso_new_a")
+    b = _seed_org(app, name="mcp_iso_new_b")
+
+    calls = [
+        ("translate_document", {
+            "filename": "memo.docx",
+            "content_base64": base64.b64encode(b"PK").decode(),
+            "target_language": "Spanish",
+        }),
+        ("redact_pii", {
+            "filename": "memo.docx",
+            "content_base64": base64.b64encode(b"PK").decode(),
+        }),
+        ("analyze_image", {
+            "filename": "p.jpg",
+            "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+        }),
+        ("detect_faces", {
+            "filename": "p.jpg",
+            "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+        }),
+    ]
+
+    for tool_name, args in calls:
+        resp = _rpc(
+            client,
+            "tools/call",
+            {"name": tool_name, "arguments": args},
+            headers=a["auth_header"],
+        )
+        assert resp.status_code == 200, (tool_name, resp.get_json())
+        assert resp.get_json()["result"]["isError"] is False, (
+            tool_name,
+            resp.get_json(),
+        )
+
+    with app.app_context():
+        a_events = db.session.query(UsageEvent).filter_by(org_id=a["org_id"]).all()
+        b_events = db.session.query(UsageEvent).filter_by(org_id=b["org_id"]).all()
+        tools_recorded = sorted(e.tool for e in a_events)
+        assert tools_recorded == sorted(c[0] for c in calls)
+        assert b_events == []
