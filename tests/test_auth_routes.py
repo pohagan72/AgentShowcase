@@ -265,6 +265,39 @@ def test_issue_key_owner_succeeds(app, client):
         assert len(keys) == 1
 
 
+def test_issue_key_rejects_missing_name(app, client):
+    """No name provided -> redirect with flash, no key created."""
+    info = _seed_user_and_org(app, email="mn@example.com", workos_user_id="user_mn",
+                                workos_org_id="org_mn", role="owner")
+    with client.session_transaction() as sess:
+        sess["user_id"] = info["user_id"]
+        sess["current_org_id"] = info["org_id"]
+    # Note: info already created one key in _seed_user_and_org; count before.
+    with app.app_context():
+        before = db.session.query(ApiKey).filter_by(org_id=info["org_id"]).count()
+    res = client.post("/dashboard/keys/issue", data={"name": ""})
+    assert res.status_code == 302  # redirect back to dashboard with flash
+    with app.app_context():
+        after = db.session.query(ApiKey).filter_by(org_id=info["org_id"]).count()
+        assert after == before  # no new key issued
+
+
+def test_issue_key_rejects_invalid_chars(app, client):
+    """Special chars (emoji, brackets) rejected; no key created."""
+    info = _seed_user_and_org(app, email="ic@example.com", workos_user_id="user_ic",
+                                workos_org_id="org_ic", role="owner")
+    with client.session_transaction() as sess:
+        sess["user_id"] = info["user_id"]
+        sess["current_org_id"] = info["org_id"]
+    with app.app_context():
+        before = db.session.query(ApiKey).filter_by(org_id=info["org_id"]).count()
+    res = client.post("/dashboard/keys/issue", data={"name": "<script>alert(1)</script>"})
+    assert res.status_code == 302
+    with app.app_context():
+        after = db.session.query(ApiKey).filter_by(org_id=info["org_id"]).count()
+        assert after == before
+
+
 def test_issue_key_member_forbidden(app, client):
     # Need an owner present in the org before adding a member, so the org row exists.
     owner = _seed_user_and_org(app, email="own@example.com", workos_user_id="user_own_1",

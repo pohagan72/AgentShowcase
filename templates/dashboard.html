@@ -11,8 +11,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- The public site's style.css applies `body { overflow: hidden }` for its
+         app-shell layout, which clips dashboard content. The dashboard is a
+         standalone page with its own inline styles below — don't link style.css. -->
     <style>
+        html, body { height: auto; min-height: 100%; overflow-y: auto; }
         body { font-family: 'Inter', sans-serif; background: #f7f8fb; color: #111; margin: 0; }
         .dash-wrap { max-width: 960px; margin: 0 auto; padding: 24px 20px 80px; }
         .dash-header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
@@ -160,7 +163,15 @@
             {% if role in ['owner', 'admin'] %}
             <form method="post" action="{{ url_for('auth.issue_key') }}" style="margin-bottom: 14px;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="text" name="name" placeholder="Key name (e.g. production)" style="width: 240px;">
+                <input type="text"
+                       name="name"
+                       placeholder="Key name (e.g. production)"
+                       style="width: 240px;"
+                       required
+                       minlength="1"
+                       maxlength="64"
+                       pattern="[A-Za-z0-9 ._\-]{1,64}"
+                       title="1–64 characters: letters, numbers, spaces, dot, dash, underscore">
                 <button type="submit">Issue new key</button>
             </form>
             {% endif %}

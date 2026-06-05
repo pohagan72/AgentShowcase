@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import secrets
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -324,12 +325,30 @@ def dashboard():
     )
 
 
+# API-key names must be human-meaningful but safe to render: letters, digits,
+# spaces, dot, dash, underscore. 1–64 chars. Permissive enough for
+# "Production - US East 1.2"; blocks emoji, angle brackets, and other oddities
+# that look unprofessional in the table or hint at copy-paste accidents.
+# Server-side check is authoritative — the `pattern`/`required` HTML attrs
+# are UX only; curl callers bypass them.
+_KEY_NAME_RE = re.compile(r"^[A-Za-z0-9 ._-]{1,64}$")
+
+
 @bp.route("/dashboard/keys/issue", methods=["POST"])
 @require_session
 @require_role("admin")
 def issue_key():
     """Issue an API key for the CURRENT org. Show raw key once via flash."""
-    name = request.form.get("name") or None
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash("Key name is required.", "error")
+        return redirect(url_for("auth.dashboard"))
+    if not _KEY_NAME_RE.match(name):
+        flash(
+            "Key name must be 1–64 characters: letters, numbers, spaces, dot, dash, underscore.",
+            "error",
+        )
+        return redirect(url_for("auth.dashboard"))
     raw_key, _ = issue_api_key(org_id=g.principal.org_id, name=name)
     # Stash on session so the next render of /dashboard can display it ONCE.
     # We use the session (not flash) so a refresh doesn't keep showing it.
