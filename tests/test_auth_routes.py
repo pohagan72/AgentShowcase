@@ -55,7 +55,7 @@ def _fake_workos(monkeypatch, *, user_id="user_01", email="alice@example.com",
             create_calls.append(name)
         return SimpleNamespace(id=created_org_id, name=name)
 
-    def create_organization_membership(*, user_id, organization_id, role_slug, **kwargs):
+    def create_organization_membership(*, user_id, organization_id, **kwargs):
         return SimpleNamespace(id="om_test")
 
     def send_invitation(*, email, organization_id, **kwargs):
