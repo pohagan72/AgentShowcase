@@ -13,7 +13,7 @@ def test_app_factory_boots(app):
 
 @pytest.mark.parametrize(
     "path",
-    ["/", "/summarizer", "/translator", "/redactor", "/vision", "/about"],
+    ["/", "/summarizer", "/translator", "/redactor", "/vision", "/about", "/pricing"],
 )
 def test_landing_pages_return_200(client, path):
     resp = client.get(path)
@@ -55,7 +55,7 @@ def test_db_extension_registered_and_tables_known(app):
     from db import db
 
     assert "sqlalchemy" in app.extensions
-    expected = {"orgs", "api_keys", "quotas", "usage_events"}
+    expected = {"orgs", "api_keys", "quotas", "usage_events", "users", "org_memberships"}
     assert expected.issubset(set(db.metadata.tables.keys()))
 
 

@@ -133,18 +133,62 @@
                        hx-indicator=".global-loader"
                        class="sidebar-link {{ 'active' if key == active_feature_key else '' }}"
                        onclick="closeSidebarIfMobile()">
-                        
+
                         <!-- 3D Feature Icon -->
-                        <img src="{{ url_for('static', filename='images/' + feature_item.icon) }}" 
-                             alt="{{ feature_item.name }} icon" 
+                        <img src="{{ url_for('static', filename='images/' + feature_item.icon) }}"
+                             alt="{{ feature_item.name }} icon"
                              class="sidebar-icon-img">
-                        
+
                         <!-- Label -->
                         <span>{{ feature_item.name }}</span>
                     </a>
                 </li>
                 {% endfor %}
+
+                <!-- Pricing (public marketing page) -->
+                <li>
+                    <a href="{{ url_for('main.pricing') }}"
+                       class="sidebar-link {{ 'active' if active_feature_key == 'pricing' else '' }}"
+                       onclick="closeSidebarIfMobile()">
+                        <span class="sidebar-icon-img" style="display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; font-size:18px;">
+                            <i class="ph ph-tag"></i>
+                        </span>
+                        <span>Pricing</span>
+                    </a>
+                </li>
             </ul>
+
+            <!-- Auth actions (push to bottom of sidebar) -->
+            <div class="sidebar-auth" style="margin-top:auto; padding:16px 12px; border-top:1px solid rgba(255,255,255,0.08);">
+                {% if current_user %}
+                    <a href="{{ url_for('auth.dashboard') }}" class="sidebar-link" style="font-weight:600;" onclick="closeSidebarIfMobile()">
+                        <span class="sidebar-icon-img" style="display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; font-size:18px;">
+                            <i class="ph ph-squares-four"></i>
+                        </span>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="sidebar-link" style="opacity:0.8;">
+                        <span class="sidebar-icon-img" style="display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; font-size:18px;">
+                            <i class="ph ph-sign-out"></i>
+                        </span>
+                        <span>Sign out</span>
+                    </a>
+                    <div style="padding:8px 12px 0; font-size:11px; opacity:0.55; word-break:break-all;">{{ current_user.email }}</div>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="sidebar-link" onclick="closeSidebarIfMobile()">
+                        <span class="sidebar-icon-img" style="display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; font-size:18px;">
+                            <i class="ph ph-sign-in"></i>
+                        </span>
+                        <span>Sign in</span>
+                    </a>
+                    <a href="{{ url_for('auth.login') }}" class="sidebar-link" style="font-weight:600; color:#fff;" onclick="closeSidebarIfMobile()">
+                        <span class="sidebar-icon-img" style="display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; font-size:18px;">
+                            <i class="ph ph-rocket-launch"></i>
+                        </span>
+                        <span>Sign up free</span>
+                    </a>
+                {% endif %}
+            </div>
         </nav>
 
         <!-- ==========================================================================

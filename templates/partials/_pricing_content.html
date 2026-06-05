@@ -1,0 +1,96 @@
+<!-- templates/partials/_pricing_content.html -->
+<!-- All numeric tier limits come from auth.PLANS via main_routes.pricing().
+     Marketing copy lives next to that route. Don't hard-code numbers here. -->
+
+<style>
+    .pricing-wrap { max-width: 1100px; margin: 0 auto; }
+    .pricing-hero { text-align: center; padding: 2rem 1rem 2.5rem; }
+    .pricing-hero h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 0.5rem; color: var(--text-primary); }
+    .pricing-hero p { font-size: 1rem; color: var(--text-secondary); max-width: 640px; margin: 0 auto; line-height: 1.5; }
+
+    .tier-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .tier-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 1.75rem;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .tier-card.featured { border-color: var(--brand-primary); box-shadow: 0 10px 25px -10px rgba(79,70,229,0.25); }
+    .tier-card .badge { display: inline-block; background: #eef2ff; color: #4338ca; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 10px; border-radius: 999px; margin-bottom: 1rem; align-self: flex-start; }
+    .tier-card h3 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.25rem; letter-spacing: -0.01em; color: var(--text-primary); }
+    .tier-card .tagline { font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 1.25rem; line-height: 1.4; min-height: 2.5em; }
+
+    .tier-limits { list-style: none; padding: 0; margin: 0 0 1.5rem; flex-grow: 1; }
+    .tier-limits li { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; font-size: 0.95rem; color: var(--text-primary); }
+    .tier-limits li i { color: #10b981; }
+    .tier-limits strong { font-weight: 700; }
+
+    .tier-cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 18px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        background: var(--brand-primary, #4f46e5);
+        color: white;
+        transition: background 0.15s;
+    }
+    .tier-cta:hover { background: #4338ca; }
+    .tier-cta.secondary { background: #fff; color: var(--brand-primary, #4f46e5); border: 1px solid var(--brand-primary, #4f46e5); }
+    .tier-cta.secondary:hover { background: #eef2ff; }
+
+    .pricing-faq { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.75rem; }
+    .pricing-faq h4 { font-size: 1rem; font-weight: 700; margin: 0 0 0.5rem; }
+    .pricing-faq p { font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 1rem; line-height: 1.5; }
+    .pricing-faq p:last-child { margin-bottom: 0; }
+</style>
+
+<div class="pricing-wrap">
+
+    <div class="pricing-hero">
+        <h1>Simple, usage-based pricing</h1>
+        <p>Start free. Upgrade when you need more headroom — calls per month, larger documents, higher rate limits.</p>
+    </div>
+
+    <div class="tier-grid">
+        {% for tier in tiers %}
+        <div class="tier-card {% if tier.key == 'starter' %}featured{% endif %}">
+            {% if tier.key == 'starter' %}<span class="badge">Most popular</span>{% endif %}
+            <h3>{{ tier.title }}</h3>
+            <p class="tagline">{{ tier.tagline }}</p>
+            <ul class="tier-limits">
+                <li><i class="ph ph-check-circle-fill"></i> <strong>{{ '{:,}'.format(tier.limits.calls_per_month) }}</strong>&nbsp;API calls/month</li>
+                <li><i class="ph ph-check-circle-fill"></i> Up to <strong>{{ tier.limits.pages_per_call }}</strong> pages per call</li>
+                <li><i class="ph ph-check-circle-fill"></i> <strong>{{ tier.limits.rpm }}</strong>&nbsp;requests/minute</li>
+                <li><i class="ph ph-check-circle-fill"></i> All tools: summarize, translate, redact PII, vision</li>
+                <li><i class="ph ph-check-circle-fill"></i> Zero data retention</li>
+            </ul>
+            <a class="tier-cta {% if tier.key != 'free' %}secondary{% endif %}" href="{{ tier.cta_href }}">
+                {{ tier.cta_label }} <i class="ph ph-arrow-right"></i>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="pricing-faq">
+        <h4>What counts as a call?</h4>
+        <p>One API call per request to a Synzo tool (summarize, translate, redact, analyze, transcribe). Multi-page documents count as one call up to your plan&rsquo;s per-call page limit.</p>
+        <h4>Can I use Synzo from Claude Desktop?</h4>
+        <p>Yes &mdash; the same plan and quota covers MCP connections from Claude Desktop and direct API key access. Sign up free and connect.</p>
+        <h4>What happens if I hit my quota?</h4>
+        <p>The API returns HTTP 402 Payment Required. Quota resets at the start of each month. Upgrade any time.</p>
+    </div>
+</div>
