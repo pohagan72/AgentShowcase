@@ -155,14 +155,6 @@ def callback():
         logger.warning("Could not decode WorkOS access token: %s", e)
         claims = {}
 
-    # One-time issuer capture for ops to paste into .env / Railway. Remove this
-    # log line after WORKOS_ISSUER is set (plan s6.5.H).
-    if not os.environ.get("WORKOS_ISSUER"):
-        logger.info(
-            "WORKOS_ISSUER capture: iss=%s — paste into env vars, then remove this log.",
-            claims.get("iss"),
-        )
-
     # --- Upsert local User row ---
     user = (
         db.session.query(User)
@@ -187,10 +179,14 @@ def callback():
         org_name = (workos_user.email or "Workspace").split("@", 1)[0] + "'s Workspace"
         try:
             workos_org = _workos().organizations.create_organization(name=org_name)
+            # WorkOS v8 takes a typed `role` (RoleSingle/RoleMultiple), not a
+            # string. Omit it: WorkOS assigns the org's default role, and the
+            # 'owner' role we care about is enforced via our own
+            # org_memberships.role column further down (see the membership
+            # upsert at end of this handler).
             _workos().organization_membership.create_organization_membership(
                 user_id=workos_user.id,
                 organization_id=workos_org.id,
-                role_slug="admin",  # WorkOS has no built-in 'owner'; we treat first member as owner locally
             )
         except Exception as e:
             logger.error("WorkOS org/membership provisioning failed: %s", e)
