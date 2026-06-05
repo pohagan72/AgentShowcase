@@ -27,6 +27,15 @@ def app():
         WTF_CSRF_ENABLED=False,
     )
 
+    # Flask-Limiter's IP-based default ("30/min") fires when a single test
+    # function issues several /mcp calls back-to-back (the cross-tenant
+    # isolation tests do exactly that). Disable it at the limiter object level
+    # since init_app() already captured the previous config. The per-org RPM
+    # gate inside auth.py still runs, so quota / abuse defense is still
+    # exercised by tests.
+    from extensions import limiter
+    limiter.enabled = False
+
     # Create the billing schema in the in-memory SQLite so auth.py queries
     # (api_keys lookup, etc.) hit real tables instead of raising NoSuchTable.
     # Real prod uses Alembic migrations; this is a test-only shortcut.
