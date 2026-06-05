@@ -53,6 +53,9 @@ class Org(db.Model):
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="org", cascade="all, delete-orphan")
     quotas: Mapped[list["Quota"]] = relationship(back_populates="org", cascade="all, delete-orphan")
     usage_events: Mapped[list["UsageEvent"]] = relationship(back_populates="org")
+    memberships: Mapped[list["OrgMembership"]] = relationship(
+        back_populates="org", cascade="all, delete-orphan"
+    )
 
 
 class ApiKey(db.Model):
@@ -144,3 +147,58 @@ class UsageEvent(db.Model):
     org: Mapped["Org"] = relationship(back_populates="usage_events")
 
 
+class User(db.Model):
+    """One row per WorkOS user. Mirrors the parts of the WorkOS user record
+    that the dashboard and membership graph need (workos_user_id, email,
+    last-seen). WorkOS remains the source of truth for credentials and SSO.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
+    workos_user_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    memberships: Mapped[list["OrgMembership"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class OrgMembership(db.Model):
+    """User <-> Org bridge with a role enum. The role drives dashboard
+    authorization (see auth_session.require_role). Quota and billing stay
+    org-scoped — invited members share the org's pool. See plan s3.4.
+
+    Role ordering: owner > admin > member. Enforced by a CHECK constraint
+    plus require_role at the route layer.
+    """
+
+    __tablename__ = "org_memberships"
+    __table_args__ = (
+        UniqueConstraint("user_id", "org_id", name="uq_org_memberships_user_org"),
+        CheckConstraint(
+            "role IN ('owner','admin','member')",
+            name="ck_org_memberships_role",
+        ),
+        Index("ix_org_memberships_user", "user_id"),
+        Index("ix_org_memberships_org", "org_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    org_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("orgs.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    user: Mapped["User"] = relationship(back_populates="memberships")
+    org: Mapped["Org"] = relationship(back_populates="memberships")

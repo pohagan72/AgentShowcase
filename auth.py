@@ -27,7 +27,7 @@ from jwt import PyJWKClient
 from sqlalchemy import text as sql_text
 
 from db import db
-from db.models import ApiKey, Org, Quota, UsageEvent
+from db.models import ApiKey, Org, OrgMembership, Quota, UsageEvent, User
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,16 @@ PLANS: dict[str, dict[str, int]] = {
 class Principal:
     org_id: int
     plan: str
-    auth_method: str  # 'oauth' | 'api_key'
+    auth_method: str  # 'oauth' | 'api_key' | 'session'
     api_key_id: int | None = None
+    # user_id is populated for 'session' callers (dashboard) and for 'oauth'
+    # callers whose JWT carried a `sub` claim. 'api_key' callers stay None —
+    # API keys belong to orgs, not users.
+    user_id: int | None = None
+    # role is set only for 'session' callers; it gates dashboard actions
+    # (require_role). 'oauth' / 'api_key' callers stay None — those paths
+    # don't pass through the dashboard auth gate.
+    role: str | None = None
 
 
 class AuthError(Exception):
@@ -118,7 +126,43 @@ def _resolve_oauth(bearer_token: str) -> Principal:
     if org is None:
         raise AuthError("Org not provisioned", status=401)
 
-    return Principal(org_id=org.id, plan=org.plan, auth_method="oauth")
+    # Upsert User + OrgMembership so OAuth callers (Claude Desktop / claude.ai
+    # over MCP) populate the membership graph the same way browser callers do.
+    # API-key callers don't have a user concept and skip this entirely.
+    workos_user_id = claims.get("sub")
+    user_id: int | None = None
+    if workos_user_id:
+        user = (
+            db.session.query(User)
+            .filter_by(workos_user_id=workos_user_id)
+            .one_or_none()
+        )
+        if user is None:
+            user = User(
+                workos_user_id=workos_user_id,
+                email=claims.get("email", "<unknown>"),
+            )
+            db.session.add(user)
+            db.session.flush()
+        membership = (
+            db.session.query(OrgMembership)
+            .filter_by(user_id=user.id, org_id=org.id)
+            .one_or_none()
+        )
+        if membership is None:
+            db.session.add(
+                OrgMembership(user_id=user.id, org_id=org.id, role="member")
+            )
+        user.last_seen_at = datetime.now(timezone.utc)
+        db.session.commit()
+        user_id = user.id
+
+    return Principal(
+        org_id=org.id,
+        plan=org.plan,
+        auth_method="oauth",
+        user_id=user_id,
+    )
 
 
 # --- API key issuance + verification ------------------------------------------

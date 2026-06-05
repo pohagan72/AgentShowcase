@@ -1,5 +1,5 @@
 # main_routes.py
-from flask import Blueprint, render_template, current_app, request, make_response
+from flask import Blueprint, render_template, current_app, request, make_response, url_for
 
 # Define the Blueprint
 bp = Blueprint('main', __name__)
@@ -101,6 +101,62 @@ def index(feature_key):
         **template_context
     )
 
+@bp.route('/pricing')
+def pricing():
+    """Public marketing page. Reads plan numbers live from auth.PLANS so the
+    page never drifts from the actual enforcement (plan s6.5.K.2)."""
+    from auth import PLANS
+
+    # Static descriptors (CTA target, marketing copy) keyed by plan id; the
+    # numeric limits come from PLANS so a tuning change in auth.py updates this
+    # page automatically.
+    plan_meta = {
+        "free": {
+            "title": "Free",
+            "tagline": "For evaluation and personal projects.",
+            "cta_label": "Sign up free",
+            "cta_href": url_for("auth.login"),
+            "cta_disabled": False,
+        },
+        "starter": {
+            "title": "Starter",
+            "tagline": "For small teams and side projects in production.",
+            "cta_label": "Contact us",
+            "cta_href": "mailto:paul@synzo.ai?subject=Synzo%20Starter%20plan",
+            "cta_disabled": False,
+        },
+        "pro": {
+            "title": "Pro",
+            "tagline": "For teams running Synzo as core infrastructure.",
+            "cta_label": "Contact sales",
+            "cta_href": "mailto:paul@synzo.ai?subject=Synzo%20Pro%20plan",
+            "cta_disabled": False,
+        },
+    }
+
+    tiers = []
+    for key in ("free", "starter", "pro"):
+        if key not in PLANS:
+            continue
+        tiers.append({
+            "key": key,
+            "limits": PLANS[key],
+            **plan_meta.get(key, {}),
+        })
+
+    return render_template(
+        "layout.html",
+        features=FEATURES_DATA,
+        current_feature={"name": "Pricing"},
+        active_feature_key="pricing",
+        initial_content_template="partials/_pricing_content.html",
+        DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY,
+        tiers=tiers,
+        gcs_available=False,
+        gemini_configured=False,
+    )
+
+
 @bp.route('/sitemap.xml')
 def sitemap():
     host = request.host_url.rstrip('/')
@@ -120,7 +176,16 @@ def sitemap():
                     <priority>{'1.0' if route == '/' else '0.8'}</priority>
                 </url>
             """)
-    
+
+    # /pricing is a public marketing page; index it alongside the features.
+    xml_sitemap.append(f"""
+                <url>
+                    <loc>{host}/pricing</loc>
+                    <changefreq>weekly</changefreq>
+                    <priority>0.9</priority>
+                </url>
+            """)
+
     xml_sitemap.append('</urlset>')
     response = make_response('\n'.join(xml_sitemap))
     response.headers["Content-Type"] = "application/xml"

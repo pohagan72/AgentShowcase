@@ -68,7 +68,7 @@
     .welcome-hero p {
         font-size: 1rem; /* Compact Body Text */
         color: #e2e8f0;
-        max-width: 700px; /* Wider to prevent unnecessary wrapping */
+        max-width: 720px; /* Wider to prevent unnecessary wrapping */
         margin: 0 auto;
         line-height: 1.5;
         position: relative;
@@ -76,6 +76,39 @@
         font-weight: 400;
         text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
+
+    /* Above-the-fold CTA cluster */
+    .welcome-cta-row {
+        position: relative;
+        z-index: 1;
+        margin-top: 1.5rem;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .welcome-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 20px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: transform 0.15s, background 0.15s;
+    }
+    .welcome-cta.primary {
+        background: #fff;
+        color: #0f172a;
+    }
+    .welcome-cta.primary:hover { transform: translateY(-1px); background: #f1f5f9; }
+    .welcome-cta.secondary {
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+    .welcome-cta.secondary:hover { background: rgba(255,255,255,0.18); }
 
     /* 2. SECTION HEADERS */
     .section-label {
@@ -213,10 +246,23 @@
     
     <!-- 1. HERO SECTION: Compact & Visual -->
     <div class="welcome-hero">
-        <h1>Secure AI Agents for <br>Document Intelligence</h1>
+        <h1>Document intelligence APIs for<br>agents, apps, and people.</h1>
         <p>
-            Transform unstructured data into actionable insights. Automate summarization, translation, and PII redaction with enterprise-grade privacy.
+            Summarize, translate, redact PII, analyze images, and transcribe audio &mdash; over a metered API, a Claude Desktop connector, or a no-code browser tool. One backend. Zero data retention.
         </p>
+        <div class="welcome-cta-row">
+            {% if current_user %}
+                <a class="welcome-cta primary" href="{{ url_for('auth.dashboard') }}">
+                    Go to dashboard <i class="ph ph-arrow-right"></i>
+                </a>
+                <a class="welcome-cta secondary" href="{{ url_for('main.pricing') }}">View pricing</a>
+            {% else %}
+                <a class="welcome-cta primary" href="{{ url_for('auth.login') }}">
+                    Sign up free <i class="ph ph-arrow-right"></i>
+                </a>
+                <a class="welcome-cta secondary" href="{{ url_for('main.pricing') }}">View pricing</a>
+            {% endif %}
+        </div>
     </div>
 
     <!-- 2. CORE CAPABILITIES (Navigable Cards) -->
