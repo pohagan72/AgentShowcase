@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
 import hmac
 import logging
@@ -22,7 +23,7 @@ from functools import wraps
 from typing import Callable
 
 import jwt
-from flask import current_app, g, jsonify, request
+from flask import copy_current_request_context, current_app, g, has_request_context, jsonify, request
 from jwt import PyJWKClient
 from sqlalchemy import text as sql_text
 
@@ -33,6 +34,15 @@ logger = logging.getLogger(__name__)
 
 API_KEY_PREFIX = "sk_synzo_"
 API_KEY_RANDOM_BYTES = 32  # secrets.token_urlsafe(32) -> 256 bits of entropy
+
+# Wall-clock timeout for a single metered tool invocation. CPython can't force-
+# kill the worker thread, so a runaway handler still occupies a thread until its
+# downstream call (Gemini HTTPS, file I/O) unblocks naturally. What the timeout
+# DOES guarantee: the caller gets a timely 504, the quota is refunded, the
+# usage event is recorded as 'refunded'/'timeout', and Waitress' worker thread
+# is freed to handle other requests. Tuneable via env so a misbehaving Gemini
+# day doesn't require a code change. Set to 0 to disable.
+TOOL_TIMEOUT_SECONDS = int(os.environ.get("MCP_TOOL_TIMEOUT_SECONDS", "60"))
 
 # Single source of truth for plans. Adding a tier is one line here.
 PLANS: dict[str, dict[str, int]] = {
@@ -398,7 +408,14 @@ def run_metered_tool(
         raise AuthError("Quota exhausted for this period", status=402)
 
     try:
-        result = fn()
+        result = _run_with_timeout(fn)
+    except concurrent.futures.TimeoutError:
+        _refund_quota(principal.org_id)
+        _record_usage(principal, tool_name, units, "refunded", "timeout")
+        raise AuthError(
+            f"Tool execution exceeded {TOOL_TIMEOUT_SECONDS}s timeout",
+            status=504,
+        )
     except Exception:
         _refund_quota(principal.org_id)
         _record_usage(principal, tool_name, units, "refunded", "handler_error")
@@ -406,6 +423,59 @@ def run_metered_tool(
 
     _record_usage(principal, tool_name, units, "ok")
     return result
+
+
+def _run_with_timeout(fn: Callable[[], object]) -> object:
+    """Run fn on a worker thread, blocking the caller up to TOOL_TIMEOUT_SECONDS.
+
+    Both Flask app context AND request context are propagated to the worker
+    thread. Tool handlers in mcp_tools.py read current_app.config; route
+    handlers (e.g. /api/v1/summarize) read request.files. Both need to work
+    after we move the call onto another thread.
+
+    On timeout, the Future is abandoned and the worker thread keeps running
+    until fn returns naturally — CPython can't force-kill threads. The
+    downstream Gemini HTTPS call has its own socket timeout that bounds the
+    leak.
+
+    If TOOL_TIMEOUT_SECONDS is 0 we run inline — no executor overhead. Tests
+    use this so the harness doesn't pay a thread-spawn per trivially-fast
+    stubbed handler.
+    """
+    if TOOL_TIMEOUT_SECONDS <= 0:
+        return fn()
+
+    # copy_current_request_context binds both app and request context onto
+    # whichever thread eventually calls _runner. It MUST be invoked while a
+    # request context is active (we are — every caller of run_metered_tool is
+    # inside a Flask route). Fall back to app-context-only if for some reason
+    # we're not (e.g. a future background-job caller).
+    if has_request_context():
+        _runner = copy_current_request_context(fn)
+    else:
+        app = current_app._get_current_object()
+
+        def _runner():  # type: ignore[no-redef]
+            with app.app_context():
+                return fn()
+
+    # Don't use ThreadPoolExecutor as a context manager — its __exit__ joins
+    # the worker thread, which negates the timeout (we'd block waiting for the
+    # runaway handler to finish before raising). Construct manually, shut down
+    # without waiting on timeout, let the thread leak to its natural end.
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        future = pool.submit(_runner)
+        try:
+            return future.result(timeout=TOOL_TIMEOUT_SECONDS)
+        except concurrent.futures.TimeoutError:
+            # Don't join the worker. Gemini's HTTPS timeout bounds the leak.
+            pool.shutdown(wait=False)
+            raise
+    finally:
+        # On the happy path / non-timeout error path, this joins (worker has
+        # already finished). On timeout we already called shutdown(wait=False).
+        pool.shutdown(wait=False)
 
 
 def require_auth(

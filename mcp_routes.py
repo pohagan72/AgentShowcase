@@ -60,6 +60,7 @@ MCP_AUTH_REQUIRED = -32001
 MCP_QUOTA_EXHAUSTED = -32002
 MCP_RATE_LIMITED = -32003
 MCP_UNITS_EXCEEDED = -32004
+MCP_TIMEOUT = -32005
 
 # Maps the AuthError.status values raised by run_metered_tool to JSON-RPC codes.
 _AUTH_STATUS_TO_RPC_CODE = {
@@ -67,6 +68,7 @@ _AUTH_STATUS_TO_RPC_CODE = {
     402: MCP_QUOTA_EXHAUSTED,
     413: MCP_UNITS_EXCEEDED,
     429: MCP_RATE_LIMITED,
+    504: MCP_TIMEOUT,
 }
 
 
@@ -156,7 +158,7 @@ def _handle_initialize(params: dict) -> dict:
         },
         "instructions": (
             "Synzo provides document-intelligence tools (summarize, translate, "
-            "redact PII, transcribe audio, analyze images) via authenticated "
+            "redact PII, analyze images, detect faces) via authenticated "
             "endpoints. All tools meter against the calling organization's quota."
         ),
     }
