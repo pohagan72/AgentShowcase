@@ -6,7 +6,7 @@
 >
 > WorkOS dashboard prepped 2026-06-04: redirect URIs (`/auth/callback` for localhost + synzo.ai), sign-out URIs, AuthKit hosted UI, Email+Password + Google/MS/GitHub/Apple SSO with demo creds. JWT template still needs the `org_id` claim added — that's the first task of Phase 1.5.
 >
-> **Path A (multi-tenant) confirmed** — see §3.4 for the model and §8 for why we rejected Path B. Phase 1.5 expands the schema with `users` + `org_memberships`, adds role-based access (`owner`/`admin`/`member`), and ships the signup/login/dashboard surface. Estimated 3–4 days.
+> **Path A (multi-tenant) confirmed** — see §3.4 for the model and §8 for why we rejected Path B. Phase 1.5 expands the schema with `users` + `org_memberships`, adds role-based access (`owner`/`admin`/`member`), ships the signup/login/dashboard surface, and refreshes the public site (nav sign-up button, `/pricing`, homepage hero) so synzo.ai reads as a real SaaS rather than a portfolio site with a dashboard bolted on. Estimated 4–5 days.
 >
 > **Owner:** Paul O'Hagan
 > **Goal:** Ship Synzo as an approved connector in Anthropic's MCP Connector Directory, while building the foundation for a paid metered-API business on the same backend.
@@ -216,9 +216,9 @@ PLANS = {
   - `BigInteger` PK on SQLite (test backend) — added `BigInteger().with_variant(Integer(), "sqlite")` shim; no-op on Postgres.
   - `_decrement_quota` / `_refund_quota` keyed on exact `period_start =` equality — rewrote as range matches.
 
-### Phase 1.5 — Multi-tenant auth wiring [~3–4 days, ACTIVE]
+### Phase 1.5 — Multi-tenant auth wiring + public-site polish [~4–5 days, ACTIVE]
 
-See §6.5 for the implementation-ready spec. High-level: schema migration adding `users` + `org_memberships`, the JWT template edit in WorkOS, four Flask routes (`/auth/login`, `/auth/callback`, `/auth/logout`, plus the `/dashboard/*` surface), a session helper, a small tweak to `_resolve_oauth` to populate `users`/`org_memberships` on OAuth callers, the tenant-isolation test suite, and the one-time `WORKOS_ISSUER` capture.
+See §6.5 for the implementation-ready spec. High-level: schema migration adding `users` + `org_memberships`, the JWT template edit in WorkOS, four Flask routes (`/auth/login`, `/auth/callback`, `/auth/logout`, plus the `/dashboard/*` surface), a session helper, a small tweak to `_resolve_oauth` to populate `users`/`org_memberships` on OAuth callers, the tenant-isolation test suite, the one-time `WORKOS_ISSUER` capture, **and the public-site polish** (nav sign-in/sign-up entry points, `/pricing` page, homepage hero refresh) that makes synzo.ai read as a real SaaS instead of a portfolio site with a dashboard bolted on.
 
 ### Phase 2 — MCP server [~1 week]
 - [ ] Add `mcp` (Python SDK) or `fastmcp` dependency.
@@ -563,7 +563,56 @@ The order that minimizes integration pain:
 6. `/dashboard` + key issue/revoke. Verify isolation manually.
 7. `/dashboard/members/*` + org switcher.
 8. `tests/test_auth_routes.py` + `tests/test_multi_tenant_isolation.py`.
-9. Apply migration + deploy to Railway.
+9. **Public-site polish (§6.5.K)** — once the dashboard works, wire it into the public site so visitors can discover signup.
+10. Apply migration + deploy to Railway. End-to-end smoke test in prod: sign up as a new user, get a key from the dashboard, call `/api/v1/summarize` with that key.
+
+### K. Public-site polish
+
+The goal of Phase 1.5 is "true multi-tenant SaaS that anyone can sign up for and use." That's only true end-to-end if a visitor to synzo.ai can actually find the sign-up flow. Three small additions to the existing public surface:
+
+**K.1 — Auth entry points in the layout** (~30 min)
+
+Edit [templates/layout.html](templates/layout.html) to add nav buttons in the top-right:
+
+- If no session: `[Sign in]` `[Sign up free]` — both link to `/auth/login` (AuthKit's hosted UI handles both flows on one URL).
+- If signed in: `[Dashboard]` (links to `/dashboard`) and `[Sign out]` (links to `/auth/logout`).
+- Render via a `current_user` global injected by a Flask `@app.context_processor` that reads the session.
+
+This is what makes the rest of Phase 1.5 reachable from the live site. Without it, the dashboard exists but nobody finds it.
+
+**K.2 — `/pricing` page** (~1 hour)
+
+A new public route in [main_routes.py](main_routes.py) (or a new `marketing_routes.py` if it grows) rendering `templates/pricing.html`. Three-column layout showing the `PLANS` dict tiers (`free` / `starter` / `pro`) with their actual numbers from [auth.py](auth.py):
+
+- **Free**: "50 calls/month, 20 pages per call, 10 req/min — Sign up free" → links to `/auth/login`.
+- **Starter**: "10,000 calls/month, 100 pages per call, 60 req/min — Coming soon" (no Stripe yet; the button is disabled or says "Contact us"). Email link to a real address you'll monitor.
+- **Pro**: "100,000 calls/month, 500 pages per call, 300 req/min — Contact sales" (same — Phase 4 ships actual purchase).
+
+**Crucial:** read the numbers from `PLANS` dynamically — pass the dict to the template and render the values in Jinja. That way when you tune the free tier later (open question in §7), the page updates automatically. No hardcoded marketing copy that drifts from the actual enforcement.
+
+Add `/pricing` to the nav alongside `/about`.
+
+**K.3 — Homepage hero refresh** (~3–4 hours, more if you iterate on copy)
+
+The current landing emphasizes the AI features ("look what this app does"). For SaaS positioning, the hero should pitch Synzo as a product ("Document intelligence for AI agents and apps"). Three things to update in [templates/index.html](templates/index.html) (or wherever the homepage lives):
+
+- **Headline** — one sentence pitch. Something like "Document intelligence APIs for agents, apps, and people." Don't try to write this in the plan; iterate when you get there.
+- **Subhead** — one paragraph on what it does (summarize, translate, redact PII, analyze images, transcribe) and who it's for.
+- **CTAs above the fold** — primary `[Sign up free]` → `/auth/login`, secondary `[View pricing]` → `/pricing`. Keep the existing feature demo links lower on the page; they're proof points, not the lead.
+
+The feature showcase content stays — it's good portfolio material *and* good SaaS proof-of-capability. Just stops being the headline.
+
+**What this does NOT include:**
+
+- A separate "About Synzo" company-style page (the existing `/about` covers Paul as the developer; no need for a corporate "team" page).
+- Customer logos, testimonials, case studies — we have none, so we don't fake them. SaaS sites that have these *earned* them; portfolio sites that fake them read as inauthentic.
+- A blog. Defer.
+- A status page. Defer until Phase 4 — Railway's built-in status is enough for now.
+- Real OAuth credentials for Google/Microsoft. WorkOS demo creds are fine for staging + Anthropic review; swap to real Google/MS OAuth apps before going public to actual paying customers in Phase 4.
+
+**Why this lives in Phase 1.5 and not Phase 3.5:**
+
+Phase 3.5 is submission deliverables (screenshots, listing copy, reviewer credentials). The polish here is *site* polish, not *submission* polish. We want the live site to look like a SaaS during Phase 2/3 — that's also when we'll be taking screenshots for the submission, and screenshots of a portfolio-styled homepage with no signup button would be a self-inflicted wound.
 
 ---
 
@@ -618,6 +667,9 @@ The order that minimizes integration pain:
 - `auth_routes.py` — `/auth/login`, `/auth/callback`, `/auth/logout`, `/dashboard/*`.
 - `auth_session.py` (or extension to `auth.py`) — `require_session`, `require_role`, `current_principal`.
 - `templates/dashboard.html` — minimal dashboard UI.
+- `templates/pricing.html` — three-tier pricing page reading from `PLANS`.
+- Edits to `templates/layout.html` — nav sign-in/sign-up/dashboard/sign-out buttons.
+- Edits to `templates/index.html` (or wherever the homepage hero lives) — SaaS positioning, CTAs above the fold.
 - `tests/test_auth_routes.py` — happy-path + role-gate + cross-tenant rejection.
 - `tests/test_multi_tenant_isolation.py` — the bug-prevention suite.
 
