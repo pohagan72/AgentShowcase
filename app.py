@@ -25,6 +25,7 @@ from presidio_analyzer.nlp_engine import NlpEngineProvider
 from main_routes import bp as main_bp
 from api_routes import bp as api_bp
 from auth_routes import bp as auth_bp
+from mcp_routes import bp as mcp_bp
 from features.info.routes import bp as info_bp
 from features.multimedia.routes import bp as multimedia_bp
 from features.pii_redaction.routes import bp as pii_bp
@@ -170,6 +171,7 @@ def create_app(config_class=Config):
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(mcp_bp)
     app.register_blueprint(info_bp)
     app.register_blueprint(multimedia_bp)
     app.register_blueprint(pii_bp)
@@ -180,6 +182,8 @@ def create_app(config_class=Config):
     # token doesn't apply (no cookie session, no form submission). Exempt the
     # blueprint so curl/MCP callers aren't blocked by missing X-CSRFToken.
     csrf.exempt(api_bp)
+    # /mcp is JSON-RPC over POST with Bearer auth — same exemption rationale.
+    csrf.exempt(mcp_bp)
 
     return app
 

@@ -361,20 +361,62 @@ def _json_error(message: str, status: int):
     return jsonify({"error": message}), status
 
 
+def run_metered_tool(
+    principal: Principal,
+    tool_name: str,
+    units: int,
+    fn: Callable[[], object],
+) -> object:
+    """Run a tool through the quota/rate-limit/metering pipeline without HTTP.
+
+    Same step ordering as require_auth (s5 of MCP_SUBMISSION_PLAN.md) minus the
+    identify-caller step (the caller already has a Principal in hand) and minus
+    the JSON-response translation (raises AuthError instead). MCP tool handlers
+    use this so JSON-RPC error envelopes can be built at the protocol layer.
+
+      1. Reject if units > plan's per-call cap (raises AuthError 413).
+      2. Per-org-per-minute rate limit (raises AuthError 429).
+      3. Atomic quota decrement (raises AuthError 402).
+      4. Run fn().
+      5. On error: refund quota, meter as 'refunded', re-raise.
+      6. Success: meter as 'ok', return fn's result.
+    """
+    plan = PLANS.get(principal.plan, PLANS["free"])
+    if units > plan["pages_per_call"]:
+        _record_usage(principal, tool_name, units, "error", "units_exceeded")
+        raise AuthError(
+            f"Request exceeds per-call limit ({plan['pages_per_call']} units)",
+            status=413,
+        )
+
+    if not _check_rpm(principal):
+        _record_usage(principal, tool_name, units, "error", "rate_limited")
+        raise AuthError("Rate limit exceeded", status=429)
+
+    if not _decrement_quota(principal.org_id):
+        _record_usage(principal, tool_name, units, "error", "quota_exhausted")
+        raise AuthError("Quota exhausted for this period", status=402)
+
+    try:
+        result = fn()
+    except Exception:
+        _refund_quota(principal.org_id)
+        _record_usage(principal, tool_name, units, "refunded", "handler_error")
+        raise
+
+    _record_usage(principal, tool_name, units, "ok")
+    return result
+
+
 def require_auth(
     tool_name: str,
     units_fn: Callable[..., int] | None = None,
 ):
-    """Authenticate, rate-limit, decrement quota, run handler, meter.
+    """HTTP adapter around run_metered_tool. Returns Flask JSON responses for
+    the 401/402/413/429 paths. The MCP layer uses run_metered_tool directly so
+    it can wrap errors in JSON-RPC envelopes instead.
 
-    Order matches MCP_SUBMISSION_PLAN.md s5:
-      1. Identify caller (OAuth JWT or API key).
-      2. Reject if units > plan's per-call cap (413).
-      3. Per-org-per-minute rate limit (429).
-      4. Atomic quota decrement (402).
-      5. Run handler.
-      6. On error: refund quota.
-      7. Always: insert into usage_events.
+    Order matches MCP_SUBMISSION_PLAN.md s5.
     """
 
     def decorator(fn):
@@ -395,31 +437,10 @@ def require_auth(
                     logger.warning("units_fn failed for %s: %s", tool_name, e)
                     return _json_error("Could not size request", 400)
 
-            plan = PLANS.get(principal.plan, PLANS["free"])
-            if units > plan["pages_per_call"]:
-                _record_usage(principal, tool_name, units, "error", "units_exceeded")
-                return _json_error(
-                    f"Request exceeds per-call limit ({plan['pages_per_call']} units)",
-                    413,
-                )
-
-            if not _check_rpm(principal):
-                _record_usage(principal, tool_name, units, "error", "rate_limited")
-                return _json_error("Rate limit exceeded", 429)
-
-            if not _decrement_quota(principal.org_id):
-                _record_usage(principal, tool_name, units, "error", "quota_exhausted")
-                return _json_error("Quota exhausted for this period", 402)
-
             try:
-                response = fn(*args, **kwargs)
-            except Exception:
-                _refund_quota(principal.org_id)
-                _record_usage(principal, tool_name, units, "refunded", "handler_error")
-                raise
-
-            _record_usage(principal, tool_name, units, "ok")
-            return response
+                return run_metered_tool(principal, tool_name, units, lambda: fn(*args, **kwargs))
+            except AuthError as e:
+                return _json_error(e.message, e.status)
 
         return wrapper
 
