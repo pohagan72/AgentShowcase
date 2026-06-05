@@ -1,6 +1,6 @@
 # Synzo → Anthropic MCP Connector Directory: Submission Plan
 
-> **Status as of 2026-06-05:** Phase 0, Phase 1, Phase 1.5 complete and verified live. **Phase 2 vertical slice is complete, deployed, and smoke-tested live in prod** — MCP server + `summarize_document` tool wired end-to-end through the existing auth/quota/metering pipeline, 17 new tests green locally (66/66 total), and 6 live smoke tests against `https://www.synzo.ai/mcp` confirm the JSON-RPC transport / auth gate / CORS for claude.ai / DNS-rebinding 403 / OAuth discovery (with `SYNZO_PUBLIC_URL` env var set in Railway). The remaining five tools follow the same pattern; live MCP Inspector validation is the gate to Phase 3 — see §6.
+> **Status as of 2026-06-05:** Phase 0, Phase 1, Phase 1.5 complete and verified live. **Phase 2 tool surface is now complete locally** — five tools (`summarize_document`, `translate_document`, `redact_pii`, `analyze_image`, `detect_faces`) wired end-to-end through the existing auth/quota/metering pipeline, 33 MCP tests green / 82 total. `transcribe_audio` is deferred: its underlying `features/transcription/routes.py` is a stub (no Gemini wiring), so shipping it via MCP would be misleading — Phase 3.5 use-case copy and the §6 checklist are updated to reflect 5 tools, not 6. The Phase 2 vertical slice (just `summarize_document`) is deployed and smoke-tested live on `https://www.synzo.ai/mcp`; the four new tools are local-only pending the next deploy. Live MCP Inspector validation is still the gate to Phase 3 — see §6.
 >
 > Phase 1 shipped: baseline schema (`orgs`, `api_keys`, `quotas`, `usage_events`) on Railway Postgres at Alembic `0001_baseline`; [auth.py](auth.py) with `Principal`, `require_auth`, WorkOS JWT verification, API-key resolution, atomic quota decrement, refund-on-exception; POC endpoint `POST /api/v1/summarize` verified end-to-end; failure-path test suite (402/413/429/refund/refund-clamp) green.
 >
@@ -29,7 +29,7 @@ Phase 1 turned the codebase from "Flask portfolio app" into "Flask portfolio app
 | Multi-tenant user/membership model | **IMPLEMENTED** ([db/models.py](db/models.py): `User`, `OrgMembership`; Alembic `0002_users_memberships`) |
 | WorkOS signup/login flow + dashboard | **IMPLEMENTED + VERIFIED LIVE** ([auth_routes.py](auth_routes.py), [templates/dashboard.html](templates/dashboard.html)) |
 | MCP server / protocol handlers | **IMPLEMENTED** ([mcp_routes.py](mcp_routes.py): JSON-RPC dispatch for `initialize` / `tools/list` / `tools/call` / `ping` / `notifications/initialized`) |
-| Tool registry, JSON Schemas, annotations | **IMPLEMENTED** ([mcp_tools.py](mcp_tools.py): `summarize_document` shipped; 5 more tools = mechanical clones) |
+| Tool registry, JSON Schemas, annotations | **IMPLEMENTED** ([mcp_tools.py](mcp_tools.py): 5 tools shipped — summarize, translate, redact_pii, analyze_image, detect_faces; transcribe_audio deferred — see §6 footnote) |
 | Streamable HTTP / SSE transport | **IMPLEMENTED** (Flask-native, `application/json` responses — synchronous tool shapes don't need SSE upgrade; see §6 Phase 2 footnote) |
 | `/.well-known/oauth-protected-resource` + CORS for `claude.ai` | **IMPLEMENTED** ([mcp_routes.py](mcp_routes.py): RFC 9728 discovery, Origin allowlist with claude.ai + localhost for MCP Inspector) |
 | MCP Inspector validation | MISSING — Phase 3 |
@@ -227,19 +227,20 @@ One execution-time bug fixed during deploy: `create_organization_membership` in 
 > **Architectural footnote (decided 2026-06-05):** `fastmcp` is ASGI-only; mounting it on Flask requires an asgiref bridge + uvicorn swap. The 2025-06-18 Streamable HTTP spec permits returning `Content-Type: application/json` for request/response pairs (no SSE), which is sufficient for our synchronous tool shapes. We implement the JSON-RPC envelope directly as a Flask blueprint ([mcp_routes.py](mcp_routes.py)) — no new dep, no deployment topology change. SSE can be layered later if we wire incremental-progress notifications.
 
 - [x] Stand up MCP server with Streamable HTTP transport on the same Flask app ([mcp_routes.py](mcp_routes.py): `/mcp` POST/OPTIONS, JSON-RPC 2.0, supports protocol versions 2025-06-18 + 2025-03-26).
-- [ ] Define tools (each with JSON Schema input, title, `readOnlyHint`, `destructiveHint`):
+- [x] Define tools (each with JSON Schema input, title, `readOnlyHint`, `destructiveHint`):
   - [x] `summarize_document` (annotations: idempotent, non-destructive, non-readOnly because quota is consumed)
-  - [ ] `translate_document`
-  - [ ] `redact_pii`
-  - [ ] `analyze_image`
-  - [ ] `detect_faces`
-  - [ ] `transcribe_audio`
+  - [x] `translate_document` — text-only output (markdown). Source must be .docx/.pptx/.xlsx ≤10 MB; `target_language` is a plain English name. Reuses `features.translation.routes.translate_text_util` so prompt + safety-filter behavior matches the HTMX surface. The binary-file round-trip the HTMX route does (GCS → rebuilt .docx) is intentionally skipped here — Phase 4's `/api/v1/translate` will expose it for paid callers if a customer asks.
+  - [x] `redact_pii` — Presidio-backed in-place redaction. Returns the redacted .docx/.pptx as base64 + mimetype. Uses the same `redact_word_document_pii` / `redact_powerpoint_document_pii` helpers as `/process/pii_redaction/redact`.
+  - [x] `analyze_image` — Gemini vision + dominant colors. Same `analyze_image_with_gemini` + `extract_dominant_colors` pipeline as the HTMX surface. Supports JPG/PNG/WEBP/HEIC/HEIF ≤10 MB; calls `normalize_and_resize_image` first so giant uploads don't OOM Gemini.
+  - [x] `detect_faces` — MTCNN face detection + blur/redact. `mode` ∈ {`blur`, `redact`} and `blur_strength` ∈ {1,2,3}; returns a PNG. Reuses `blur_image_opencv`. *Tool name is `detect_faces` to match the directory of capabilities, but the work is detection-then-obscure — the response is the processed image, not face bounding boxes.*
+  - [ ] ~~`transcribe_audio`~~ **deferred** — `features/transcription/routes.py` is a stub returning `f"'{filename}' would be transcribed by the AI"` with no actual Gemini wiring. Shipping a fake tool would mislead Claude + reviewers. Two options before reinstating: (a) build the real transcription pipeline (Gemini 1.5+ supports audio input natively — pass `inline_data` MIME audio/* with the file bytes and the model returns a transcript) and wire it into both `/process/transcribe` AND a new `transcribe_audio` MCP tool, or (b) drop transcription from the Synzo capability set entirely. **Recommendation: (a) before Phase 3.5 submission, since "transcribe a meeting recording" is one of the strongest use-cases for an AI-agent connector.**
 - [x] Each tool calls into the existing Flask feature code via internal function calls (not HTTP). `summarize_document` reuses `features.summarization.utils.read_text_from_file` + `analyst_agent.stream_analysis` so MCP and `/api/v1/*` paths return identical results.
 - [x] Wire each tool handler through the auth/quota/metering pipeline. Introduced `auth.run_metered_tool(principal, tool_name, units, fn)` — extracted from `require_auth` — so the MCP layer can run the same pipeline but receive `AuthError` exceptions (translated to JSON-RPC error envelopes with codes `-32001` auth / `-32002` quota / `-32003` rpm / `-32004` units) instead of Flask HTTP responses.
 - [x] **Tenancy contract for MCP tools:** every tool handler receives the resolved `Principal` (from `_identify_principal()`) and scopes any DB read/write on `principal.org_id`. Isolation test asserts Org A's MCP call records `usage_events` only against A's org_id, never B's.
 - [x] Expose `/.well-known/oauth-protected-resource` (RFC 9728) pointing at WorkOS via `WORKOS_ISSUER`. Honors `SYNZO_PUBLIC_URL` env var so the resource URL is the externally-reachable one, not Railway's internal hostname.
 - [x] CORS allowlist for `https://claude.ai` + localhost (MCP Inspector). DNS rebinding mitigation: Origin header validated on every POST before any tool runs.
-- [x] **Deploy to Railway; verify `/mcp` reachable on `synzo.ai` and discovery endpoint serves the WorkOS issuer.** Done 2026-06-05 (commits `1df8a15` + `bc54e5e` pushed to origin/master, Railway auto-deployed). Smoke tests against `https://www.synzo.ai/mcp`: initialize (200, `serverInfo.name=synzo`), tools/list (returns summarize_document + schema + annotations), tools/call without auth (JSON-RPC `-32001`), OPTIONS with `Origin: https://claude.ai` (204 + CORS allow), POST with disallowed Origin (403 + `-32600`), discovery (returns WorkOS issuer + `resource: https://www.synzo.ai`).
+- [x] **Deploy initial vertical slice to Railway; verify `/mcp` reachable on `synzo.ai` and discovery endpoint serves the WorkOS issuer.** Done 2026-06-05 (commits `1df8a15` + `bc54e5e` pushed to origin/master, Railway auto-deployed). Smoke tests against `https://www.synzo.ai/mcp`: initialize (200, `serverInfo.name=synzo`), tools/list (returns summarize_document + schema + annotations), tools/call without auth (JSON-RPC `-32001`), OPTIONS with `Origin: https://claude.ai` (204 + CORS allow), POST with disallowed Origin (403 + `-32600`), discovery (returns WorkOS issuer + `resource: https://www.synzo.ai`).
+- [ ] **Deploy the four new tools (translate / redact_pii / analyze_image / detect_faces) to Railway** and re-run smoke tests so `tools/list` returns all 5. detect_faces will warm MTCNN (TensorFlow) on first call — expect a ~10-30s cold-start latency hit per replica. Confirm `/api/v1/summarize` still works (no regression in the existing path).
   - ⚠️ **`SYNZO_PUBLIC_URL=https://www.synzo.ai` is a hard requirement in Railway service vars.** Without it, the discovery endpoint's `resource` field falls back to `request.host_url` which sees `http://` (Railway terminates TLS at the edge, forwards plaintext). RFC 9728's `resource` is used by MCP clients for OAuth audience checks; an `http://` resource breaks token validation silently — Claude Desktop/web OAuth flows will reject every JWT. Captured + set 2026-06-05.
 - [ ] Live MCP Inspector validation against the deployed URL — gate to Phase 3.
 
@@ -292,14 +293,16 @@ Non-code deliverables for the submission form. Pull together in parallel with Ph
 - [ ] Capability classification: read/write, third-party data handling, category.
 
 **Use cases**
-- [ ] Draft **≥3 use cases**, each with an example user prompt. Seeds:
-  - Summarize a long contract / produce a deck from it (`summarize_document` → PPT).
-  - Translate a foreign-language document while preserving structure.
-  - Redact PII from a batch of documents before sharing.
-  - Transcribe a meeting recording and summarize action items.
+- [ ] Draft **≥3 use cases**, each with an example user prompt. Seeds (matching what's shipped):
+  - Summarize a long contract / classify it / produce a structured summary (`summarize_document`).
+  - Translate the text content of a foreign-language docx/pptx/xlsx (`translate_document`).
+  - Redact PII from a batch of docx/pptx documents before sharing (`redact_pii`).
+  - Describe and tag an image, extract any visible text, flag safety concerns (`analyze_image`).
+  - Anonymize a group photo by blurring or redacting all detected faces (`detect_faces`).
+  - ~~Transcribe a meeting recording and summarize action items~~ — only after `transcribe_audio` is built (see §6 footnote).
 
 **Server inventory (declared on the form)**
-- [ ] Tools — comma-separated list. Reconcile with whatever ships in Phase 2.
+- [ ] Tools — `summarize_document, translate_document, redact_pii, analyze_image, detect_faces`. Add `transcribe_audio` only if the real pipeline ships before submission.
 - [ ] Resources — declare "None" for v1.
 - [ ] Prompts — declare "None" for v1.
 
@@ -652,6 +655,7 @@ Phase 3.5 is submission deliverables (screenshots, listing copy, reviewer creden
 - **Async processing.** Current Flask app processes synchronously. For MCP tools that take >30s (large PDFs), may need Celery/Redis before submission, or document timeout behavior.
 - **Free tier sizing.** `PLANS["free"]` numbers are placeholders. Tune from real Gemini costs once we have any.
 - **Tool granularity.** `summarize_document` vs `summarize_document_to_pptx`: leaning two tools for clearer annotations.
+- **transcribe_audio.** Stub today; build the real Gemini-audio path before Phase 3.5 or drop transcription from the submission. Either is defensible; "build it" is the recommended option since Anthropic's connector audience cares about meeting/audio workflows.
 - **Owner transfer flow.** Phase 1.5 ships role updates but not owner transfer. Likely a `/dashboard/transfer-ownership` route that updates both memberships in one transaction. Defer to Phase 4 unless a real reviewer ask forces it earlier.
 
 ---
@@ -709,7 +713,7 @@ Phase 3.5 is submission deliverables (screenshots, listing copy, reviewer creden
 1. Re-read this file end-to-end — the top-of-file status line tells you where we left off.
 2. Check the Anthropic MCP spec page for any updates since the last edit date — auth and transport specs evolve.
 3. Confirm `PLANS` numbers still make sense given current Gemini pricing.
-4. As of 2026-06-05: Phase 0, Phase 1, and Phase 1.5 are done. **Phase 2 (MCP server) is the active phase** — see §6's Phase 2 checklist. First concrete action is adding the `mcp` (or `fastmcp`) dependency and standing up an MCP server with Streamable HTTP transport mounted on the same Flask app.
+4. As of 2026-06-05: Phase 0, Phase 1, Phase 1.5 are done. **Phase 2 tool surface is complete locally (5 tools, 82/82 tests green); only the initial slice is deployed.** Next concrete actions, in order: (a) deploy `mcp_tools.py` with all 5 tools to Railway, (b) re-smoke-test `tools/list` on `https://www.synzo.ai/mcp`, (c) Phase 2.5.A (waitress threads + per-tool timeout — see [[feedback-synzo-concurrency-ceiling]]), (d) decide on `transcribe_audio` (build real pipeline or drop from submission), (e) MCP Inspector validation against the deployed URL — gate to Phase 3.
 5. WorkOS staging credentials + `WORKOS_ISSUER` live in local `.env` (never committed) and in Railway service vars. Confirm they still work before relying on them.
 6. The auth/quota/metering pipeline ([auth.py](auth.py), [auth_routes.py](auth_routes.py)) and the tenant-isolation test suite ([tests/test_multi_tenant_isolation.py](tests/test_multi_tenant_isolation.py)) are the foundation Phase 2's MCP tools sit on top of. Every MCP tool handler must (a) use `@require_auth` (b) read `Principal.org_id` from `g.principal` and scope DB reads/writes on it, and (c) get parallel cross-tenant isolation tests.
 7. The audit prompt from the original conversation can be re-run any time against the repo to track progress against Anthropic's requirements matrix.
