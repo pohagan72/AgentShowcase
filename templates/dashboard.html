@@ -64,8 +64,51 @@
         {% if newly_issued_key %}
         <div class="key-banner">
             <strong>New API key</strong> &mdash; copy it now. We don&rsquo;t store the raw key and it won&rsquo;t be shown again.
-            <code>{{ newly_issued_key }}</code>
+            <div style="display:flex; gap:8px; align-items:stretch; margin-top:6px;">
+                <code id="new-key-value" style="flex:1; margin-top:0;">{{ newly_issued_key }}</code>
+                <button type="button"
+                        class="secondary"
+                        id="copy-key-btn"
+                        data-clipboard-target="#new-key-value"
+                        style="white-space:nowrap;">
+                    <i class="ph ph-copy"></i> Copy
+                </button>
+            </div>
         </div>
+        <script>
+            (function () {
+                var btn = document.getElementById('copy-key-btn');
+                if (!btn) return;
+                btn.addEventListener('click', function () {
+                    var value = document.getElementById('new-key-value').textContent.trim();
+                    var done = function () {
+                        var original = btn.innerHTML;
+                        btn.innerHTML = '<i class="ph ph-check"></i> Copied';
+                        setTimeout(function () { btn.innerHTML = original; }, 1500);
+                    };
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(value).then(done).catch(function () {
+                            // Fallback for browsers that block clipboard API.
+                            var ta = document.createElement('textarea');
+                            ta.value = value;
+                            document.body.appendChild(ta);
+                            ta.select();
+                            try { document.execCommand('copy'); } catch (e) {}
+                            document.body.removeChild(ta);
+                            done();
+                        });
+                    } else {
+                        var ta = document.createElement('textarea');
+                        ta.value = value;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        try { document.execCommand('copy'); } catch (e) {}
+                        document.body.removeChild(ta);
+                        done();
+                    }
+                });
+            })();
+        </script>
         {% endif %}
 
         <!-- Workspace -->
