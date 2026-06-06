@@ -401,7 +401,10 @@ def run_metered_tool(
 
     if not _check_rpm(principal):
         _record_usage(principal, tool_name, units, "error", "rate_limited")
-        raise AuthError("Rate limit exceeded", status=429)
+        raise AuthError(
+            f"Rate limit exceeded ({plan['rpm']} requests/min)",
+            status=429,
+        )
 
     if not _decrement_quota(principal.org_id):
         _record_usage(principal, tool_name, units, "error", "quota_exhausted")
