@@ -177,9 +177,16 @@ def test_tools_list_advertises_summarize_document_with_schema_and_annotations(cl
 # --- tools/call: auth gating --------------------------------------------------
 
 
-def test_tools_call_without_auth_returns_jsonrpc_auth_error(client, fake_gemini):
-    """No Authorization header -> JSON-RPC error with our auth-required code,
-    not an HTTP 401. JSON-RPC envelope still returns 200 (transport succeeded)."""
+def test_tools_call_without_auth_returns_401_with_www_authenticate(client, fake_gemini):
+    """No Authorization header on tools/call -> HTTP 401 + WWW-Authenticate.
+
+    Per MCP authorization spec (2025-06-18 §2.1) and RFC 9728, the resource
+    server MUST return 401 with a WWW-Authenticate header pointing at the
+    protected-resource-metadata URL. Without 401, MCP clients (notably
+    claude.ai) don't know to start OAuth — they render the JSON-RPC error
+    body as a tool failure instead. The JSON-RPC envelope still carries our
+    private -32001 code so non-spec callers can branch on it too.
+    """
     resp = _rpc(client, "tools/call", {
         "name": "summarize_document",
         "arguments": {
@@ -187,11 +194,43 @@ def test_tools_call_without_auth_returns_jsonrpc_auth_error(client, fake_gemini)
             "content_base64": base64.b64encode(b"%PDF-1.4 fake").decode(),
         },
     })
-    # Transport succeeded; protocol-level error is in the envelope.
+    # HTTP 401 — the spec-required transport-level signal.
+    assert resp.status_code == 401
+
+    # WWW-Authenticate must be present, identify Bearer, and carry the
+    # resource_metadata URL pointer that lets the client discover our auth
+    # server.
+    www_auth = resp.headers.get("WWW-Authenticate", "")
+    assert www_auth.startswith("Bearer "), www_auth
+    assert "resource_metadata=" in www_auth
+    assert "/.well-known/oauth-protected-resource" in www_auth
+
+    # JSON-RPC envelope still parses; -32001 is our private code for the
+    # same condition so non-browser clients can branch on it.
     body = resp.get_json()
     assert "error" in body
-    # MCP_AUTH_REQUIRED = -32001
-    assert body["error"]["code"] == -32001
+    assert body["error"]["code"] == -32001  # MCP_AUTH_REQUIRED
+
+
+def test_tools_call_without_auth_exposes_www_authenticate_via_cors(client, fake_gemini):
+    """Browser clients (claude.ai) only see WWW-Authenticate on cross-origin
+    responses if the server lists it under Access-Control-Expose-Headers.
+    Pin this so future CORS edits don't silently break the OAuth bootstrap."""
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {
+                "filename": "x.pdf",
+                "content_base64": base64.b64encode(b"%PDF-1.4 fake").decode(),
+            },
+        },
+        headers={"Origin": "https://claude.ai"},
+    )
+    assert resp.status_code == 401
+    exposed = resp.headers.get("Access-Control-Expose-Headers", "")
+    assert "WWW-Authenticate" in exposed, exposed
 
 
 def test_tools_call_unknown_tool_returns_method_not_found(client, app, fake_gemini):

@@ -108,7 +108,11 @@ def _cors_headers(origin: str) -> dict[str, str]:
             "Authorization, Content-Type, Accept, MCP-Protocol-Version, "
             "Mcp-Session-Id, Last-Event-ID"
         ),
-        "Access-Control-Expose-Headers": "Mcp-Session-Id, MCP-Protocol-Version",
+        # WWW-Authenticate must be exposed so browser clients (claude.ai) can
+        # read it on 401 responses. Without exposure the browser strips it,
+        # the MCP client never sees the resource_metadata pointer, and the
+        # OAuth flow never starts — the failure mode that lost a half day.
+        "Access-Control-Expose-Headers": "Mcp-Session-Id, MCP-Protocol-Version, WWW-Authenticate",
         "Access-Control-Max-Age": "86400",
     }
 
@@ -130,6 +134,18 @@ def _json_with_cors(payload: dict, status: int = 200):
     for header, value in _cors_headers(request.headers.get("Origin", "")).items():
         resp.headers[header] = value
     return resp
+
+
+def _resource_metadata_url() -> str:
+    """Absolute URL of our RFC 9728 protected-resource-metadata document.
+
+    Used in the WWW-Authenticate header on 401 responses so MCP clients can
+    discover the auth server. Matches the resource origin advertised by the
+    discovery endpoint itself (oauth_protected_resource below), which is
+    keyed on SYNZO_PUBLIC_URL so it survives Railway's edge TLS termination
+    rewriting request.host_url to http://."""
+    base = os.environ.get("SYNZO_PUBLIC_URL", request.host_url.rstrip("/"))
+    return f"{base}/.well-known/oauth-protected-resource"
 
 
 # --- Method handlers -----------------------------------------------------------
@@ -338,6 +354,19 @@ def mcp_post():
         result, error = _handle_tools_call(params)
         if error is not None:
             message, code = error
+            # Per MCP authorization spec (2025-06-18 §2.1) and RFC 9728: an
+            # unauthenticated tools/call MUST return HTTP 401 with a
+            # WWW-Authenticate header pointing at the protected-resource-
+            # metadata URL. Without this, MCP clients (including claude.ai)
+            # don't know to initiate the OAuth flow — they read the body's
+            # JSON-RPC error and surface it to the user as a tool failure.
+            if code == MCP_AUTH_REQUIRED:
+                resp = _json_with_cors(_rpc_error(request_id, code, message), status=401)
+                resp.headers["WWW-Authenticate"] = (
+                    f'Bearer realm="synzo", '
+                    f'resource_metadata="{_resource_metadata_url()}"'
+                )
+                return resp
             return _json_with_cors(_rpc_error(request_id, code, message))
         return _json_with_cors(_rpc_response(request_id, result))
 
