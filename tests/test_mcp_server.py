@@ -1077,3 +1077,160 @@ def test_mcp_new_tools_record_usage_against_caller_org_only(
         tools_recorded = sorted(e.tool for e in a_events)
         assert tools_recorded == sorted(c[0] for c in calls)
         assert b_events == []
+
+
+# --- OAuth bearer path through /mcp tools/call --------------------------------
+#
+# The cookie-session OAuth flow is exercised in test_auth_routes.py. The raw
+# JWT verification in _resolve_oauth is exercised in test_oauth_resolver.py.
+# These tests prove the THIRD link in the chain: that a bearer token which
+# isn't an API key reaches _resolve_oauth and produces a Principal that flows
+# through run_metered_tool the same way the API-key path does. This is the
+# path Anthropic's reviewer will exercise via claude.ai.
+
+
+def _stub_oauth_for(monkeypatch, *, principals_by_token):
+    """Stub auth._resolve_oauth so a chosen bearer string yields a chosen
+    Principal without us having to mint signed RS256 tokens at this layer.
+
+    The signed-token path is covered exhaustively in test_oauth_resolver.py;
+    here we're testing the JSON-RPC plumbing.
+    """
+    import auth
+
+    def fake_resolve(token: str):
+        try:
+            return principals_by_token[token]
+        except KeyError as e:
+            raise auth.AuthError("Invalid token: stubbed", status=401) from e
+
+    monkeypatch.setattr(auth, "_resolve_oauth", fake_resolve)
+
+
+def test_tools_call_with_oauth_bearer_meters_against_resolved_org(
+    client, app, fake_gemini, monkeypatch
+):
+    """Bearer token that is NOT an API key (no sk_ prefix) routes to
+    _resolve_oauth. The returned Principal threads through run_metered_tool
+    and the usage_events row records auth_method='oauth'."""
+    from auth import Principal
+
+    org = _seed_org(app, name="mcp_oauth_happy")
+    token = "oauth.bearer.token"
+    principal = Principal(org_id=org["org_id"], plan="free", auth_method="oauth")
+    _stub_oauth_for(monkeypatch, principals_by_token={token: principal})
+
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {
+                "filename": "doc.pdf",
+                "content_base64": base64.b64encode(b"%PDF-1.4 oauth").decode(),
+            },
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "error" not in body, body
+    assert body["result"]["isError"] is False
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        assert len(events) == 1
+        assert events[0].status == "ok"
+        assert events[0].tool == "summarize_document"
+        # The critical assertion: the OAuth path metered the call under the
+        # right auth_method. Without this, audit / billing can't distinguish
+        # MCP traffic from /api/v1/* traffic.
+        assert events[0].auth_method == "oauth"
+        # API-key callers have an api_key_id; OAuth callers should not.
+        assert events[0].api_key_id is None
+
+
+def test_tools_call_with_invalid_oauth_bearer_returns_401_and_does_not_meter(
+    client, app, fake_gemini, monkeypatch
+):
+    """An OAuth bearer that _resolve_oauth rejects should surface as HTTP 401
+    with WWW-Authenticate (same as a missing header) — NOT a 200 with a
+    JSON-RPC error envelope. Otherwise claude.ai treats it as a tool failure
+    and never re-runs OAuth. Also: no usage_events row should be written for
+    a request that never identified a principal."""
+    org = _seed_org(app, name="mcp_oauth_reject")
+    # The principals_by_token dict is empty so any bearer raises AuthError.
+    _stub_oauth_for(monkeypatch, principals_by_token={})
+
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {
+                "filename": "x.pdf",
+                "content_base64": base64.b64encode(b"%PDF-1.4 rejected").decode(),
+            },
+        },
+        headers={"Authorization": "Bearer expired.or.bad.jwt"},
+    )
+
+    assert resp.status_code == 401, resp.get_json()
+    www_auth = resp.headers.get("WWW-Authenticate", "")
+    assert www_auth.startswith("Bearer "), www_auth
+    assert "/.well-known/oauth-protected-resource" in www_auth
+
+    body = resp.get_json()
+    assert body["error"]["code"] == -32001  # MCP_AUTH_REQUIRED
+
+    # Nothing should have been metered against any org — we never got a
+    # principal in the first place.
+    with app.app_context():
+        all_events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        assert all_events == []
+
+
+def test_mcp_oauth_path_records_usage_against_caller_org_only(
+    client, app, fake_gemini, monkeypatch
+):
+    """Tenancy invariant (§3.4) for the OAuth path. The existing cross-tenant
+    test uses API keys only; this one proves the same isolation holds when
+    callers identify via OAuth bearer (the path Anthropic's reviewer hits).
+    If this ever flips, multi-tenancy is broken at the MCP+OAuth seam."""
+    from auth import Principal
+
+    a = _seed_org(app, name="mcp_oauth_iso_a")
+    b = _seed_org(app, name="mcp_oauth_iso_b")
+    token_a = "oauth.token.for.a"
+    token_b = "oauth.token.for.b"
+    _stub_oauth_for(
+        monkeypatch,
+        principals_by_token={
+            token_a: Principal(org_id=a["org_id"], plan="free", auth_method="oauth"),
+            token_b: Principal(org_id=b["org_id"], plan="free", auth_method="oauth"),
+        },
+    )
+
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {
+                "filename": "a.pdf",
+                "content_base64": base64.b64encode(b"%PDF-1.4 a-only").decode(),
+            },
+        },
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["result"]["isError"] is False
+
+    with app.app_context():
+        a_events = db.session.query(UsageEvent).filter_by(org_id=a["org_id"]).all()
+        b_events = db.session.query(UsageEvent).filter_by(org_id=b["org_id"]).all()
+        assert len(a_events) == 1
+        assert a_events[0].auth_method == "oauth"
+        assert a_events[0].tool == "summarize_document"
+        assert b_events == []
