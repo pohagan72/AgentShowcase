@@ -29,6 +29,7 @@ python-docx
 python-dotenv
 python-pptx
 pillow-heif
+PyYAML
 requests
 # scikit-learn
 spacy

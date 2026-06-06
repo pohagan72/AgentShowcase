@@ -27,6 +27,7 @@ from api_routes import bp as api_bp
 from auth_routes import bp as auth_bp
 from mcp_routes import bp as mcp_bp
 from docs_routes import bp as docs_bp
+from docs_renderer import build_tools_table_html
 from features.info.routes import bp as info_bp
 from features.multimedia.routes import bp as multimedia_bp
 from features.pii_redaction.routes import bp as pii_bp
@@ -167,6 +168,12 @@ def create_app(config_class=Config):
         app.config['PRESIDIO_ANALYZER_AVAILABLE'] = True
     except Exception as e:
         logging.error(f"Global: Failed to initialize Presidio: {e}")
+
+    # 4b. Build the /docs Available-tools table once. Joins mcp_tools.TOOLS
+    # against docs/tool_examples.yaml; raises DocsExampleDrift if they don't
+    # match. The hard-fail at startup is the guardrail that keeps the public
+    # docs page from silently drifting from the live registered tool surface.
+    app.config["DOCS_TOOLS_TABLE_HTML"] = build_tools_table_html()
 
     # 5. Register Blueprints
     app.register_blueprint(main_bp)

@@ -10,14 +10,15 @@
 #
 # Phase 3 status: routes + footer + minimal stubs only. Content fill-in tracked
 # in MCP_SUBMISSION_PLAN.md §6 Phase 3.
-from flask import Blueprint, render_template
+from flask import Blueprint, current_app, render_template
+from markupsafe import Markup
 
 from main_routes import FEATURES_DATA, DEFAULT_FEATURE_KEY
 
 bp = Blueprint("docs", __name__)
 
 
-def _render_static_page(active_key: str, partial: str, page_name: str):
+def _render_static_page(active_key: str, partial: str, page_name: str, **extra):
     """Shared shell render for the four static public pages."""
     return render_template(
         "layout.html",
@@ -28,12 +29,21 @@ def _render_static_page(active_key: str, partial: str, page_name: str):
         DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY,
         gcs_available=False,
         gemini_configured=False,
+        **extra,
     )
 
 
 @bp.route("/docs")
 def docs():
-    return _render_static_page("docs", "partials/_docs_content.html", "Docs")
+    # Pre-rendered at create_app() startup from mcp_tools.TOOLS x docs/tool_examples.yaml;
+    # wrap as Markup so Jinja emits the raw HTML instead of escaping it.
+    tools_table_rows = Markup(current_app.config.get("DOCS_TOOLS_TABLE_HTML", ""))
+    return _render_static_page(
+        "docs",
+        "partials/_docs_content.html",
+        "Docs",
+        tools_table_rows=tools_table_rows,
+    )
 
 
 @bp.route("/privacy")

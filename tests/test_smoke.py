@@ -41,6 +41,21 @@ def test_submission_pages_render_with_hero(client, path, hero):
     assert hero in resp.data, f"{path} did not contain hero heading {hero!r}"
 
 
+def test_docs_page_lists_every_registered_tool(client):
+    """The /docs Available-tools table is rendered at create_app() startup from
+    mcp_tools.TOOLS x docs/tool_examples.yaml. Hitting /docs must surface every
+    tool's name and title; if any are missing, either the renderer dropped a row
+    or the YAML guardrail let drift through silently."""
+    from mcp_tools import TOOLS
+
+    resp = client.get("/docs")
+    assert resp.status_code == 200
+    body = resp.data
+    for name, spec in TOOLS.items():
+        assert name.encode() in body, f"/docs missing tool name {name}"
+        assert spec.title.encode() in body, f"/docs missing tool title {spec.title!r}"
+
+
 def test_global_footer_links_present_on_homepage(client):
     """Every public page renders the global footer with the four submission-form
     links. If a deploy ever drops the footer (e.g. a layout.html refactor), the

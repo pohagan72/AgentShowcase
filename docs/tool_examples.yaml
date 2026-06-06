@@ -1,0 +1,35 @@
+# docs/tool_examples.yaml
+#
+# Sidecar for the /docs "Available tools" section. Joined at create_app() time
+# against the live MCP registry in mcp_tools.TOOLS:
+#   - Every tool in TOOLS MUST have an entry here.
+#   - Every entry here MUST correspond to a tool in TOOLS.
+#   - Mismatches raise at startup so the public docs cannot silently drift from
+#     the registered tool surface.
+#
+# Each entry has:
+#   example_prompt: a one-line natural-language prompt a Claude user can paste
+#     verbatim once Synzo is connected. Should map to a single tools/call.
+#
+# When you add or rename a tool in mcp_tools.TOOLS, update this file in the
+# same commit.
+
+summarize_document:
+  example_prompt: |
+    Summarize the attached quarterly report and pull out the three biggest risks.
+
+translate_document:
+  example_prompt: |
+    Translate the attached product brief into Spanish.
+
+redact_pii:
+  example_prompt: |
+    Redact all personal information from the attached HR letter and send me the cleaned version.
+
+analyze_image:
+  example_prompt: |
+    Describe what's in the attached photo, list any visible text, and tell me the dominant colors.
+
+detect_faces:
+  example_prompt: |
+    Blur every face in the attached photo before I share it.
