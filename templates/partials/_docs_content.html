@@ -75,9 +75,9 @@
                 <tr><th>Tool</th><th>Description</th><th>Example prompt</th></tr>
             </thead>
             <tbody>
-                <!-- Phase 3 next step: render rows from mcp_tools.TOOLS × docs/tool_examples.yaml,
-                     cache once at create_app() startup, raise on missing examples. -->
-                <tr><td colspan="3" style="text-align:center; color:#94a3b8; font-style:italic;">Tools table renders from the live MCP registry — coming in next iteration.</td></tr>
+                {# Rendered once at create_app() startup from mcp_tools.TOOLS x docs/tool_examples.yaml.
+                   See docs_renderer.py — drift between the registry and the YAML raises at boot. #}
+                {{ tools_table_rows }}
             </tbody>
         </table>
     </section>
