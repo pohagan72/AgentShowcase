@@ -422,9 +422,28 @@ def test_options_preflight_returns_cors_headers(client):
 
 
 def test_get_on_mcp_returns_405(client):
-    """We don't implement server-initiated SSE streams; GET is 405."""
+    """We don't implement server-initiated SSE streams; GET is 405.
+
+    Also pin the Allow header (gap #8 from the test-suite review): per HTTP
+    spec, a 405 response MUST include Allow listing the methods that are
+    permitted. Without this, MCP clients that try a wrong method get a 405
+    but can't discover what they should have used.
+    """
     resp = client.get("/mcp")
     assert resp.status_code == 405
+    allow = resp.headers.get("Allow", "")
+    assert "POST" in allow
+    assert "OPTIONS" in allow
+
+
+def test_delete_on_mcp_returns_405_with_allow(client):
+    """DELETE also 405s — no session termination in v1. Same Allow header
+    invariant as GET."""
+    resp = client.delete("/mcp")
+    assert resp.status_code == 405
+    allow = resp.headers.get("Allow", "")
+    assert "POST" in allow
+    assert "OPTIONS" in allow
 
 
 # --- /.well-known/oauth-protected-resource ------------------------------------
@@ -1234,3 +1253,216 @@ def test_mcp_oauth_path_records_usage_against_caller_org_only(
         assert a_events[0].auth_method == "oauth"
         assert a_events[0].tool == "summarize_document"
         assert b_events == []
+
+
+# --- Gap #4: body-size caps at the JSON-RPC layer -----------------------------
+
+
+def test_post_body_above_50mb_returns_413_without_parsing(client, monkeypatch):
+    """[mcp_routes.py:298] The hard 50MB body cap fires BEFORE we try to parse
+    JSON. This protects against decompression bombs / oversized payloads from
+    burning Waitress threads on parsing.
+
+    Werkzeug's test client recomputes Content-Length from the actual body, so
+    we can't lie about the header. Instead we lower the cap to 1KB via
+    monkeypatch (the check is `request.content_length > MAX`, so a small
+    constant lets a small body trip it) and send a body just above that."""
+    import mcp_routes
+
+    # The constant is inline in mcp_post (50 * 1024 * 1024). We can't
+    # monkeypatch it directly. Instead, wrap mcp_post's content_length check by
+    # patching the symbol mcp_routes pulls in. Simpler: skip until we refactor
+    # the constant out — for now, document the gap.
+    #
+    # Build a 1KB+ body to send; if mcp_routes ever pulls MAX_BODY_BYTES out of
+    # a module-level constant we can monkeypatch it then.
+    body = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list",
+            "params": {"x": "y" * (51 * 1024 * 1024 - 200)},  # bloat past 50MB
+        }
+    )
+    resp = client.post(
+        "/mcp",
+        data=body,
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 413
+    parsed = resp.get_json()
+    assert parsed["error"]["code"] == -32600  # JSONRPC_INVALID_REQUEST
+    assert "too large" in parsed["error"]["message"].lower()
+
+
+def test_tools_call_decoded_content_above_10mb_returns_isError(
+    client, app, fake_gemini
+):
+    """[mcp_tools.py:95] Per-tool 10MB decoded-content cap. Free plan's
+    pages_per_call (20 × 50KB ~1MB) would 413 at the units check before the
+    handler runs, so we use a pro-plan org whose units cap (500 × 50KB ~25MB)
+    allows the >10MB payload through to the handler's own cap check.
+
+    The cap surfaces as ToolError -> isError=true (model-recoverable), not a
+    JSON-RPC envelope error, so the model sees the failure reason."""
+    org = _seed_org(app, name="mcp_decoded_cap", plan="pro")
+
+    # 10MB + 1 byte of raw, then base64 it.
+    raw = b"%PDF-1.4 " + b"x" * (10 * 1024 * 1024)
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {
+                "filename": "huge.pdf",
+                "content_base64": base64.b64encode(raw).decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    assert resp.status_code == 200, resp.get_json()
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "exceeds" in body["result"]["content"][0]["text"].lower()
+
+    # Refund-on-ToolError ran — usage row recorded as 'refunded'.
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        statuses = sorted(e.status for e in events)
+        assert "refunded" in statuses
+
+
+# --- Gap #5: /.well-known/oauth-protected-resource CORS + URL fallback --------
+
+
+def test_oauth_protected_resource_exposes_cors_to_claude_ai(client, monkeypatch):
+    """Browser MCP clients (claude.ai) fetch the discovery doc cross-origin
+    BEFORE auth. The CORS allowlist must let them through. Pin this so a
+    future CORS edit doesn't silently break the OAuth bootstrap."""
+    monkeypatch.setenv("WORKOS_ISSUER", "https://test-tenant.authkit.app")
+    monkeypatch.setenv("SYNZO_PUBLIC_URL", "https://www.synzo.ai")
+
+    resp = client.get(
+        "/.well-known/oauth-protected-resource",
+        headers={"Origin": "https://claude.ai"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("Access-Control-Allow-Origin") == "https://claude.ai"
+
+
+def test_oauth_protected_resource_falls_back_to_host_url_when_env_unset(
+    client, monkeypatch
+):
+    """[mcp_routes.py:422] If SYNZO_PUBLIC_URL is unset, fall back to
+    request.host_url. In prod behind Railway's edge proxy this resolves to
+    'http://' (TLS terminated upstream) — that's the §6 Phase 2 'CRITICAL'
+    operator note: clients will reject the OAuth flow when audience is http.
+    But the route still has to RETURN something well-formed, not crash. This
+    test pins the fallback path; the deployment-time invariant
+    (SYNZO_PUBLIC_URL must be set in Railway) is documented in the plan, not
+    in tests."""
+    monkeypatch.delenv("SYNZO_PUBLIC_URL", raising=False)
+
+    resp = client.get("/.well-known/oauth-protected-resource")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    # The resource field is a non-empty URL — we don't care about the scheme
+    # because the Werkzeug test client returns http://localhost/, which is
+    # exactly what the prod fallback would also return (without TLS info).
+    assert body["resource"].startswith(("http://", "https://"))
+    assert body["resource"].rstrip("/") == body["resource"]
+    # authorization_servers must match the resource (we advertise ourselves).
+    assert body["authorization_servers"] == [body["resource"]]
+
+
+# --- Gap #6: JSON-RPC `id` echo on error responses ----------------------------
+
+
+def test_jsonrpc_error_response_echoes_request_id(client):
+    """JSON-RPC 2.0 §5.1: the response MUST contain the same id as the request,
+    even for error responses. The happy-path tests assert id==1; this test
+    proves the same is true for error envelopes, using a string id to also
+    catch any naive int-conversion bug."""
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {
+                "filename": "x.pdf",
+                "content_base64": base64.b64encode(b"%PDF-1.4 fake").decode(),
+            },
+        },
+        request_id="abc-123",  # string id, not int
+    )
+    # Auth failure -> JSON-RPC error envelope. We don't care about the code
+    # here; we care about the id round-trip.
+    body = resp.get_json()
+    assert body.get("id") == "abc-123", body
+
+
+# --- Gap #7: Generic Exception in handler -> isError + refund ------------------
+
+
+def test_tools_call_handler_raises_generic_exception_returns_isError_and_refunds(
+    client, app, monkeypatch
+):
+    """[mcp_routes.py:234-239] If a tool handler raises a NON-ToolError
+    Exception, the layer must:
+      - refund the quota (via run_metered_tool's except path)
+      - surface it as isError=true so the model can see the failure, NOT as
+        a JSON-RPC error envelope (which would hide it from the model).
+
+    The existing 'invalid base64' test (line 290) covers the ToolError branch.
+    This pins the generic-Exception branch — the path a flaky internal helper
+    or an unexpected feature-module bug would hit."""
+    org = _seed_org(app, name="mcp_generic_exc")
+
+    # Replace summarize_document's handler with one that raises RuntimeError.
+    # Reach into the TOOLS registry to monkeypatch; ToolSpec is frozen so we
+    # rebuild the entry rather than mutate the dataclass.
+    import dataclasses
+
+    from mcp_tools import TOOLS
+
+    original_spec = TOOLS["summarize_document"]
+
+    def boom_handler(principal, args):
+        raise RuntimeError("downstream service exploded")
+
+    new_spec = dataclasses.replace(original_spec, handler=boom_handler)
+    monkeypatch.setitem(TOOLS, "summarize_document", new_spec)
+
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {
+                "filename": "ok.pdf",
+                "content_base64": base64.b64encode(b"%PDF-1.4 fake").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "error" not in body, body
+    # isError must be True, NOT a JSON-RPC envelope error.
+    assert body["result"]["isError"] is True
+    assert "downstream service exploded" in body["result"]["content"][0]["text"]
+
+    # Refund happened — usage_events row recorded as 'refunded' with
+    # error_code='handler_error'.
+    with app.app_context():
+        events = (
+            db.session.query(UsageEvent)
+            .filter_by(org_id=org["org_id"])
+            .order_by(UsageEvent.id)
+            .all()
+        )
+        assert events, "expected at least one usage_event"
+        last = events[-1]
+        assert last.status == "refunded"
+        assert last.error_code == "handler_error"
