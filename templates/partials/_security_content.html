@@ -1,70 +1,105 @@
 <!-- templates/partials/_security_content.html
-     Phase 3 STUB. Public security disclosure page backing security@synzo.ai,
-     per Anthropic Software Directory Terms ("implement and maintain a mechanism
-     for receiving reports of security vulnerabilities"). Pairs with SECURITY.md
-     in the repo (private), which carries the same content for developers.
+     Public security disclosure page backing security@synzo.ai, per Anthropic
+     Software Directory Terms ("implement and maintain a mechanism for receiving
+     reports of security vulnerabilities"). Pairs with SECURITY.md (Phase 3
+     follow-up). Styled to match the app design system.
 -->
 
 <style>
-    .sec-wrap { max-width: 760px; margin: 0 auto; padding: 0 1rem; }
-    .sec-hero { text-align: center; padding: 2rem 1rem 1.5rem; }
-    .sec-hero h1 { font-size: 1.8rem; font-weight: 800; margin: 0 0 0.5rem; color: var(--text-primary); }
-    .sec-hero p { font-size: 1rem; color: var(--text-secondary); }
+    .sec-wrap { max-width: 820px; margin: 0 auto; }
 
-    .sec-section { padding: 1.5rem 0; border-top: 1px solid #e2e8f0; }
-    .sec-section:first-of-type { border-top: none; }
-    .sec-section h2 { font-size: 1.2rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--text-primary); }
-    .sec-section p, .sec-section li { font-size: 0.95rem; line-height: 1.55; color: var(--text-primary); }
-    .sec-section ul, .sec-section ol { padding-left: 1.5rem; margin: 0.5rem 0 1rem; }
-    .sec-section a { color: var(--brand-primary, #4f46e5); }
+    .sec-hero { text-align: center; padding: 1rem 0 1.75rem; }
+    .sec-hero h1 {
+        font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em;
+        margin: 0 0 0.5rem; color: var(--text-primary);
+    }
+    .sec-hero .tagline { font-size: 1rem; color: var(--text-secondary); }
 
-    .sec-mailbox { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 1.25rem; text-align: center; margin: 1rem 0; }
-    .sec-mailbox a { font-size: 1.2rem; font-weight: 700; color: #92400e; text-decoration: none; }
+    .sec-card {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        padding: 1.5rem 1.85rem;
+        margin-bottom: 1.25rem;
+    }
+    .sec-card h2 {
+        font-size: 1.2rem; font-weight: 700; margin: 0 0 0.65rem;
+        color: var(--text-primary); letter-spacing: -0.01em;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .sec-card h2 i { color: var(--brand-primary); font-size: 1.2rem; }
+    .sec-card p, .sec-card li {
+        font-size: 0.95rem; line-height: 1.6; color: var(--text-primary);
+    }
+    .sec-card ul, .sec-card ol { padding-left: 1.5rem; margin: 0.5rem 0 1rem; }
+    .sec-card a { color: var(--brand-primary); text-decoration: none; }
+    .sec-card a:hover { text-decoration: underline; }
+    .sec-card code {
+        background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
+        font-size: 0.85em; color: #334155;
+        font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
+    }
+
+    /* Mailbox callout — same brand-tinted treatment as /support for consistency */
+    .sec-mailbox {
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(124, 58, 237, 0.06));
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 1.4rem 1.5rem;
+        text-align: center;
+        margin: 0.5rem 0;
+    }
+    .sec-mailbox a {
+        font-size: 1.25rem; font-weight: 700; color: var(--brand-primary);
+        text-decoration: none; letter-spacing: -0.01em;
+    }
+    .sec-mailbox a:hover { text-decoration: underline; }
 </style>
 
 <div class="sec-wrap">
 
     <header class="sec-hero">
         <h1>Security Disclosure</h1>
-        <p>How to report a security issue in Synzo.</p>
+        <p class="tagline">How to report a security issue in Synzo.</p>
     </header>
 
-    <section class="sec-section" id="reporting">
-        <h2>Reporting a vulnerability</h2>
+    <div class="sec-card" id="reporting">
+        <h2><i class="ph ph-bug"></i> Reporting a vulnerability</h2>
         <p>If you've found a security issue in Synzo — in the website, the JSON API, the MCP server, or the dashboard — please report it confidentially:</p>
         <div class="sec-mailbox">
             <a href="mailto:security@synzo.ai">security@synzo.ai</a>
         </div>
         <p>Please do not disclose the issue publicly until we've had a chance to investigate and ship a fix.</p>
-    </section>
+    </div>
 
-    <section class="sec-section" id="what-to-include">
-        <h2>What to include</h2>
+    <div class="sec-card" id="what-to-include">
+        <h2><i class="ph ph-clipboard-text"></i> What to include</h2>
         <ul>
             <li>A description of the issue and the impact you believe it has.</li>
             <li>Steps to reproduce, including any relevant requests, payloads, or test accounts.</li>
             <li>Any proof-of-concept code or screenshots — please don't include real third-party data.</li>
             <li>Your name or handle if you'd like credit (optional).</li>
         </ul>
-    </section>
+    </div>
 
-    <section class="sec-section" id="response">
-        <h2>What to expect</h2>
+    <div class="sec-card" id="response">
+        <h2><i class="ph ph-clock-countdown"></i> What to expect</h2>
         <ul>
             <li>Acknowledgement within 3 business days.</li>
             <li>An initial assessment within 7 business days.</li>
             <li>Updates as the fix progresses; coordinated disclosure timing on request.</li>
         </ul>
-    </section>
+    </div>
 
-    <section class="sec-section" id="scope">
-        <h2>Scope</h2>
+    <div class="sec-card" id="scope">
+        <h2><i class="ph ph-target"></i> Scope</h2>
         <p>In scope: <code>www.synzo.ai</code>, <code>/api/v1/*</code>, <code>/mcp</code>, <code>/dashboard/*</code>, and the WorkOS authentication flow. Out of scope: vulnerabilities in third-party services we use (report those to Google, WorkOS, or Railway directly).</p>
-    </section>
+    </div>
 
-    <section class="sec-section" id="safe-harbor">
-        <h2>Safe harbor</h2>
+    <div class="sec-card" id="safe-harbor">
+        <h2><i class="ph ph-handshake"></i> Safe harbor</h2>
         <p>We will not pursue legal action against researchers acting in good faith — testing within scope, avoiding harm to users or data, and reporting privately before disclosure. Please don't access or modify other users' data, run automated scanners that generate significant load, or perform any action that would degrade availability.</p>
-    </section>
+    </div>
 
 </div>

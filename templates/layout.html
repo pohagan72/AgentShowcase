@@ -213,18 +213,57 @@
                Required for the Anthropic Connector Directory submission: the
                Docs/Privacy/Support links here are the externally-reachable URLs
                the form points reviewers at. Rendered on every public page.
+               Styled to match the app design system: brand-on-hover, subtle
+               separator, native-feeling spacing.
                ========================================================================== -->
-            <footer class="site-footer" style="margin-top: 3rem; padding: 1.5rem 1rem 2rem; border-top: 1px solid #e2e8f0; text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
-                <div style="max-width: 880px; margin: 0 auto;">
-                    <nav style="display: flex; flex-wrap: wrap; justify-content: center; gap: 1.25rem; margin-bottom: 0.5rem;">
-                        <a href="{{ url_for('docs.docs') }}" style="color: var(--text-secondary); text-decoration: none;">Docs</a>
-                        <a href="{{ url_for('docs.privacy') }}" style="color: var(--text-secondary); text-decoration: none;">Privacy</a>
-                        <a href="{{ url_for('docs.terms') }}" style="color: var(--text-secondary); text-decoration: none;">Terms</a>
-                        <a href="{{ url_for('docs.support') }}" style="color: var(--text-secondary); text-decoration: none;">Support</a>
-                        <a href="{{ url_for('docs.security') }}" style="color: var(--text-secondary); text-decoration: none;">Security</a>
-                        <a href="{{ url_for('main.pricing') }}" style="color: var(--text-secondary); text-decoration: none;">Pricing</a>
+            <style>
+                .site-footer {
+                    margin-top: 3rem;
+                    padding: 1.75rem 1rem 2.25rem;
+                    border-top: 1px solid var(--border-subtle);
+                    background: rgba(255, 255, 255, 0.5);
+                    text-align: center;
+                    font-size: 0.85rem;
+                    color: var(--text-secondary);
+                }
+                .site-footer-inner { max-width: 900px; margin: 0 auto; }
+                .site-footer nav {
+                    display: flex; flex-wrap: wrap; justify-content: center;
+                    gap: 0.5rem 1.5rem; margin-bottom: 0.85rem;
+                }
+                .site-footer nav a {
+                    color: var(--text-secondary);
+                    text-decoration: none;
+                    font-weight: 500;
+                    padding: 4px 8px;
+                    border-radius: 6px;
+                    transition: color 0.15s, background 0.15s;
+                }
+                .site-footer nav a:hover {
+                    color: var(--brand-primary);
+                    background: rgba(79, 70, 229, 0.06);
+                }
+                .site-footer .footer-meta {
+                    color: var(--text-secondary);
+                    opacity: 0.8;
+                    font-size: 0.8rem;
+                    letter-spacing: 0.01em;
+                }
+                .site-footer .footer-meta strong { font-weight: 600; }
+            </style>
+            <footer class="site-footer">
+                <div class="site-footer-inner">
+                    <nav>
+                        <a href="{{ url_for('docs.docs') }}">Docs</a>
+                        <a href="{{ url_for('main.pricing') }}">Pricing</a>
+                        <a href="{{ url_for('docs.support') }}">Support</a>
+                        <a href="{{ url_for('docs.security') }}">Security</a>
+                        <a href="{{ url_for('docs.privacy') }}">Privacy</a>
+                        <a href="{{ url_for('docs.terms') }}">Terms</a>
                     </nav>
-                    <div>&copy; Synzo &middot; Document intelligence for AI agents.</div>
+                    <div class="footer-meta">
+                        &copy; <strong>Synzo</strong> &middot; Document intelligence for AI agents.
+                    </div>
                 </div>
             </footer>
         </main>

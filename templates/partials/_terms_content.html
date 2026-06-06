@@ -1,32 +1,79 @@
 <!-- templates/partials/_terms_content.html
-     Terms of Service. Lifted from features/info/templates/info_content.html
-     (was nested inside the /about Legal Notice tab); promoted to a canonical
+     Terms of Service. Promoted from the /about Legal Notice tab to a canonical
      /terms URL so it can be linked from the global footer and from the privacy
-     policy. Content is preserved verbatim from the prior /about Legal Notice
-     so existing references stay accurate.
+     policy. Content preserved from the prior /about Legal Notice; styled to
+     match the app design system (CSS variables, white cards, brand indigo).
 -->
 
 <style>
-    .legal-wrap { max-width: 760px; margin: 0 auto; padding: 0 1rem; }
-    .legal-hero { text-align: center; padding: 2rem 1rem 1.5rem; }
-    .legal-hero h1 { font-size: 1.8rem; font-weight: 800; margin: 0 0 0.5rem; color: var(--text-primary); }
+    .legal-wrap { max-width: 820px; margin: 0 auto; }
+
+    .legal-hero { text-align: center; padding: 1rem 0 1.75rem; }
+    .legal-hero h1 {
+        font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em;
+        margin: 0 0 0.5rem; color: var(--text-primary);
+    }
     .legal-hero .meta { font-size: 0.85rem; color: var(--text-secondary); }
 
-    .legal-intro { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1rem 0 1.5rem; }
-    .legal-intro p { font-size: 0.95rem; line-height: 1.55; color: var(--text-primary); margin: 0 0 0.5rem; }
-    .legal-intro p:last-child { margin: 0; }
+    /* Top intro panel — slightly tinted so it reads as a callout, not a section. */
+    .legal-intro {
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(124, 58, 237, 0.05));
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem; line-height: 1.6; color: var(--text-primary);
+    }
+    .legal-intro p { margin: 0; }
 
-    .legal-pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
-    .legal-pillar { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem 1.25rem; }
-    .legal-pillar h4 { font-size: 0.95rem; font-weight: 700; margin: 0 0 0.4rem; color: var(--text-primary); }
-    .legal-pillar p { font-size: 0.88rem; line-height: 1.5; color: var(--text-secondary); margin: 0; }
+    /* Three principle pillars */
+    .legal-pillars {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .legal-pillar {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        padding: 1.25rem 1.4rem;
+    }
+    .legal-pillar h4 {
+        font-size: 0.95rem; font-weight: 700; margin: 0 0 0.4rem;
+        color: var(--text-primary);
+        display: flex; align-items: center; gap: 8px;
+    }
+    .legal-pillar h4 i { color: var(--brand-primary); font-size: 1.1rem; }
+    .legal-pillar p {
+        font-size: 0.9rem; line-height: 1.55; color: var(--text-secondary); margin: 0;
+    }
+    .legal-pillar a { color: var(--brand-primary); text-decoration: none; }
+    .legal-pillar a:hover { text-decoration: underline; }
 
-    .legal-section { padding: 1.5rem 0; border-top: 1px solid #e2e8f0; }
-    .legal-section h2 { font-size: 1.2rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--text-primary); }
-    .legal-section h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.4rem; color: var(--text-primary); }
-    .legal-section p, .legal-section li { font-size: 0.95rem; line-height: 1.55; color: var(--text-primary); }
-    .legal-section ul { padding-left: 1.5rem; margin: 0.5rem 0 1rem; }
-    .legal-section a { color: var(--brand-primary, #4f46e5); }
+    .legal-card {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        padding: 1.5rem 1.85rem;
+        margin-bottom: 1.25rem;
+    }
+    .legal-card h2 {
+        font-size: 1.2rem; font-weight: 700; margin: 0 0 0.65rem;
+        color: var(--text-primary); letter-spacing: -0.01em;
+        display: flex; align-items: baseline; gap: 8px;
+    }
+    .legal-card h2 .num {
+        color: var(--brand-primary); font-weight: 800; font-size: 0.95em;
+    }
+    .legal-card p, .legal-card li {
+        font-size: 0.95rem; line-height: 1.6; color: var(--text-primary);
+    }
+    .legal-card ul { padding-left: 1.5rem; margin: 0.5rem 0 1rem; }
+    .legal-card a { color: var(--brand-primary); text-decoration: none; }
+    .legal-card a:hover { text-decoration: underline; }
 </style>
 
 <div class="legal-wrap">
@@ -37,71 +84,71 @@
     </header>
 
     <div class="legal-intro">
-        <p><strong>Platform Governance & Terms of Service.</strong> My commitment is to innovation, transparency, and responsible AI. Below are the key principles governing this site. For the full agreement, see the sections that follow.</p>
+        <p><strong>Platform Governance &amp; Terms of Service.</strong> My commitment is to innovation, transparency, and responsible AI. Below are the key principles governing this site. For the full agreement, see the sections that follow.</p>
     </div>
 
     <div class="legal-pillars">
         <div class="legal-pillar">
-            <h4>Your Content, Your Ownership</h4>
+            <h4><i class="ph ph-shield-check"></i> Your Content, Your Ownership</h4>
             <p>You retain full ownership of your uploaded content and the AI-generated results. We do not claim any rights to your intellectual property.</p>
         </div>
         <div class="legal-pillar">
-            <h4>Privacy &amp; No AI Training</h4>
+            <h4><i class="ph ph-lock-key"></i> Privacy &amp; No AI Training</h4>
             <p>Your data is never used to train our AI models. See our <a href="/privacy">Privacy Policy</a> for full detail on what we collect and why.</p>
         </div>
         <div class="legal-pillar">
-            <h4>Responsible Use</h4>
+            <h4><i class="ph ph-hand-heart"></i> Responsible Use</h4>
             <p>This platform is designed for professional and lawful use. We prohibit the generation of harmful or infringing content to ensure a safe environment.</p>
         </div>
     </div>
 
-    <section class="legal-section" id="service-provision">
-        <h2>1. Service Provision and "As Is" Disclaimer</h2>
+    <div class="legal-card" id="service-provision">
+        <h2><span class="num">1.</span> Service Provision and "As Is" Disclaimer</h2>
         <ul>
             <li><strong>No Warranty:</strong> The Service is provided on an "AS IS" and "AS AVAILABLE" basis. It is provided without warranties of any kind, whether express or implied, including, but not limited to, implied warranties of merchantability, fitness for a particular purpose, or non-infringement.</li>
             <li><strong>At Your Own Risk:</strong> Your use of the Service is solely at your own risk. The AI-generated outputs may contain errors, inaccuracies, or be incomplete. You should not rely on the outputs for any legal, financial, medical, or other critical decisions.</li>
         </ul>
-    </section>
+    </div>
 
-    <section class="legal-section" id="intellectual-property">
-        <h2>2. Intellectual Property Rights</h2>
+    <div class="legal-card" id="intellectual-property">
+        <h2><span class="num">2.</span> Intellectual Property Rights</h2>
         <ul>
             <li><strong>The Service:</strong> I, Paul O'Hagan, own all right, title, and interest in and to the Service, including all associated software, code, branding, and intellectual property rights. You may not copy, modify, or reverse-engineer any part of the Service.</li>
             <li><strong>Your Content:</strong> You retain full ownership of any text, images, or documents you upload to the Service ("Your Content"). You grant me a temporary, non-exclusive, worldwide, royalty-free license to use, process, and transmit Your Content solely for the purpose of providing the Service to you.</li>
             <li><strong>Generated Output:</strong> To the extent permitted by law, you are the owner of the AI-generated output created from Your Content. You are free to use this output for any lawful purpose, subject to the disclaimers in these Terms.</li>
         </ul>
-    </section>
+    </div>
 
-    <section class="legal-section" id="data-privacy">
-        <h2>3. Data Privacy and AI Model Training</h2>
+    <div class="legal-card" id="data-privacy">
+        <h2><span class="num">3.</span> Data Privacy and AI Model Training</h2>
         <ul>
             <li><strong>Data Handling:</strong> Your Content is processed for the sole purpose of providing the Service's functionality. It is not stored longer than necessary to perform the requested operation and is not shared with third parties beyond the service providers named in the <a href="/privacy">Privacy Policy</a>.</li>
             <li><strong>No AI Training:</strong> Your Content and any generated outputs will <strong>not</strong> be used to train or improve any AI models.</li>
         </ul>
-    </section>
+    </div>
 
-    <section class="legal-section" id="acceptable-use">
-        <h2>4. Acceptable Use</h2>
+    <div class="legal-card" id="acceptable-use">
+        <h2><span class="num">4.</span> Acceptable Use</h2>
         <p>You agree not to use the Service to:</p>
         <ul>
             <li>Upload or generate any content that is unlawful, harmful, threatening, abusive, defamatory, obscene, or otherwise objectionable.</li>
             <li>Upload or generate any content that infringes upon any third party's intellectual property rights.</li>
             <li>Attempt to gain unauthorized access to the Service, its servers, or any related systems or networks.</li>
         </ul>
-    </section>
+    </div>
 
-    <section class="legal-section" id="limitation-of-liability">
-        <h2>5. Limitation of Liability</h2>
+    <div class="legal-card" id="limitation-of-liability">
+        <h2><span class="num">5.</span> Limitation of Liability</h2>
         <p>In no event shall I, Paul O'Hagan, be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from (i) your access to or use of or inability to access or use the Service; (ii) any conduct or content of any third party on the Service; (iii) any content obtained from the Service; and (iv) unauthorized access, use, or alteration of your transmissions or content, whether based on warranty, contract, tort (including negligence), or any other legal theory, whether or not I have been informed of the possibility of such damage.</p>
-    </section>
+    </div>
 
-    <section class="legal-section" id="general-terms">
-        <h2>6. General Terms</h2>
+    <div class="legal-card" id="general-terms">
+        <h2><span class="num">6.</span> General Terms</h2>
         <ul>
             <li><strong>Age Requirement:</strong> You must be at least 18 years old to use this Service.</li>
             <li><strong>Modification of Terms:</strong> I reserve the right, at my sole discretion, to modify or replace these Terms at any time. I will provide notice of any changes by posting the new Terms on this page.</li>
             <li><strong>Governing Law:</strong> These Terms shall be governed and construed in accordance with the laws of Ontario, Canada, without regard to its conflict of law provisions.</li>
         </ul>
-    </section>
+    </div>
 
 </div>
