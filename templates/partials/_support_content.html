@@ -1,0 +1,67 @@
+<!-- templates/partials/_support_content.html
+     Phase 3 STUB. Static support page: mailbox + 2-business-day SLA + report
+     guidance + separate security disclosure path. Models on Harvey's support URL.
+     Mailbox: support@synzo.ai (set up via Cloudflare Email Routing).
+-->
+
+<style>
+    .support-wrap { max-width: 760px; margin: 0 auto; padding: 0 1rem; }
+    .support-hero { text-align: center; padding: 2rem 1rem 1.5rem; }
+    .support-hero h1 { font-size: 1.8rem; font-weight: 800; margin: 0 0 0.5rem; color: var(--text-primary); }
+    .support-hero p { font-size: 1rem; color: var(--text-secondary); }
+
+    .support-section { padding: 1.5rem 0; border-top: 1px solid #e2e8f0; }
+    .support-section:first-of-type { border-top: none; }
+    .support-section h2 { font-size: 1.2rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--text-primary); }
+    .support-section p, .support-section li { font-size: 0.95rem; line-height: 1.55; color: var(--text-primary); }
+    .support-section ul, .support-section ol { padding-left: 1.5rem; margin: 0.5rem 0 1rem; }
+    .support-section a { color: var(--brand-primary, #4f46e5); }
+
+    .support-mailbox { background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px; padding: 1.25rem; text-align: center; margin: 1rem 0; }
+    .support-mailbox a { font-size: 1.2rem; font-weight: 700; color: #4338ca; text-decoration: none; }
+    .support-mailbox .sla { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+    .support-warn { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 0.75rem 1rem; color: #991b1b; font-size: 0.9rem; margin: 0.75rem 0; }
+</style>
+
+<div class="support-wrap">
+
+    <header class="support-hero">
+        <h1>Synzo Support</h1>
+        <p>How to reach us when something isn't working.</p>
+    </header>
+
+    <section class="support-section" id="contact">
+        <h2>Contact us</h2>
+        <div class="support-mailbox">
+            <a href="mailto:support@synzo.ai">support@synzo.ai</a>
+            <div class="sla">We respond within <strong>2 business days</strong>.</div>
+        </div>
+    </section>
+
+    <section class="support-section" id="what-to-include">
+        <h2>What to include in your report</h2>
+        <p>To help us resolve issues quickly, please include:</p>
+        <ul>
+            <li>Your organization ID (visible at <code>/dashboard</code>).</li>
+            <li>The tool name (<code>summarize_document</code>, <code>translate_document</code>, <code>redact_pii</code>, <code>analyze_image</code>, or <code>detect_faces</code>).</li>
+            <li>Approximate timestamp of the failed call.</li>
+            <li>The error code if you saw one (<code>-32001</code> through <code>-32005</code>).</li>
+            <li>What you expected to happen vs. what actually happened.</li>
+        </ul>
+        <div class="support-warn">
+            <strong>Do not paste document contents into support emails.</strong> We do not need to see your file to debug — the metadata above is enough, and pasting contents into email creates an unnecessary copy of your data.
+        </div>
+    </section>
+
+    <section class="support-section" id="self-serve">
+        <h2>Try self-serve first</h2>
+        <p>Many common issues are covered in the <a href="/docs#troubleshooting">Troubleshooting</a> section of our docs. If you're hitting a specific error code, that section has a one-line fix for each.</p>
+    </section>
+
+    <section class="support-section" id="security">
+        <h2>Reporting a security vulnerability</h2>
+        <p>Security issues use a separate channel — please do not send them to the general support mailbox. Email <a href="mailto:security@synzo.ai">security@synzo.ai</a>, or see our <a href="/security">security disclosure page</a> for the full process.</p>
+    </section>
+
+</div>

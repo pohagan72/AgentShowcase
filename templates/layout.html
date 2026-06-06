@@ -201,12 +201,31 @@
                     <div class="spinner"></div>
                     <p style="margin-top: 12px; color: var(--text-secondary); font-size: 0.9em; font-weight: 500;">Processing...</p>
                 </div>
-                
+
                 <!-- Dynamic Content Injection -->
                 <div id="main-content">
                     {% include initial_content_template %}
                 </div>
             </div>
+
+            <!-- ==========================================================================
+               GLOBAL FOOTER
+               Required for the Anthropic Connector Directory submission: the
+               Docs/Privacy/Support links here are the externally-reachable URLs
+               the form points reviewers at. Rendered on every public page.
+               ========================================================================== -->
+            <footer class="site-footer" style="margin-top: 3rem; padding: 1.5rem 1rem 2rem; border-top: 1px solid #e2e8f0; text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
+                <div style="max-width: 880px; margin: 0 auto;">
+                    <nav style="display: flex; flex-wrap: wrap; justify-content: center; gap: 1.25rem; margin-bottom: 0.5rem;">
+                        <a href="{{ url_for('docs.docs') }}" style="color: var(--text-secondary); text-decoration: none;">Docs</a>
+                        <a href="{{ url_for('docs.privacy') }}" style="color: var(--text-secondary); text-decoration: none;">Privacy</a>
+                        <a href="{{ url_for('docs.support') }}" style="color: var(--text-secondary); text-decoration: none;">Support</a>
+                        <a href="{{ url_for('docs.security') }}" style="color: var(--text-secondary); text-decoration: none;">Security</a>
+                        <a href="{{ url_for('main.pricing') }}" style="color: var(--text-secondary); text-decoration: none;">Pricing</a>
+                    </nav>
+                    <div>&copy; Synzo &middot; Document intelligence for AI agents.</div>
+                </div>
+            </footer>
         </main>
     </div>
 
