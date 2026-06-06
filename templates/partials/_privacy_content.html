@@ -39,13 +39,15 @@
     <section class="legal-section" id="personal-data-we-collect">
         <h2>2. Personal Data we Collect</h2>
         <h3>Account information</h3>
-        <p>Email address, name, and organization name from the WorkOS sign-up flow. We mirror your WorkOS user ID and organization ID into our <code>users</code> and <code>orgs</code> tables for tenant isolation.</p>
+        <p>When you sign in via WorkOS, we store your email address, your WorkOS user ID, and your WorkOS organization ID locally so we can isolate your data from other tenants. We do not store your name. Your organization's display name is generated from the local part of your email when the organization is first created and can be changed later. WorkOS itself may hold additional account information (e.g. your name, SSO provider linkage); see <a href="https://workos.com/legal/privacy" target="_blank" rel="noopener">WorkOS's privacy policy</a> for what they collect on our behalf.</p>
         <h3>Usage data</h3>
-        <p>For every API call, we record: organization ID, API key ID (or OAuth sub), tool name, unit count, status, and error code. <strong>File bodies are never persisted</strong> — they exist only in memory during the tool call.</p>
+        <p>For every metered API call, we record the following metadata to our <code>usage_events</code> table: organization ID, API key ID (only when called with an API key), authentication method (<code>oauth</code> or <code>api_key</code>), tool name, unit count, status (<code>ok</code> / <code>error</code> / <code>refunded</code>), error code if any, and timestamp. <strong>We never store the contents of the documents or images you submit</strong>; only the metadata above.</p>
+        <h3>Document and image contents</h3>
+        <p>When you call a tool over the MCP server or JSON API at <code>/api/v1/*</code>, the file you submit is held in memory only for the duration of the call and is not written to any persistent storage on our side. When you use the public web UI on <code>www.synzo.ai</code> (the HTMX surface — <code>/summarizer</code>, <code>/translator</code>, <code>/redactor</code>, <code>/vision</code>), your file is uploaded to S3-compatible object storage as transient scratch space so the worker can produce a downloadable result; these objects are not retained as part of any permanent record and are subject to bucket cleanup. In both paths, file contents are transmitted to Google Gemini for processing — see <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's privacy policy</a>.</p>
         <h3>Log data</h3>
         <p>IP address, user-agent, and request timestamps via Railway's edge logs and Flask access logs.</p>
         <h3>Cookies</h3>
-        <p>One Flask session cookie for the dashboard. No third-party trackers, no analytics.</p>
+        <p>One Flask session cookie (marked <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite=Strict</code>) for the dashboard and sign-in flow. No third-party trackers, no analytics — verified by source-code review: there is no Sentry, Datadog, New Relic, PostHog, Google Analytics, or comparable SDK in the codebase.</p>
     </section>
 
     <section class="legal-section" id="how-we-use-personal-data">
@@ -66,6 +68,7 @@
             <li><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google (Gemini API)</a> — processes file contents you submit to AI-backed tools.</li>
             <li><a href="https://workos.com/legal/privacy" target="_blank" rel="noopener">WorkOS</a> — identity and authentication.</li>
             <li><a href="https://railway.com/legal/privacy" target="_blank" rel="noopener">Railway</a> — application hosting and Postgres database.</li>
+            <li>S3-compatible object storage — transient scratch storage for files uploaded via the public web UI (HTMX surface). The bucket is operated by our object-storage provider; uploaded objects are not retained as durable records.</li>
             <li>Microsoft Presidio (open-source library, runs in-process — no data transfer to Microsoft).</li>
         </ul>
         <p>We may disclose data to law enforcement if compelled by valid legal process.</p>
