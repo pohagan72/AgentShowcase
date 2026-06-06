@@ -386,6 +386,25 @@ h2 { font-size: 1.5rem; font-weight: 600; margin: 2rem 0 1rem 0; letter-spacing:
 h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 0.75rem; font-weight: 700; }
 p { line-height: 1.65; margin-bottom: 1rem; color: var(--text-secondary); font-size: 1rem; }
 
+/* Helpers for the public legal/docs pages (/docs, /privacy, /terms, /support,
+   /security). These pages reuse .feature-container as the page card and let
+   the global h1/h2/p rules drive typography; the helpers below cover the few
+   things the existing classes don't (numbered section headers, hero centering,
+   accent codeblocks inside legal prose). */
+.page-hero { text-align: center; margin-bottom: 1.5rem; }
+.page-hero h1 { justify-content: center; margin-bottom: 0.5rem; }
+.page-hero .page-meta { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+
+.legal-section { margin-top: 1.75rem; }
+.legal-section h2 { margin-top: 0; display: flex; align-items: baseline; gap: 0.5rem; }
+.legal-section .legal-num { color: var(--brand-primary); font-weight: 800; font-size: 0.95em; }
+.legal-section ul { padding-left: 1.5rem; margin: 0.5rem 0 1rem; }
+.legal-section ul li { line-height: 1.6; color: var(--text-primary); margin-bottom: 0.4rem; font-size: 1rem; }
+.legal-section p { color: var(--text-primary); }
+.legal-section a { color: var(--brand-primary); text-decoration: none; }
+.legal-section a:hover { text-decoration: underline; }
+.legal-section code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: #334155; font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace; }
+
 /* ==========================================================================
    8. UI COMPONENTS (Buttons, Inputs, Grids)
    ========================================================================== */

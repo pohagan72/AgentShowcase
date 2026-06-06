@@ -1,65 +1,21 @@
 <!-- templates/partials/_docs_content.html
-     Public docs page for the Synzo MCP server. Five sections mirroring the
-     structure of developers.harvey.ai/api-reference/mcp. The Available tools
-     section is the only piece rendered from a code-derived source (mcp_tools.TOOLS
-     joined against docs/tool_examples.yaml at create_app() startup — see
-     docs_renderer.py for the drift guardrail).
+     Public docs page for the Synzo MCP server. Wrapped in a single
+     .feature-container (the canonical app page card) so visual language
+     matches the feature pages. The only scoped CSS is for the tools table
+     and the accordion — both of which aren't covered by existing classes.
+     The "Available tools" section is rendered from mcp_tools.TOOLS x
+     docs/tool_examples.yaml at create_app() startup; see docs_renderer.py.
 -->
 
 <style>
-    /* Scoped to /docs. Uses the app's CSS variables (--brand-primary,
-       --shadow-md, --radius-*, --text-*) so visual language matches the
-       feature pages and /pricing. */
-    .docs-wrap { max-width: 900px; margin: 0 auto; }
-
-    .docs-hero { text-align: center; padding: 1rem 0 2rem; }
-    .docs-hero h1 {
-        font-size: 2rem; font-weight: 800; letter-spacing: -0.02em;
-        margin: 0 0 0.75rem; color: var(--text-primary);
-    }
-    .docs-hero .pitch {
-        font-size: 1.05rem; color: var(--text-secondary);
-        max-width: 660px; margin: 0 auto; line-height: 1.6;
-    }
-
-    /* Card-style sections (matches the white cards used on /pricing and
-       inside the feature pages). */
-    .docs-card {
-        background: #ffffff;
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-md);
-        padding: 1.75rem 2rem;
-        margin-bottom: 1.5rem;
-    }
-    .docs-card h2 {
-        font-size: 1.4rem; font-weight: 700; margin: 0 0 0.75rem;
-        color: var(--text-primary); letter-spacing: -0.01em;
-        display: flex; align-items: center; gap: 10px;
-    }
-    .docs-card h2 i { color: var(--brand-primary); font-size: 1.3rem; }
-    .docs-card h3 {
-        font-size: 1rem; font-weight: 700; margin: 1.25rem 0 0.5rem;
-        color: var(--text-primary);
-    }
-    .docs-card p, .docs-card li {
-        font-size: 0.95rem; line-height: 1.6; color: var(--text-primary);
-    }
-    .docs-card ul, .docs-card ol { padding-left: 1.5rem; margin: 0.5rem 0 1rem; }
-    .docs-card code {
-        background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
-        font-size: 0.85em; color: #334155;
-        font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
-    }
-    .docs-card a { color: var(--brand-primary); text-decoration: none; }
-    .docs-card a:hover { text-decoration: underline; }
-
-    /* Tools table */
-    .docs-tools-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    /* Scoped to /docs. Everything else lives in style.css under
+       .feature-container, .legal-section, .page-hero, h1/h2/h3/p, etc. */
+    .docs-tools-table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; }
     .docs-tools-table th, .docs-tools-table td {
         text-align: left; padding: 12px 14px;
         border-bottom: 1px solid var(--border-subtle);
-        vertical-align: top; font-size: 0.9rem; line-height: 1.5;
+        vertical-align: top; font-size: 0.95rem; line-height: 1.5;
+        color: var(--text-primary);
     }
     .docs-tools-table th {
         background: #f8fafc; font-weight: 700;
@@ -71,8 +27,7 @@
         color: var(--text-secondary); font-size: 0.85em; display: block; margin-top: 2px;
     }
 
-    /* Accordion (Troubleshooting + FAQ) */
-    .docs-card details {
+    .docs-faq details {
         background: #f8fafc;
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius-md);
@@ -80,32 +35,32 @@
         margin-bottom: 0.6rem;
         transition: background 0.15s;
     }
-    .docs-card details[open] { background: #ffffff; box-shadow: var(--shadow-sm); }
-    .docs-card details summary {
+    .docs-faq details[open] { background: #ffffff; box-shadow: var(--shadow-sm); }
+    .docs-faq details summary {
         font-weight: 600; cursor: pointer; color: var(--text-primary);
-        display: flex; align-items: center; gap: 8px; list-style: none;
+        list-style: none; font-size: 0.95rem;
     }
-    .docs-card details summary::-webkit-details-marker { display: none; }
-    .docs-card details summary::before {
+    .docs-faq details summary::-webkit-details-marker { display: none; }
+    .docs-faq details summary::before {
         content: "+"; font-weight: 700; color: var(--brand-primary);
-        width: 16px; display: inline-block;
+        width: 16px; display: inline-block; margin-right: 4px;
     }
-    .docs-card details[open] summary::before { content: "−"; }
-    .docs-card details[open] summary { margin-bottom: 0.6rem; }
-    .docs-card details p { margin-top: 0; }
+    .docs-faq details[open] summary::before { content: "−"; }
+    .docs-faq details[open] summary { margin-bottom: 0.6rem; }
+    .docs-faq details p { margin-top: 0.5rem; color: var(--text-primary); }
 </style>
 
-<div class="docs-wrap">
+<div class="feature-container">
 
-    <header class="docs-hero">
+    <header class="page-hero">
         <h1>Synzo MCP Server</h1>
-        <p class="pitch">Document intelligence tools for AI agents — summarize, translate, redact PII, analyze images, and detect faces, exposed over the Model Context Protocol.</p>
+        <p class="page-meta">Document intelligence tools for AI agents — summarize, translate, redact PII, analyze images, and detect faces, exposed over the Model Context Protocol.</p>
     </header>
 
-    <div class="docs-card" id="what-is-synzo">
-        <h2><i class="ph ph-info"></i> What is Synzo MCP?</h2>
+    <section class="legal-section" id="what-is-synzo">
+        <h2>What is Synzo MCP?</h2>
         <p>The Synzo MCP server exposes document-intelligence tools to MCP-compatible clients (claude.ai, Claude Desktop). It runs at <code>https://www.synzo.ai/mcp</code> and authenticates callers via OAuth (WorkOS) or API key.</p>
-        <h3>What you can do with it</h3>
+        <h4>What you can do with it</h4>
         <ul>
             <li><strong>summarize_document</strong> — extract a structured summary from a PDF, .docx, .pptx, or .xlsx file.</li>
             <li><strong>translate_document</strong> — translate a .docx, .pptx, or .xlsx file into the target language (returns markdown).</li>
@@ -113,25 +68,25 @@
             <li><strong>analyze_image</strong> — describe an image and extract dominant colors.</li>
             <li><strong>detect_faces</strong> — detect faces in an image and return a blurred or redacted copy.</li>
         </ul>
-    </div>
+    </section>
 
-    <div class="docs-card" id="setup-guides">
-        <h2><i class="ph ph-plug"></i> Setup guides</h2>
-        <h3>Claude.ai (web)</h3>
+    <section class="legal-section" id="setup-guides">
+        <h2>Setup guides</h2>
+        <h4>Claude.ai (web)</h4>
         <ol>
             <li>Open Settings &rarr; Connectors &rarr; Add custom connector.</li>
             <li>Paste <code>https://www.synzo.ai/mcp</code> as the server URL.</li>
             <li>Sign in via the WorkOS prompt. After sign-in, the five Synzo tools appear in <code>tools/list</code>.</li>
         </ol>
-        <h3>Claude Desktop</h3>
+        <h4>Claude Desktop</h4>
         <ol>
             <li>Settings &rarr; Connectors &rarr; Add connector &rarr; paste <code>https://www.synzo.ai/mcp</code>.</li>
             <li>If your organization has connectors disabled at the policy level, this flow is blocked — use claude.ai instead.</li>
         </ol>
-    </div>
+    </section>
 
-    <div class="docs-card" id="available-tools">
-        <h2><i class="ph ph-toolbox"></i> Available tools</h2>
+    <section class="legal-section" id="available-tools">
+        <h2>Available tools</h2>
         <p>The table below is generated from the live tool registry at <code>https://www.synzo.ai/mcp</code>.</p>
         <table class="docs-tools-table">
             <thead>
@@ -143,10 +98,10 @@
                 {{ tools_table_rows }}
             </tbody>
         </table>
-    </div>
+    </section>
 
-    <div class="docs-card" id="troubleshooting">
-        <h2><i class="ph ph-wrench"></i> Troubleshooting</h2>
+    <section class="legal-section docs-faq" id="troubleshooting">
+        <h2>Troubleshooting</h2>
         <details>
             <summary>Authentication fails or the token is rejected</summary>
             <p>Sign out and sign back in. If the issue persists, re-add the connector — claude.ai caches the WorkOS client registration and a fresh add re-runs DCR.</p>
@@ -167,10 +122,10 @@
             <summary>Tool timed out (error <code>-32005</code>)</summary>
             <p>The file is too large for your plan tier. Each tool call has a 60-second wall-clock limit; large PDFs at the free-tier page cap should complete within this.</p>
         </details>
-    </div>
+    </section>
 
-    <div class="docs-card" id="faq">
-        <h2><i class="ph ph-chats-circle"></i> FAQ</h2>
+    <section class="legal-section docs-faq" id="faq">
+        <h2>FAQ</h2>
         <details>
             <summary>Can multiple users connect to the same Synzo organization?</summary>
             <p>Yes — invite teammates from your <code>/dashboard</code>. The organization's quota is shared across all members.</p>
@@ -183,6 +138,6 @@
             <summary>Does this support conversation history?</summary>
             <p>No. Each tool call is stateless — the server does not see prior Claude messages or other tool calls.</p>
         </details>
-    </div>
+    </section>
 
 </div>

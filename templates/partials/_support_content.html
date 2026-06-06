@@ -1,53 +1,20 @@
 <!-- templates/partials/_support_content.html
      Static support page: mailbox + 2-business-day SLA + report-content guidance
-     + separate security disclosure path. Modeled on Harvey's MCP support URL,
-     styled to match the app design system.
+     + separate security disclosure path.
+     Uses the canonical .feature-container card + reuses the existing
+     .message-item.category-info class from style.css for the brand callout.
 -->
 
 <style>
-    .support-wrap { max-width: 820px; margin: 0 auto; }
-
-    .support-hero { text-align: center; padding: 1rem 0 1.75rem; }
-    .support-hero h1 {
-        font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em;
-        margin: 0 0 0.5rem; color: var(--text-primary);
-    }
-    .support-hero .tagline { font-size: 1rem; color: var(--text-secondary); }
-
-    .support-card {
-        background: #ffffff;
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-md);
-        padding: 1.5rem 1.85rem;
-        margin-bottom: 1.25rem;
-    }
-    .support-card h2 {
-        font-size: 1.2rem; font-weight: 700; margin: 0 0 0.65rem;
-        color: var(--text-primary); letter-spacing: -0.01em;
-        display: flex; align-items: center; gap: 10px;
-    }
-    .support-card h2 i { color: var(--brand-primary); font-size: 1.2rem; }
-    .support-card p, .support-card li {
-        font-size: 0.95rem; line-height: 1.6; color: var(--text-primary);
-    }
-    .support-card ul, .support-card ol { padding-left: 1.5rem; margin: 0.5rem 0 1rem; }
-    .support-card a { color: var(--brand-primary); text-decoration: none; }
-    .support-card a:hover { text-decoration: underline; }
-    .support-card code {
-        background: #f1f5f9; padding: 2px 6px; border-radius: 4px;
-        font-size: 0.85em; color: #334155;
-        font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
-    }
-
-    /* Hero mailbox panel — brand-tinted, calm. */
+    /* Tiny scoped helpers — mailbox panel uses the brand-tinted gradient that
+       matches the homepage hero. Everything else lives in style.css. */
     .support-mailbox {
         background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(124, 58, 237, 0.06));
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius-md);
         padding: 1.4rem 1.5rem;
         text-align: center;
-        margin: 0.5rem 0;
+        margin: 0.75rem 0 0.25rem;
     }
     .support-mailbox a {
         font-size: 1.25rem; font-weight: 700; color: var(--brand-primary);
@@ -57,40 +24,25 @@
     .support-mailbox .sla {
         font-size: 0.88rem; color: var(--text-secondary); margin-top: 0.4rem;
     }
-
-    /* Soft warning callout for "don't paste contents". Slate, not red — matches
-       the app's overall calm palette. */
-    .support-callout {
-        background: #f8fafc;
-        border-left: 3px solid var(--brand-primary);
-        border-radius: var(--radius-md);
-        padding: 0.85rem 1.1rem;
-        margin: 1rem 0 0;
-        font-size: 0.92rem; line-height: 1.55; color: var(--text-primary);
-        display: flex; align-items: flex-start; gap: 10px;
-    }
-    .support-callout i {
-        color: var(--brand-primary); font-size: 1.1rem; flex-shrink: 0; margin-top: 2px;
-    }
 </style>
 
-<div class="support-wrap">
+<div class="feature-container">
 
-    <header class="support-hero">
+    <header class="page-hero">
         <h1>Synzo Support</h1>
-        <p class="tagline">How to reach us when something isn't working.</p>
+        <p class="page-meta">How to reach us when something isn't working.</p>
     </header>
 
-    <div class="support-card" id="contact">
-        <h2><i class="ph ph-envelope-simple"></i> Contact us</h2>
+    <section class="legal-section" id="contact">
+        <h2>Contact us</h2>
         <div class="support-mailbox">
             <a href="mailto:support@synzo.ai">support@synzo.ai</a>
             <div class="sla">We respond within <strong>2 business days</strong>.</div>
         </div>
-    </div>
+    </section>
 
-    <div class="support-card" id="what-to-include">
-        <h2><i class="ph ph-clipboard-text"></i> What to include in your report</h2>
+    <section class="legal-section" id="what-to-include">
+        <h2>What to include in your report</h2>
         <p>To help us resolve issues quickly, please include:</p>
         <ul>
             <li>Your organization ID (visible at <code>/dashboard</code>).</li>
@@ -99,20 +51,20 @@
             <li>The error code if you saw one (<code>-32001</code> through <code>-32005</code>).</li>
             <li>What you expected to happen vs. what actually happened.</li>
         </ul>
-        <div class="support-callout">
+        <div class="message-item category-info" style="margin-top: 1rem;">
             <i class="ph ph-shield-warning"></i>
             <div><strong>Do not paste document contents into support emails.</strong> We don't need to see your file to debug — the metadata above is enough, and pasting contents into email creates an unnecessary copy of your data.</div>
         </div>
-    </div>
+    </section>
 
-    <div class="support-card" id="self-serve">
-        <h2><i class="ph ph-book-open"></i> Try self-serve first</h2>
+    <section class="legal-section" id="self-serve">
+        <h2>Try self-serve first</h2>
         <p>Many common issues are covered in the <a href="/docs#troubleshooting">Troubleshooting</a> section of our docs. If you're hitting a specific error code, that section has a one-line fix for each.</p>
-    </div>
+    </section>
 
-    <div class="support-card" id="security">
-        <h2><i class="ph ph-shield-check"></i> Reporting a security vulnerability</h2>
+    <section class="legal-section" id="security">
+        <h2>Reporting a security vulnerability</h2>
         <p>Security issues use a separate channel — please do not send them to the general support mailbox. Email <a href="mailto:security@synzo.ai">security@synzo.ai</a>, or see our <a href="/security">security disclosure page</a> for the full process.</p>
-    </div>
+    </section>
 
 </div>
