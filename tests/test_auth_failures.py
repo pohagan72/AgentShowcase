@@ -181,3 +181,73 @@ def test_refund_clamped_to_limit(client, app, seeded_org):
         _refund_quota(seeded_org["org_id"])
 
     assert _quota_remaining(app, seeded_org["quota_id"]) == limit
+
+
+# --- _resolve_api_key raise sites (gap #3 from the test-suite review) ---------
+#
+# test_api_auth.py covers the surface (no header / bogus key fallthrough). The
+# tests below pin the specific raise sites in _resolve_api_key that prior
+# tests glossed over: "Malformed API key" for a sk_-less bearer, "API key
+# revoked" for a key with revoked_at set, "Org not found" for a key whose org
+# row was deleted.
+
+
+def test_401_when_api_key_lacks_sk_prefix(client, seeded_org):
+    """[auth.py:207] _resolve_api_key only accepts tokens starting with
+    'sk_synzo_'. A bearer without the prefix routes to _resolve_oauth in
+    _identify_principal — but only because of the prefix check upstream. If
+    a bare sk-key without our specific prefix is sent via X-API-Key, it must
+    401 cleanly with 'Malformed API key' (not crash).
+
+    Drive this through the X-API-Key header so the api_key path is forced
+    regardless of the 'sk_synzo_' Bearer convention."""
+    resp = client.post(
+        "/_test/auth_probe",
+        headers={"X-API-Key": "some-random-string-with-no-sk-prefix"},
+    )
+    assert resp.status_code == 401
+    body = resp.get_json()
+    assert "Malformed" in body["error"]
+
+
+def test_401_when_api_key_is_revoked(client, app, seeded_org):
+    """[auth.py:224] A revoked key (revoked_at != NULL) must 401 with the
+    'API key revoked' message — distinct from 'Invalid API key' so a
+    legitimate user who revoked their own key can tell apart 'wrong key' from
+    'right key, but you killed it'."""
+    from datetime import datetime, timezone
+
+    from db import db
+    from db.models import ApiKey
+
+    # Mark the seeded key as revoked.
+    with app.app_context():
+        key = db.session.get(ApiKey, seeded_org["api_key_id"])
+        key.revoked_at = datetime.now(timezone.utc)
+        db.session.commit()
+
+    resp = client.post("/_test/auth_probe", headers=seeded_org["auth_header"])
+    assert resp.status_code == 401
+    body = resp.get_json()
+    assert "revoked" in body["error"].lower()
+
+
+def test_401_when_api_key_orphaned_from_org(client, app, seeded_org):
+    """[auth.py:228] If the org row for an API key is gone (cascade or manual
+    delete), _resolve_api_key returns 'Org not found' — not a 500 NPE on
+    org.id. Defensive: orgs shouldn't normally vanish, but if the cleanup
+    cascade ever changes, this catches it.
+
+    Set org_id to a non-existent value to simulate the orphan."""
+    from db import db
+    from db.models import ApiKey
+
+    with app.app_context():
+        key = db.session.get(ApiKey, seeded_org["api_key_id"])
+        key.org_id = 9999999  # no Org row at this id
+        db.session.commit()
+
+    resp = client.post("/_test/auth_probe", headers=seeded_org["auth_header"])
+    assert resp.status_code == 401
+    body = resp.get_json()
+    assert "Org not found" in body["error"]
