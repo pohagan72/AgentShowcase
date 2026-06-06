@@ -23,6 +23,37 @@ def test_landing_pages_return_200(client, path):
     assert b"<html" in resp.data.lower() or b"<!doctype" in resp.data.lower()
 
 
+# Submission-required public pages. Each asserts the hero heading is present —
+# this catches "partial got renamed but route still points at the old one" silently
+# returning the layout shell with no body content.
+@pytest.mark.parametrize(
+    "path,hero",
+    [
+        ("/docs", b"Synzo MCP Server"),
+        ("/privacy", b"Privacy Policy"),
+        ("/support", b"Synzo Support"),
+        ("/security", b"Security Disclosure"),
+    ],
+)
+def test_submission_pages_render_with_hero(client, path, hero):
+    resp = client.get(path)
+    assert resp.status_code == 200, f"{path} returned {resp.status_code}"
+    assert hero in resp.data, f"{path} did not contain hero heading {hero!r}"
+
+
+def test_global_footer_links_present_on_homepage(client):
+    """Every public page renders the global footer with the four submission-form
+    links. If a deploy ever drops the footer (e.g. a layout.html refactor), the
+    form-listed URLs become unreachable for navigation and reviewers notice."""
+    resp = client.get("/")
+    assert resp.status_code == 200
+    body = resp.data
+    assert b'href="/docs"' in body
+    assert b'href="/privacy"' in body
+    assert b'href="/support"' in body
+    assert b'href="/security"' in body
+
+
 def test_sitemap_and_robots(client):
     sitemap = client.get("/sitemap.xml")
     assert sitemap.status_code == 200

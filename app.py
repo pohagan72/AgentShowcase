@@ -26,6 +26,7 @@ from main_routes import bp as main_bp
 from api_routes import bp as api_bp
 from auth_routes import bp as auth_bp
 from mcp_routes import bp as mcp_bp
+from docs_routes import bp as docs_bp
 from features.info.routes import bp as info_bp
 from features.multimedia.routes import bp as multimedia_bp
 from features.pii_redaction.routes import bp as pii_bp
@@ -172,6 +173,7 @@ def create_app(config_class=Config):
     app.register_blueprint(api_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(mcp_bp)
+    app.register_blueprint(docs_bp)
     app.register_blueprint(info_bp)
     app.register_blueprint(multimedia_bp)
     app.register_blueprint(pii_bp)
