@@ -430,20 +430,104 @@ def test_get_on_mcp_returns_405(client):
 # --- /.well-known/oauth-protected-resource ------------------------------------
 
 
-def test_oauth_protected_resource_returns_resource_and_authorization_servers(
+def test_oauth_protected_resource_points_at_our_own_authorization_server(
     client, monkeypatch
 ):
-    monkeypatch.setenv("WORKOS_ISSUER", "https://api.workos.com/user_management/client_abc")
+    """The RFC 9728 resource doc must advertise OUR /.well-known/oauth-authorization-server,
+    not WorkOS's directly.
+
+    Reason (see oauth_authorization_server() in mcp_routes.py): WorkOS doesn't
+    advertise its DCR endpoint in its own discovery doc, so MCP clients
+    abandon the OAuth bootstrap. We host an augmented discovery doc and
+    point clients at it instead.
+    """
+    monkeypatch.setenv(
+        "WORKOS_ISSUER", "https://test-tenant.authkit.app",
+    )
     monkeypatch.setenv("SYNZO_PUBLIC_URL", "https://www.synzo.ai")
 
     resp = client.get("/.well-known/oauth-protected-resource")
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["resource"] == "https://www.synzo.ai"
-    assert body["authorization_servers"] == [
-        "https://api.workos.com/user_management/client_abc"
-    ]
+    # NOT the WORKOS_ISSUER — we advertise OURSELVES as the discoverable
+    # authorization server so we can serve an augmented metadata doc.
+    assert body["authorization_servers"] == ["https://www.synzo.ai"]
     assert "header" in body["bearer_methods_supported"]
+
+
+# --- /.well-known/oauth-authorization-server (the augmented discovery doc) ----
+
+
+def _stub_authkit_metadata(monkeypatch, doc: dict | None = None) -> None:
+    """Patch the AuthKit metadata fetch so tests don't hit the network."""
+    import mcp_routes
+
+    # Clear any previously-cached metadata from earlier tests in this process.
+    mcp_routes._AUTH_SERVER_METADATA_CACHE = None
+    if doc is None:
+        doc = {
+            "issuer": "https://test-tenant.authkit.app",
+            "authorization_endpoint": "https://test-tenant.authkit.app/oauth2/authorize",
+            "token_endpoint": "https://test-tenant.authkit.app/oauth2/token",
+            "jwks_uri": "https://test-tenant.authkit.app/oauth2/jwks",
+            "code_challenge_methods_supported": ["S256"],
+            "grant_types_supported": ["authorization_code", "refresh_token"],
+            "response_types_supported": ["code"],
+            "scopes_supported": ["openid", "profile", "email", "offline_access"],
+            "token_endpoint_auth_methods_supported": [
+                "none",
+                "client_secret_basic",
+                "client_secret_post",
+            ],
+        }
+    monkeypatch.setattr(mcp_routes, "_fetch_authkit_metadata", lambda: doc)
+
+
+def test_oauth_authorization_server_injects_registration_endpoint(client, monkeypatch):
+    """The whole point of this endpoint: claude.ai needs `registration_endpoint`
+    in the discovery doc to perform Dynamic Client Registration. WorkOS doesn't
+    expose it; we inject it. Without this, OAuth never starts."""
+    monkeypatch.setenv("WORKOS_ISSUER", "https://test-tenant.authkit.app")
+    _stub_authkit_metadata(monkeypatch)
+
+    resp = client.get("/.well-known/oauth-authorization-server")
+    assert resp.status_code == 200
+    body = resp.get_json()
+
+    assert body["registration_endpoint"] == (
+        "https://test-tenant.authkit.app/oauth2/register"
+    )
+    # Issuer must match WORKOS_ISSUER — we don't blindly echo upstream, so
+    # an upstream rename can't break audience checks in _resolve_oauth.
+    assert body["issuer"] == "https://test-tenant.authkit.app"
+
+
+def test_oauth_authorization_server_preserves_upstream_endpoints(client, monkeypatch):
+    """We proxy WorkOS's endpoints unchanged so authorization / token / JWKS
+    URLs route to AuthKit. The injection only adds; it doesn't replace."""
+    monkeypatch.setenv("WORKOS_ISSUER", "https://test-tenant.authkit.app")
+    _stub_authkit_metadata(monkeypatch)
+
+    resp = client.get("/.well-known/oauth-authorization-server")
+    body = resp.get_json()
+    assert body["authorization_endpoint"] == (
+        "https://test-tenant.authkit.app/oauth2/authorize"
+    )
+    assert body["token_endpoint"] == "https://test-tenant.authkit.app/oauth2/token"
+    assert body["jwks_uri"] == "https://test-tenant.authkit.app/oauth2/jwks"
+    assert "S256" in body["code_challenge_methods_supported"]
+
+
+def test_oauth_authorization_server_503_when_upstream_unreachable(client, monkeypatch):
+    """If we can't reach WorkOS, return 503 rather than serving an incomplete
+    doc. Lets the client surface a real error instead of silently dying mid-
+    OAuth."""
+    monkeypatch.setenv("WORKOS_ISSUER", "https://test-tenant.authkit.app")
+    _stub_authkit_metadata(monkeypatch, doc={})  # empty -> treated as fetch failure
+
+    resp = client.get("/.well-known/oauth-authorization-server")
+    assert resp.status_code == 503
 
 
 # --- tools/list now advertises all five Phase 2 tools -------------------------
