@@ -33,6 +33,7 @@ def test_landing_pages_return_200(client, path):
         ("/privacy", b"Privacy Policy"),
         ("/support", b"Synzo Support"),
         ("/security", b"Security Disclosure"),
+        ("/terms", b"Terms of Service"),
     ],
 )
 def test_submission_pages_render_with_hero(client, path, hero):
@@ -57,7 +58,7 @@ def test_docs_page_lists_every_registered_tool(client):
 
 
 def test_global_footer_links_present_on_homepage(client):
-    """Every public page renders the global footer with the four submission-form
+    """Every public page renders the global footer with the submission-form
     links. If a deploy ever drops the footer (e.g. a layout.html refactor), the
     form-listed URLs become unreachable for navigation and reviewers notice."""
     resp = client.get("/")
@@ -65,8 +66,23 @@ def test_global_footer_links_present_on_homepage(client):
     body = resp.data
     assert b'href="/docs"' in body
     assert b'href="/privacy"' in body
+    assert b'href="/terms"' in body
     assert b'href="/support"' in body
     assert b'href="/security"' in body
+
+
+def test_about_page_no_longer_renders_legal_notice(client):
+    """The Legal Notice tab was promoted to /terms; /about should now be
+    bio-only. Guards against accidentally restoring the duplicate legal copy."""
+    resp = client.get("/about")
+    assert resp.status_code == 200
+    body = resp.data.lower()
+    # These strings were the giveaways of the old Legal Notice tab. They should
+    # appear on /terms, not /about.
+    assert b"platform governance" not in body
+    assert b"view full terms of service" not in body
+    # /about still shows the bio.
+    assert b"about paul" in body
 
 
 def test_sitemap_and_robots(client):

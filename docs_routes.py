@@ -59,3 +59,8 @@ def support():
 @bp.route("/security")
 def security():
     return _render_static_page("security", "partials/_security_content.html", "Security")
+
+
+@bp.route("/terms")
+def terms():
+    return _render_static_page("terms", "partials/_terms_content.html", "Terms of Service")
