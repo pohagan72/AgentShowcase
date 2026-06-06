@@ -1,6 +1,6 @@
 # Synzo → Anthropic MCP Connector Directory: Submission Plan
 
-> **Status as of 2026-06-06:** Phase 0, Phase 1, Phase 1.5, Phase 2, Phase 2.5.A complete and live. Waitress runs 32 threads (`WAITRESS_THREADS` env-tunable in [run.py](run.py)); every metered tool invocation runs through a 60s wall-clock timeout in `auth.run_metered_tool()` that refunds the quota slot, meters as `refunded`/`timeout`, and surfaces as JSON-RPC `-32005` (or HTTP 504). All five tools (`summarize_document`, `translate_document`, `redact_pii`, `analyze_image`, `detect_faces`) are live at `https://www.synzo.ai/mcp`. 91/91 tests green locally. `transcribe_audio` is dropped from submission scope; the submission lists 5 tools. **Gate (d): CLOSED.** API-key auth path: 5/5 tools returned SUCCESS via [scripts/sweep_tools.py](scripts/sweep_tools.py) on 2026-06-05. OAuth path: claude.ai successfully OAuth'd against `https://www.synzo.ai/mcp`, called `Synzo:summarize_document` on a uploaded test file, and Claude rendered the correct classification + summary on 2026-06-06 — end-to-end DCR + PKCE + WorkOS sign-in + tool dispatch + structured-output rendering all proven from the real production client. Three OAuth fixes shipped to make this work: commit `42de97e` (HTTP 401 + WWW-Authenticate on unauthenticated `tools/call`, per MCP spec §2.1 / RFC 9728), commit `49915d0` (host augmented `/.well-known/oauth-authorization-server` that proxies WorkOS AuthKit metadata and injects `registration_endpoint` — WorkOS supports DCR but doesn't advertise it), plus WorkOS dashboard config: **MCP Auth → Dynamic Client Registration must be enabled** and Railway env vars `WORKOS_ISSUER` + `WORKOS_JWKS_URL` must point at the AuthKit subdomain (`real-vine-49-staging.authkit.app`), NOT the `api.workos.com/user_management/<client_id>` URL — only AuthKit publishes the PKCE/scopes/grants metadata MCP clients need. **Next gates: Phase 3 (docs/SECURITY/magic bytes/Gemini retry) + Phase 3.5 (submission package) — both unblocked, can proceed in parallel — see §6.**
+> **Status as of 2026-06-06:** Phase 0, Phase 1, Phase 1.5, Phase 2, Phase 2.5.A complete and live. **Code-vs-plan verification run 2026-06-06** (subagent reading every claimed file/line/test): all "DONE/IMPLEMENTED/LIVE" claims confirmed in code; the only items the audit found missing (file-type magic bytes, tenacity retry, SECURITY.md, privacy policy route) are correctly tracked in Phase 3 as TODO. README has already been updated to non-trivial. **Repo will be made private before submission** — `/docs`, `/privacy`, `/support`, `/security` will be built on `www.synzo.ai` (Phase 3), modeled on Harvey's MCP submission's structure. `/docs` is a hand-authored Jinja page (Hero / What-is / Setup guides / Tools table / Troubleshooting + FAQ); the tools table is the only dynamically rendered piece — built once at `create_app()` time by joining the live registry in [mcp_tools.py](mcp_tools.py) against a sidecar `docs/tool_examples.yaml`. Startup raises if a registered tool has no example, so docs cannot silently drift from code. Privacy policy is **GDPR-compliant** (EU/UK users accepted; SCCs for transfers; lawful basis + data subject rights + DPO contact `privacy@synzo.ai`). Support is a static page with `support@synzo.ai` + 2-business-day SLA. For MCP server submissions, a private repo is allowed — the "public GitHub repo" rule is scoped to Plugins, which we are not submitting. **No form answers are pre-locked** — every Phase 3.5 form field must be re-derived fresh against the current code/product state at submission time; any answers from prior unrelated form attempts are not in scope. Waitress runs 32 threads (`WAITRESS_THREADS` env-tunable in [run.py](run.py)); every metered tool invocation runs through a 60s wall-clock timeout in `auth.run_metered_tool()` that refunds the quota slot, meters as `refunded`/`timeout`, and surfaces as JSON-RPC `-32005` (or HTTP 504). All five tools (`summarize_document`, `translate_document`, `redact_pii`, `analyze_image`, `detect_faces`) are live at `https://www.synzo.ai/mcp`. 91/91 tests green locally. `transcribe_audio` is dropped from submission scope; the submission lists 5 tools. **Gate (d): CLOSED.** API-key auth path: 5/5 tools returned SUCCESS via [scripts/sweep_tools.py](scripts/sweep_tools.py) on 2026-06-05. OAuth path: claude.ai successfully OAuth'd against `https://www.synzo.ai/mcp`, called `Synzo:summarize_document` on a uploaded test file, and Claude rendered the correct classification + summary on 2026-06-06 — end-to-end DCR + PKCE + WorkOS sign-in + tool dispatch + structured-output rendering all proven from the real production client. Three OAuth fixes shipped to make this work: commit `42de97e` (HTTP 401 + WWW-Authenticate on unauthenticated `tools/call`, per MCP spec §2.1 / RFC 9728), commit `49915d0` (host augmented `/.well-known/oauth-authorization-server` that proxies WorkOS AuthKit metadata and injects `registration_endpoint` — WorkOS supports DCR but doesn't advertise it), plus WorkOS dashboard config: **MCP Auth → Dynamic Client Registration must be enabled** and Railway env vars `WORKOS_ISSUER` + `WORKOS_JWKS_URL` must point at the AuthKit subdomain (`real-vine-49-staging.authkit.app`), NOT the `api.workos.com/user_management/<client_id>` URL — only AuthKit publishes the PKCE/scopes/grants metadata MCP clients need. **Next gates: Phase 3 (docs/SECURITY/magic bytes/Gemini retry) + Phase 3.5 (submission package) — both unblocked, can proceed in parallel — see §6.**
 >
 > Phase 1 shipped: baseline schema (`orgs`, `api_keys`, `quotas`, `usage_events`) on Railway Postgres at Alembic `0001_baseline`; [auth.py](auth.py) with `Principal`, `require_auth`, WorkOS JWT verification, API-key resolution, atomic quota decrement, refund-on-exception; POC endpoint `POST /api/v1/summarize` verified end-to-end; failure-path test suite (402/413/429/refund/refund-clamp) green.
 >
@@ -324,64 +324,235 @@ If all four pass, claude.ai will OAuth successfully. If any one fails, that's th
 **Sequencing decision.** Phase 2.5.A ships with Phase 2 — it's the minimum to safely take Anthropic submission traffic. Phase 2.5.B is **not** required for submission (reviewers won't hammer us with 600-page PDFs) but **is** required before any "you can buy a `pro` plan" public launch. The trigger to start 2.5.B is the first of: (a) we hit the 32-thread ceiling in production logs, (b) a real customer asks about long-doc support, or (c) we're starting Phase 4.
 
 ### Phase 3 — Submission readiness [~3 days]
+
+**Technical hardening**
 - [ ] Validate with MCP Inspector locally + against the deployed Railway URL.
 - [ ] Write integration tests (pytest) for each MCP tool with mocked Gemini.
 - [ ] Write OAuth flow tests (mock WorkOS).
-- [ ] Replace one-line `README.md` with proper API docs (tool list, schemas, examples).
-- [ ] Author `SECURITY.md` scoped to the MCP server (existing `SAST_REPORT.md` is for the Flask app).
-- [ ] Audit `logging.info` call sites — confirm no document/prompt bodies are logged.
-- [ ] Add file-type detection via magic bytes (currently extension-based).
-- [ ] Wrap Gemini calls with tenacity (retry + circuit breaker).
-- [ ] Prepare reviewer test credentials + sample documents.
+- [ ] Add file-type detection via magic bytes (currently extension-based; `os.path.splitext()` is used in [mcp_tools.py:84](mcp_tools.py#L84) and [mcp_tools.py:475](mcp_tools.py#L475), [features/summarization/utils.py:97](features/summarization/utils.py#L97), [features/translation/routes.py:140](features/translation/routes.py#L140)). Use `python-magic` or `filetype` lib; on mismatch return JSON-RPC `-32004` (invalid units/input).
+- [ ] Wrap Gemini calls with tenacity (retry + circuit breaker). No `@retry` / `tenacity` import exists anywhere in the repo today; transient Gemini 5xx currently surfaces as a tool failure with no retry.
+
+**Docs (public-facing pages on `www.synzo.ai`)**
+
+> **Repo-visibility decision (2026-06-06):** GitHub repo will be made **private** before submission. This rules out using the GitHub README as the form's "Server Documentation Link" — reviewers must click a publicly reachable URL. All three form-required external links (Docs / Privacy / Support) will live on `www.synzo.ai`.
+>
+> **For MCP server submissions, a private repo is allowed.** The pre-submission checklist's "must link a public GitHub repo" rule is scoped to **Plugins** (Claude Code plugins), and we are not submitting a plugin. Verify this is still the case at submission time by re-reading the current checklist.
+>
+> **Reference model: Harvey's MCP submission.** Harvey ships three artifacts that map 1-to-1 to our three required links: (1) `developers.harvey.ai/api-reference/mcp` — the docs page; (2) `harvey.ai/legal/privacy-policy` — the privacy policy; (3) listed support URL. We mirror the **structure** of Harvey's pages but **scope the content to what Synzo actually does** — Harvey is a much larger product with marketing, analytics, training-data use, customer agreements, and a DPO; Synzo is a single-purpose document-intel API. Do not copy Harvey's content; copy the shape.
+>
+> **Three GDPR/scope decisions locked 2026-06-06:**
+> - Docs polish: **match Harvey's structure** — hand-authored intro, Setup guides per client, tools table, Troubleshooting, FAQ. The tools table is the only piece rendered from README to keep the source-of-truth invariant; the rest is static templates.
+> - GDPR scope: **accept EU/UK users.** Privacy policy must be GDPR-compliant (lawful basis, data subject rights, international transfers via SCCs, DPO contact mailbox).
+> - Support channel: **static page + mailbox + response SLA** at `synzo.ai/support`, mailbox `support@synzo.ai` via Cloudflare Email Routing.
+
+The deliverable is three new public routes: `/docs`, `/privacy`, `/support`. All three are unauthenticated (public-site surface per §3.3), CSRF-protected (cookie-based — same as the rest of the public site), and linked from a new global footer in `templates/layout.html`.
+
+**Route 1 — `/docs` (modeled on `developers.harvey.ai/api-reference/mcp`)**
+
+- [ ] **Build `templates/docs.html` with five sections, matching Harvey's structure:**
+  1. **Hero**: "Synzo MCP Server" (h1) + one-sentence pitch + one-paragraph description of what the MCP server does (what Anthropic's "Software Directory" purpose statement requires per Policy 3.C). Hand-authored.
+  2. **What is Synzo MCP?** — One paragraph + a bulleted "What can you do with it" list with one bullet per tool (5 bullets). Hand-authored. Tool-name references must match the live registry in [mcp_tools.py](mcp_tools.py).
+  3. **Setup guides** — Step-by-step for **Claude.ai (web)** and **Claude Desktop**, mirroring Harvey's numbered lists. Walk through: add custom connector, paste `https://www.synzo.ai/mcp`, OAuth sign-in via WorkOS, confirm 5 tools appear in `tools/list`. Hand-authored against the OAuth flow proven on 2026-06-06. **Note** Claude Desktop blocker for work accounts (per §6.2) somewhere visible.
+  4. **Available tools** — **THIS IS THE ONE SECTION RENDERED FROM A CODE-DERIVED SOURCE.** Three-column table (Tool / Description / Example prompt) matching Harvey's table exactly. The tool list, descriptions, and schemas come from the live MCP registry in [mcp_tools.py](mcp_tools.py); example prompts are authored once in a sidecar file (`docs/tool_examples.yaml` or similar — see render model below).
+  5. **Troubleshooting** + **FAQ** — Accordion-style sections (or plain `<details>` blocks if no JS framework is in use). Hand-authored. Seed troubleshooting items from the actual JSON-RPC error codes in [mcp_routes.py:60-64](mcp_routes.py#L60-L64): "Authentication fails or token is rejected" → re-authenticate per §6.2 curl checks; "Invalid file type" → file type derived from extension/magic bytes; "Quota exceeded (-32002)" → check `/dashboard/usage`; "Rate limit exceeded (-32003)" → wait or upgrade plan; "Tool timed out (-32005)" → file too large for plan tier. Seed FAQ from Harvey's pattern: "Can multiple users connect?" / "What data does the server have access to?" / "Does this support conversation history?" — re-author each answer against Synzo's actual code, not copied from Harvey.
+- [ ] **Render model for the tools table — render-once-and-cache, but from the MCP registry directly (not the README).** This is a small but important refinement on the previous plan note:
+  - Earlier plan said: render README to HTML, cache, serve at `/docs`.
+  - **New plan:** the README stays the canonical *developer* doc (lives in the private repo, audience = future maintainers). The public `/docs` page is a hand-authored Jinja template; the only dynamically-rendered piece is the tools table, which reads from [mcp_tools.py](mcp_tools.py)'s `TOOLS` list at app startup.
+  - Why: Harvey's docs page is structured and product-like (intro → setup → tools → troubleshooting → FAQ), not a rendered README. Trying to express that structure inside `README.md` would warp the README for the wrong audience.
+  - **Source-of-truth invariant for the tools table:** at startup in `create_app()`, walk [mcp_tools.py](mcp_tools.py)'s registry; for each tool, pull (`name`, `description`, `annotations.title`) and join against a sidecar file `docs/tool_examples.yaml` (one example prompt per tool, hand-authored). Build the HTML table once, cache as a module-level string, inject into `templates/docs.html` as a Jinja variable. If a tool is added to the registry without a matching example in the sidecar, raise at startup so the discrepancy can't ship to prod.
+  - On `flask run --debug` (`FLASK_DEBUG=1`), re-render the cache each request so authoring locally doesn't require a restart. In prod (Waitress), the startup cache is final.
+  - New deps in [requirements.txt](requirements.txt): `pyyaml` (for the sidecar). `markdown` is no longer needed for `/docs` (no README rendering); keep an eye on whether Phase 3 needs it for any other page (probably not).
+- [ ] **Tests for `/docs`:**
+  - `tests/test_docs_page.py`: assert `GET /docs` returns 200, contains every tool name from the live registry, contains the strings "Setup guides", "Available tools", "Troubleshooting", "FAQ", and does NOT contain any stripped dev-only language ("pytest", "Running locally", "Stack").
+  - Startup-failure test: if `docs/tool_examples.yaml` is missing an entry for a registered tool, `create_app()` raises with a clear message naming the missing tool. This is the guardrail that keeps the docs from silently going stale.
+- [ ] **Pre-submission audit:** read the rendered `/docs` against the live tool registry once. Confirm every tool name, description, and example prompt is accurate. Re-author setup guides if claude.ai's connector UI has shifted since 2026-06-06.
+
+**Route 2 — `/privacy` (modeled on `harvey.ai/legal/privacy-policy`, scoped to Synzo)**
+
+> **GDPR scope locked:** Synzo accepts EU/UK users at submission time. The policy is GDPR-compliant — not minimal-viable US-only.
+
+- [ ] **Build `templates/privacy.html` with the following sections** (mirroring Harvey's structure, scaled to Synzo's actual surface — Harvey's policy is ~7000 words across 12 sections; Synzo's should be ~2000-3000 words across the same skeleton because we have far fewer data flows):
+  1. **Applicability** — what this policy covers (the website, the MCP server, the JSON API, the dashboard). What it doesn't cover (Gemini's processing of file contents on Google's side — link to Google's policy).
+  2. **Personal Data we Collect** — three subsections:
+     - *Account Information* — email, name (from WorkOS), org name, API key metadata. Source: the WorkOS sign-up flow + `users` + `orgs` tables.
+     - *Usage Data* — `usage_events` rows: `org_id, api_key_id, auth_method, tool, units, status, error_code` per [auth.py:307-325](auth.py#L307-L325). **Explicit statement: file bodies are NEVER persisted; they exist only in memory during the tool call.**
+     - *Log Data* — IP, user-agent, request timestamps (Railway edge logs + Flask access logs).
+     - *Cookies* — Flask session cookie (set by [auth_session.py](auth_session.py)). No third-party trackers; no analytics. Confirm against the live site before publishing (the §1.D observability audit in Phase 3 will catch any drift here).
+  3. **How we Use Personal Data** — bulleted list. Synzo's list is much shorter than Harvey's because we don't do marketing/research/personalization: (a) provide the service, (b) bill (Phase 4), (c) support, (d) security/fraud prevention, (e) legal compliance. Each bullet should be honest about what we *actually* do today; defer the Phase-4 ones with "if and when we launch paid plans."
+  4. **Who we Share Data With** — Affiliates: none (we're a sole-prop / single-entity). Service providers: Google Gemini, WorkOS, Railway, Microsoft Presidio (runs in-process — clarify it's a library, not a data transfer). Each named with a link to their policy. Law enforcement: standard language.
+  5. **Security** — short paragraph: TLS in transit (Railway edge), encrypted at rest (Postgres on Railway), API keys SHA-256 hashed per [auth.py](auth.py)'s `issue_api_key` / `_resolve_api_key`. Pointer to `SECURITY.md` / `/security` for vulnerability reporting.
+  6. **International Data Transfers** — Synzo is hosted on Railway in the US; if we accept EU users, their data transits to the US. Rely on **Standard Contractual Clauses (SCCs)** for EU/UK/Swiss transfers (the simplest defensible mechanism for a small operator; Harvey relies on DPF certification but DPF certification is a non-trivial process Synzo isn't yet certified for). Disclose this honestly.
+  7. **Data Retention** — `usage_events`: retained until billing dispute window closes (decide 90 days vs. indefinite; pick something defensible and live with it). User accounts + memberships: retained until deletion request; deleted within 30 days of request. Document body data: never retained.
+  8. **Jurisdiction-specific provisions:**
+     - *EEA/UK/Switzerland*: lawful bases — Contract (for providing the service), Legitimate Interest (for security/fraud), Consent (for any non-essential cookies — currently none). Data subject rights: access, rectification, erasure, portability, objection. Right to lodge complaint with supervisory authority.
+     - *United States / California (CCPA)*: categories of PI collected (Account, Usage, Log, Cookies), purposes, "we do not sell or share PI" (true — verify against any current ad network integration). Right to know / delete / opt-out.
+     - Defer Canada-specific PIPEDA section unless we have evidence of Canadian users.
+  9. **Minors** — Services not directed to under-18; we do not knowingly collect from minors.
+  10. **Your Data Protection Rights** — how to exercise: email `privacy@synzo.ai`.
+  11. **Updates to this Policy** — versioning + how we notify (email all org owners).
+  12. **How to Contact us** — `privacy@synzo.ai` (set up via Cloudflare Email Routing alongside `support@synzo.ai`). Optional: postal address — defer unless GDPR explicitly requires (it does for DPO-required orgs; Synzo is below the threshold for mandatory DPO appointment, but providing a contact is best practice).
+- [ ] **Decide retention windows before publishing.** Two specific numbers needed: `usage_events` retention period, and account-deletion turnaround. Both will be cited in the policy. Reasonable defaults: 90 days for `usage_events` (covers billing disputes), 30 days for deletion processing.
+- [ ] **Set up `privacy@synzo.ai` mailbox** via Cloudflare Email Routing → Paul's real inbox. Same setup as `support@synzo.ai`.
+- [ ] **Mirror the page at a stable URL** that won't change. `synzo.ai/privacy` is fine; some operators use `synzo.ai/legal/privacy` to leave room for a `/legal/terms` sibling.
+
+**Route 3 — `/support` (static page + mailbox + response SLA)**
+
+- [ ] **Build `templates/support.html` with the following sections:**
+  1. **Hero**: "Synzo Support" + one-line "How to reach us when something isn't working."
+  2. **Contact mailbox**: `support@synzo.ai` prominent on the page. Cloudflare Email Routing → Paul's inbox.
+  3. **Response SLA**: explicit promise — "We respond to support requests within **2 business days**." Pick a number you can actually hit; Anthropic's Terms ("address issues within reasonable timeframes") sets the floor.
+  4. **What to include in a report**: org ID (visible at `/dashboard`), tool name, approximate timestamp, error code (e.g. `-32001` thru `-32005`). **Explicitly tell users NOT to paste document contents into support emails** — this is both a policy compliance point and a basic privacy hygiene message.
+  5. **Quick-reference troubleshooting**: cross-link to the `/docs` Troubleshooting section so users self-serve before emailing.
+  6. **Security vulnerabilities**: separate disclosure path — `security@synzo.ai` (Cloudflare Email Routing alias) plus a link to `SECURITY.md` or `/security`. Anthropic's Terms require a mechanism for receiving security reports; this is it.
+- [ ] **Set up `support@synzo.ai` and `security@synzo.ai` mailboxes** via Cloudflare Email Routing. Verify both deliver before publishing the page.
+
+**Cross-cutting**
+
+- [ ] **Add a global footer to `templates/layout.html`** (currently has no footer per the 2026-06-06 audit). Four links: Docs (`/docs`), Privacy (`/privacy`), Support (`/support`), Terms (defer if no Terms page exists yet — flag as a follow-up, not a blocker for MCP submission). Footer renders on every public page including `/`, `/pricing`, `/summarizer`, etc.
+- [ ] **Audit `README.md` against `templates/docs.html`.** The README is now the developer-facing doc, not the public one. Confirm it still accurately covers the same tool list + auth flow + error codes — drift between README and `/docs` will hurt future maintainers. Aim for the README to be a superset of `/docs` (adds: running locally, test counts, stack details).
+- [ ] **Author `SECURITY.md`** scoped to the MCP server (existing `SAST_REPORT.md` is for the Flask app). Include `security@synzo.ai` per Anthropic Software Directory Terms ("implement and maintain a mechanism for receiving reports of security vulnerabilities"). Render at `/security` so it's externally discoverable.
+- [ ] **Prepare reviewer test credentials + sample documents** — see Phase 3.5 "Reviewer test bundle" for the concrete artifact list.
+
+**Policy-compliance audits (Anthropic Software Directory Policy §1, §2, §5)**
+- [ ] **Policy 1.D / 1.F — observability surface audit.** `_record_usage` is already correct ([auth.py:307-325](auth.py#L307-L325) writes only metadata, with a "Never store prompt/document bodies" comment), and `logging.info`/`logger.info`/`print` grep on 2026-06-06 came back clean. Remaining task: grep for `sentry`, `datadog`, `newrelic`, `bugsnag`, `rollbar`, `honeycomb`, `opentelemetry` to confirm no APM or error tracker is wired up that could capture request bodies. If any is found, configure it to scrub request/response bodies before the submission.
+- [ ] **Policy 1.F — confirm no tool description implies querying Claude's memory, chat history, or user files.** Read each tool's `description` in [mcp_tools.py:493-583](mcp_tools.py#L493-L583) and verify none of the language could be parsed as "look up prior messages" or "fetch from the user's conversation." All five tools take direct file inputs — should be a quick confirmation, but explicit because the policy line is explicit.
+- [ ] **Policy 2 / pre-submission checklist — prompt-injection scan of every tool description.** Walk all 5 tool descriptions in [mcp_tools.py](mcp_tools.py) against the five banned patterns:
+  1. Instructing Claude to call external software the user didn't request.
+  2. Interfering with Claude calling other tools.
+  3. Directing Claude to pull behavioral instructions from external sources.
+  4. Containing hidden, obfuscated, or encoded instructions.
+  5. Telling Claude to behave in ways unrelated to the tool's function, override system instructions, or promote products.
+  Descriptions should describe what the tool does — never how Claude should behave. Spot-check by reading them out loud: if any sentence starts with "Claude should…" or "When the user asks X, call this tool then also call Y," rewrite.
+- [ ] **Pre-submission checklist — custom-query-tool API doc reference.** N/A: none of the 5 tools accept freeform endpoint paths, query strings, or request bodies that the caller constructs (verified 2026-06-06 — all schemas take `filename` + `content_base64` + typed params; no `url`, `method`, `endpoint`, or `api_request` field). Document this as N/A in the submission notes so reviewers don't flag it.
+- [ ] **Policy 5.B — token frugality review.** Each tool's response should be sized to the task. Walk every tool's response shape in [mcp_tools.py](mcp_tools.py) and confirm:
+  - `summarize_document` doesn't return the full input text alongside the summary.
+  - `translate_document` returns the markdown translation only (no source echo).
+  - `redact_pii` returns the redacted file as base64 + a count, not the full PII inventory.
+  - `analyze_image` returns the description + tags + colors, not the input image bytes.
+  - `detect_faces` returns the processed image only, not per-face bounding-box arrays unless requested.
+  Decide whether any tool should accept a `verbose: bool` or `include_metadata: bool` knob to let callers exclude unnecessary text — Policy 5.B says users should be given this option "when possible."
+- [ ] **Policy 5.A — error-message audit.** Reviewers fail "Internal Server Error" / "Bad Request" with no detail. JSON-RPC error mapping in [mcp_routes.py:60-64](mcp_routes.py#L60-L64) covers the structured failures (auth/quota/rpm/units/timeout) — confirm each surfaces an actionable `message` field, not a generic string. Read the `AuthError` raise sites in [auth.py](auth.py) and verify the messages would tell a developer what to fix.
+- [ ] **MCP spec — Streamable HTTP transport confirmed; SSE not advertised.** `application/json` responses are returned by [mcp_routes.py:132-137](mcp_routes.py#L132-L137); the 2025-06-18 spec permits this for synchronous tool shapes. Policy 5.F flags that SSE will eventually deprecate — note in the submission that SSE will be added in Phase 2.5.B for long-running calls.
+
+**Policy 1.E (intellectual property) — API ownership framing**
+- [ ] Lock the answer to §7's open question. Anthropic policy 3.F: "Developers must verify that they own or control any API endpoint, domain, or user interface their Software connects to." Synzo's MCP server runs on `synzo.ai` (owned). Gemini is called server-to-server with our key as a legitimate proxy — the user never sees a Gemini endpoint, never authenticates against Gemini, and Gemini is named in the privacy policy. Document this framing in the submission notes: "Synzo's document-intelligence API, Gemini-powered. The MCP server is first-party; Gemini is a downstream model provider, analogous to how an SaaS app uses AWS." If a reviewer pushes back, the fallback is to add explicit "powered by Google Gemini" disclosure in the tool descriptions and listing copy.
 
 ### Phase 3.5 — Submission package (Anthropic Directory form deliverables) [~1–2 days]
 
-Non-code deliverables for the submission form. Pull together in parallel with Phase 3.
+Non-code deliverables for the submission form. Pull together in parallel with Phase 3. The form has six pages; the structure below mirrors them so nothing slips through.
 
-**Identity & contact**
+> **Important:** every form answer below must be authored fresh against the *current* code and product state. Do not assume any answer carries over from prior unrelated form attempts. Verify each claim against the repo / live site before checking the box.
+
+**Identity & contact (form page 1)**
+- [ ] Company/Organization name + URL.
 - [ ] Primary contact: name, email, role (Paul O'Hagan as owner; confirm reviewer-outreach email).
-- [ ] Company info / submitting entity.
+- [ ] Anthropic point of contact (if known) — likely blank.
 
-**Listing copy**
-- [ ] Server name: `Synzo`.
-- [ ] Server URL (production Railway URL of the MCP endpoint).
-- [ ] Tagline — **≤55 characters**.
-- [ ] Description — **50–100 words** covering what Synzo does + key capabilities.
-- [ ] Capability classification: read/write, third-party data handling, category.
+**Listing copy (form page 1)**
+- [ ] Server name (form rule: do NOT include "MCP" or "Server" in the name).
+- [ ] Server URL — confirm which production URL is the submission target and whether it's a universal URL or per-user (form requires distinguishing; current implementation at `/mcp` is universal).
+- [ ] Tagline — **≤55 characters including spaces**. Draft and count.
+- [ ] Description — **50–100 words** covering what the server does + key capabilities.
 
-**Use cases**
-- [ ] Draft **≥3 use cases**, each with an example user prompt. Seeds (matching what's shipped):
-  - Summarize a long contract / classify it / produce a structured summary (`summarize_document`).
-  - Translate the text content of a foreign-language docx/pptx/xlsx (`translate_document`).
-  - Redact PII from a batch of docx/pptx documents before sharing (`redact_pii`).
-  - Describe and tag an image, extract any visible text, flag safety concerns (`analyze_image`).
-  - Anonymize a group photo by blurring or redacting all detected faces (`detect_faces`).
+**Capability classification (form page 1) — DECISIONS TO MAKE**
 
-**Server inventory (declared on the form)**
-- [ ] Tools — `summarize_document, translate_document, redact_pii, analyze_image, detect_faces`. (`transcribe_audio` formally out of scope — see §6 footnote.)
-- [ ] Resources — declare "None" for v1.
-- [ ] Prompts — declare "None" for v1.
+The form requires answers to all of the following. Each needs to be re-derived against the current code, not copied from any prior attempt:
 
-**Auth & test access**
-- [ ] Authentication summary: OAuth 2.0 via WorkOS AuthKit (PKCE + DCR), JWT bearer.
-- [ ] Test account credentials + step-by-step connection instructions + sample docs.
+- [ ] **Read/Write Capabilities** (Read Only / Write Only / Read+Write) — walk every tool in [mcp_tools.py](mcp_tools.py), classify each tool's effect on the *user's* data (not Synzo's internal metering), then pick the form option that matches. `redact_pii` and `detect_faces` return transformed copies of the input — decide whether that counts as "write" or just transformation.
+- [ ] **Is this an "MCP App" (has interactive UI elements)?** (Yes / No) — current code in [mcp_routes.py](mcp_routes.py) does not implement `ui/open-link` or any interactive UI element. Confirm against the [MCP App specification](https://modelcontextprotocol.io/) before answering.
+- [ ] **Third-party Connections and Web Access** (multi-select) — categorize against actual code paths:
+  - Does any tool fetch from arbitrary URLs on the open web? (Check feature modules.)
+  - Does any tool call Gemini? (Yes — `summarize_document`, `translate_document`, `analyze_image`. This is "third-party AI model integration.")
+  - Does any tool call other third-party data services?
+- [ ] **Data Handling checklist** — confirm each statement against current code before checking:
+  - Server only accesses data explicitly requested by user — verify against the tool handlers.
+  - No data is stored beyond session requirements — verify against [auth.py](auth.py)'s `_record_usage` (only metadata) and any file-handling code paths (S3 / temp dirs).
+  - Data transmission is encrypted (HTTPS/TLS) — verify Railway edge + Gemini API call sites.
+  - GDPR compliant (if applicable) — needs a real decision: do we accept EU users? If yes, the privacy policy must cover GDPR (lawful basis, data subject rights, retention) and we may need a DPA.
+- [ ] **Personal health data?** (Yes / No) — decide whether Synzo is positioned to handle medical records / lab results / health metrics. The general-purpose document intelligence framing implies No, but confirm.
+- [ ] **Category** (Business & Productivity / Communication / Data & Analytics / Development tools / Financial Services / Consumer Health / Health & Life Sciences / Media & Entertainment / Commerce & Shopping / Other) — pick one. Likely candidates given the toolset: Business & Productivity, Data & Analytics. Decide which best matches the listing copy.
+- [ ] **Sponsored content / ads?** (No / banner ads / sponsored ranking) — verify against the listing implementation and product surface.
 
-**Docs & support**
-- [ ] Public documentation URL.
-- [ ] Recommended support channel — email or issue tracker distinct from docs.
+**Use cases (form page 1)**
+- [ ] Draft **≥3 use cases**, each with an example user prompt that a reviewer can paste into Claude verbatim against the test account. Tool seeds, drawn from what's actually shipped in [mcp_tools.py](mcp_tools.py):
+  - `summarize_document` — input file types and behavior per [mcp_tools.py](mcp_tools.py).
+  - `translate_document` — supported source types and output shape per [mcp_tools.py](mcp_tools.py).
+  - `redact_pii` — supported file types and output shape per [mcp_tools.py](mcp_tools.py).
+  - `analyze_image` — supported image types and output shape per [mcp_tools.py](mcp_tools.py).
+  - `detect_faces` — supported image types, modes, and output shape per [mcp_tools.py](mcp_tools.py).
+  Re-read the tool descriptions before drafting the use cases so the prompts match actual behavior.
+- [ ] Connection requirements field — derive from the actual sign-in flow shipped in [auth_routes.py](auth_routes.py) (WorkOS AuthKit; SSO providers configured per §6.5.B). Confirm what's truly required (e.g., no admin seat, no custom URL, no geographic restriction).
 
-**Branding & visuals**
-- [ ] Square 1:1 logo, hosted publicly (Drive link OK). Decide PNG vs commissioned SVG.
-- [x] Site favicon at `www.synzo.ai` updated to the Synzo icon (commit `90218af`).
-- [ ] Verify `https://www.google.com/s2/favicons?domain=synzo.ai&sz=64` after Google's 24–48h cache refresh.
-- [ ] 3–5 promotional screenshots of Synzo running inside claude.ai. Demo video optional.
+**Auth & test access (form page 2)**
+- [ ] Authentication Type — derive from the live OAuth flow proven on 2026-06-06.
+- [ ] Auth Client — Static vs Dynamic. Plan §6.2 proved DCR works end-to-end via claude.ai.
+- [ ] Static Client ID / Secret — only fill if we elect static client; otherwise leave blank.
+- [ ] Transport Support (Streamable HTTP / SSE) — verify against [mcp_routes.py](mcp_routes.py)'s response Content-Type and whether any SSE branch exists. As of the 2026-06-06 verification, the server returns `application/json` only; SSE is not implemented (planned for Phase 2.5.B).
+
+**Reviewer test bundle (form page 2 — gates the review; if incomplete, review is blocked)**
+
+This is the highest-risk Phase 3.5 item. The form explicitly says: "Incomplete or missing test credentials will block review of your server." Build the bundle fresh; do not assume any prior test account or sample data is still valid.
+
+- [ ] Create a dedicated reviewer test account in WorkOS. Per form instruction, use `mcp-review@anthropic.com` if email-based 2FA / OAuth is required; otherwise pick a fresh account. Capture the credentials.
+- [ ] Pre-provision the test account's org with state that lets reviewers exercise every tool without hitting quota during the review window. Decide: leave it on free tier (50 calls/month) and trust the review window stays under, or seed a higher plan. Verify the seeded state against [scripts/seed_dev_org.py](scripts/seed_dev_org.py).
+- [ ] Decide whether to issue a static API key for the test account as a fallback (in case OAuth bootstrap breaks on the reviewer side). If yes, document how to use it.
+- [ ] Write Test Account Setup Instructions — a single-page walkthrough a reviewer who has never seen Synzo can follow:
+  1. How to add the connector in claude.ai.
+  2. How to sign in.
+  3. Sample prompts paired with sample files for each tool.
+- [ ] Build a sample file set covering every tool. For each of the 5 tools, pick a file (or generate one) that exercises the tool's typical input and is safe to ship publicly:
+  - One sample per tool, named clearly.
+  - All files public-domain or synthetic — no copyrighted material, no real PII.
+  - File sizes within the free-tier per-call caps (current `free` plan: 20 pages per call per [auth.py](auth.py)'s `PLANS`).
+- [ ] Host the sample bundle somewhere reviewers can fetch (Drive, signed S3 link, `synzo.ai/reviewer-bundle.zip`).
+- [ ] Check both "Test account includes sample data" and "All tools can be tested with provided data" form boxes only after the walkthrough has been dry-run end-to-end by someone other than the author.
+
+**Server inventory (form page 3)**
+
+The form requires the inventory in the exact format `tool_name (Human Readable Name)`.
+- [ ] Tools — derive from the live registry in [mcp_tools.py](mcp_tools.py). The current 5 are `summarize_document`, `translate_document`, `redact_pii`, `analyze_image`, `detect_faces` (`transcribe_audio` formally out of scope per §6 footnote). Author a human-readable name for each.
+- [ ] Tool Titles & Annotations — check both form boxes ("user-friendly titles" + "accurate tool annotations") only after re-confirming every tool has `title`, `readOnlyHint`, and `destructiveHint` set in [mcp_tools.py](mcp_tools.py) (verified 2026-06-06; re-verify at submission time).
+- [ ] Resources — derive from current code. As of 2026-06-06 the server does not implement any MCP resources.
+- [ ] Prompts — derive from current code. As of 2026-06-06 the server does not implement any MCP prompts.
+
+**Docs & support (form page 1, bottom)**
+
+> **Repo will be private at submission time** — all three links below must resolve on `www.synzo.ai`, not GitHub. The routes are built in Phase 3's "Docs" sub-section using the render-once-and-cache model (README is the single source of truth for `/docs`).
+- [ ] Public documentation URL → `https://www.synzo.ai/docs`. Verify the route renders, the cache is populated, and content matches the live tool registry before checking the box.
+- [ ] **Privacy Policy URL** → `https://www.synzo.ai/privacy`. Required field; missing this blocks submission. Verify the page covers data collection, retention, third-party processors, and contact for data requests.
+- [ ] Data Processing Agreement URL — only fill if we have one. Default: leave blank.
+- [ ] Support Channel → `https://www.synzo.ai/support` (or `mailto:support@synzo.ai` if the page just publishes the mailbox). Must be distinct from the docs URL. GitHub Issues is NOT an option because the repo is private.
+
+**Branding & visuals (form page 4)**
+- [ ] Square 1:1 logo, hosted publicly (Drive link OK). Form prefers SVG. Decide PNG vs commissioned SVG.
+- [x] Site favicon at `www.synzo.ai` updated (commit `90218af`).
+- [ ] Verify `https://www.google.com/s2/favicons?domain=synzo.ai&sz=64` after Google's 24–48h cache refresh. Check the box "I have verified that the favicon is correct" only after this confirms.
+- [ ] 3–5 promotional screenshots of the server running inside claude.ai. Form requires ≥1000px wide, PNG, cropped to the response itself, each paired with the matching prompt. Demo video optional.
 - [ ] Optional: Google Drive folder linking promo assets + matching prompts.
 
-**Compliance & submission**
-- [ ] Review and confirm compliance with Anthropic's MCP integration guidelines.
-- [ ] Review and accept the MCP Directory Terms.
-- [ ] Launch readiness / GA confirmation on the form.
-- [ ] Optional: package any Agent Skills that complement the connector.
+**Skills & Plugins (form page 5)**
+- [ ] Skill submission — decide whether to ship an accompanying SKILL.md. Optional; leave blank if not.
+- [ ] Related Plugin — N/A unless we also submit a Claude Code plugin.
+
+**Launch readiness (form page 4)**
+- [ ] Confirm testing in **Claude.ai (web)** — proven 2026-06-06 (OAuth path via claude.ai per §6.2). Check this box only if still true at submission time.
+- [ ] **Claude Desktop** — not validated as of 2026-06-06 (work account's "connectors disabled" org policy blocked it; Inspector v0.22.0's OAuth panel can't drive DCR either). Form says Desktop is not required, so do NOT check this box unless validated against a non-blocked account before submission.
+- [ ] **Claude Code / Cowork** — form says not required. Decide whether to validate or leave unchecked.
+- [ ] Server GA Date — Synzo is GA on `www.synzo.ai` as of Phase 1.5 deploy. Confirm GA status at submission time and answer accordingly.
+
+**Compliance & submission (form page 6)**
+- [ ] **Pre-submission self-check against the [pre-submission checklist](https://docs.claude.com/connectors/building/submission/pre-submission-checklist)** — walk every item. Most are Phase 3 audits; this is the final read-through.
+- [ ] Review and accept the [Anthropic Software Directory Terms](https://support.claude.com/en/articles/13145338-anthropic-software-directory-terms). Key clauses being accepted (verify each against current state before signing):
+  - Warranty: we own/control all API endpoints (Gemini called as legitimate proxy — see Phase 3 framing).
+  - Indemnification of Anthropic for claims related to Synzo or user interactions with it.
+  - Anthropic may review, test, and remove the connector at any time.
+  - Anthropic gets a license to display Synzo's name/logo/screenshots in the directory.
+  - We agree to maintain compliance with the Software Directory Policy as it updates.
+- [ ] Review and confirm compliance with the [Anthropic Software Directory Policy](https://support.claude.com/en/articles/13145358-anthropic-software-directory-policy). Cross-reference against the Phase 3 policy-audit checklist — by Phase 3.5 every item should be ticked.
+- [ ] Confirm Synzo is NOT on the §4 unsupported-use-cases list. Re-verify against current code, not against the plan's prior framing:
+  - Does not transfer money/crypto.
+  - Does not generate images/video/audio via AI (verify analyze_image still only *describes* and detect_faces still only *blurs*).
+  - Does not serve ads or sponsored content.
 - [ ] **Submit to Connector Directory.**
 
 ### Phase 4 — Paid API (deferred until a real customer asks) [~1 week]
@@ -762,6 +933,19 @@ Phase 3.5 is submission deliverables (screenshots, listing copy, reviewer creden
 - `tests/test_auth_routes.py` — happy-path + role-gate + cross-tenant rejection.
 - `tests/test_multi_tenant_isolation.py` — the bug-prevention suite.
 
+**New in Phase 3 (public-facing docs — modeled on Harvey's MCP submission):**
+- `templates/docs.html` — hand-authored Jinja page with five sections (Hero / What is Synzo MCP / Setup guides / Available tools / Troubleshooting + FAQ). The Available tools section is the only dynamically rendered piece.
+- `templates/privacy.html` — static, GDPR-compliant privacy policy with the 12-section skeleton in Phase 3 Docs. ~2000-3000 words; scope tightly to Synzo's actual data flows.
+- `templates/support.html` — static support page with mailbox, response SLA, what-to-include-in-a-report, security disclosure cross-link.
+- `docs/tool_examples.yaml` (new) — one example prompt per tool, keyed by tool name. The sidecar that joins against [mcp_tools.py](mcp_tools.py)'s live registry to build the tools table.
+- New module (likely `docs_renderer.py`) — at `create_app()` time, walks [mcp_tools.py](mcp_tools.py)'s `TOOLS` and joins against `docs/tool_examples.yaml`, builds the HTML table once, caches as module-level string. Raises at startup if a registered tool has no example in the sidecar (this is the guardrail against silent doc drift).
+- New route handlers for `/docs`, `/privacy`, `/support`, `/security` (extend [main_routes.py](main_routes.py) or new `docs_routes.py` blueprint).
+- Edits to `templates/layout.html` — global footer with Docs / Privacy / Support links (Terms deferred).
+- Edits to [requirements.txt](requirements.txt) — pin `pyyaml`. (`markdown`/`pygments` no longer needed; the docs page is hand-authored Jinja, not rendered Markdown.)
+- `SECURITY.md` — MCP-server-scoped security disclosures + `security@synzo.ai` vulnerability-reporting mailbox.
+- `tests/test_docs_page.py` (new) — asserts `GET /docs` 200s, contains every tool name from the live registry, contains the five section headings, and does NOT contain dev-only language. Plus a startup-failure test: missing example in `tool_examples.yaml` → `create_app()` raises with a clear message.
+- Cloudflare Email Routing rules — three new aliases: `support@synzo.ai`, `privacy@synzo.ai`, `security@synzo.ai` → Paul's real inbox. No new infra; one config edit in Cloudflare.
+
 ---
 
 ## 10. When picking this up later
@@ -769,7 +953,7 @@ Phase 3.5 is submission deliverables (screenshots, listing copy, reviewer creden
 1. Re-read this file end-to-end — the top-of-file status line tells you where we left off.
 2. Check the Anthropic MCP spec page for any updates since the last edit date — auth and transport specs evolve.
 3. Confirm `PLANS` numbers still make sense given current Gemini pricing.
-4. As of 2026-06-06: Phase 0, Phase 1, Phase 1.5, Phase 2, Phase 2.5.A are done and live. **Gate (d) is fully closed** — API-key auth path proven via [scripts/sweep_tools.py](scripts/sweep_tools.py) on 2026-06-05 (5/5 tools SUCCESS), OAuth path proven via claude.ai on 2026-06-06 (DCR + PKCE + WorkOS sign-in + tool call + structured-output render all end-to-end). Three OAuth fixes shipped on 2026-06-06 (commits `42de97e` + `49915d0`, plus WorkOS dashboard config change) — see §6.2 for the detailed lessons; if reproducing OAuth setup elsewhere, run the four curl checks in §6.2 in order before touching code. `transcribe_audio` dropped from scope; the 5 shipped tools are the submission set. **Next concrete actions, in order:** (a) start Phase 3 (docs, SECURITY.md, file-type detection by magic bytes, Gemini retry/circuit-breaker) and Phase 3.5 (submission package: tagline, description, use cases, screenshots, logo, reviewer credentials) — both unblocked, run in parallel; (b) operationally validate Phase 2.5.A by running [scripts/concurrency_load_test.py](scripts/concurrency_load_test.py) against the live deployment with `--concurrency 32` before any public-launch traffic (consumes 32 quota slots per run); (c) revoke any API keys exposed during testing (see git history for the one leaked 2026-06-05).
+4. As of 2026-06-06: Phase 0, Phase 1, Phase 1.5, Phase 2, Phase 2.5.A are done and live. **Gate (d) is fully closed** — API-key auth path proven via [scripts/sweep_tools.py](scripts/sweep_tools.py) on 2026-06-05 (5/5 tools SUCCESS), OAuth path proven via claude.ai on 2026-06-06 (DCR + PKCE + WorkOS sign-in + tool call + structured-output render all end-to-end). Three OAuth fixes shipped on 2026-06-06 (commits `42de97e` + `49915d0`, plus WorkOS dashboard config change) — see §6.2 for the detailed lessons; if reproducing OAuth setup elsewhere, run the four curl checks in §6.2 in order before touching code. `transcribe_audio` dropped from scope; the 5 shipped tools are the submission set. **Verification pass (2026-06-06)** — a code-reading subagent walked every "DONE" claim against the actual repo: all 5 tools have `title`/`readOnlyHint`/`destructiveHint`, error codes -32001/-32002/-32003/-32004/-32005 are wired, HTTP 401 + `WWW-Authenticate` + CORS exposure all live, atomic quota decrement + refund + metering all confirmed, `_record_usage` writes only metadata (no bodies), `tests/test_multi_tenant_isolation.py` enforces cross-tenant isolation, 91 tests collected. The only confirmed gaps are the Phase 3 TODOs (magic bytes, tenacity, SECURITY.md, privacy policy); README is already updated. **Next concrete actions, in order:** (a) start Phase 3 — now expanded to cover not just SECURITY/magic-bytes/tenacity but also (i) four new public-facing routes `/docs`, `/privacy`, `/support`, `/security` with a global footer in `templates/layout.html`, modeled on Harvey's MCP submission's structure. `/docs` is hand-authored Jinja with a dynamically-built tools table (registry × `docs/tool_examples.yaml` sidecar, cached at startup, startup-fails on drift). `/privacy` is a GDPR-compliant 12-section policy scoped to Synzo's actual data flows (SCCs for EU/UK transfers; `privacy@synzo.ai` DPO contact). `/support` is a static page with `support@synzo.ai` + 2-business-day SLA. Three Cloudflare Email Routing aliases to set up: support/privacy/security. (ii) the explicit policy-compliance audits (observability/APM grep for Sentry/Datadog/etc., prompt-injection scan of tool descriptions, token-frugality review per Policy 5.B, error-message audit per Policy 5.A, custom-query N/A documentation, API-ownership framing for Gemini); (b) start Phase 3.5 in parallel — structured to mirror the submission form's six pages. **Every form answer is open and must be re-derived against the current code at submission time** — no answers from prior unrelated form attempts are assumed valid. Phase 3.5 also now includes a concrete reviewer-test-bundle spec (one sample file per tool, walkthrough doc, dedicated WorkOS test account); (c) operationally validate Phase 2.5.A by running [scripts/concurrency_load_test.py](scripts/concurrency_load_test.py) against the live deployment with `--concurrency 32` before any public-launch traffic (consumes 32 quota slots per run); (d) revoke any API keys exposed during testing (see git history for the one leaked 2026-06-05).
 5. WorkOS staging credentials + `WORKOS_ISSUER` live in local `.env` (never committed) and in Railway service vars. Confirm they still work before relying on them.
 6. The auth/quota/metering pipeline ([auth.py](auth.py), [auth_routes.py](auth_routes.py)) and the tenant-isolation test suite ([tests/test_multi_tenant_isolation.py](tests/test_multi_tenant_isolation.py)) are the foundation Phase 2's MCP tools sit on top of. Every MCP tool handler must (a) use `@require_auth` (b) read `Principal.org_id` from `g.principal` and scope DB reads/writes on it, and (c) get parallel cross-tenant isolation tests.
 7. The audit prompt from the original conversation can be re-run any time against the repo to track progress against Anthropic's requirements matrix.
