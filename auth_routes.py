@@ -254,15 +254,42 @@ def callback():
     session.permanent = True
     session["user_id"] = user.id
     session["current_org_id"] = org.id
+    # Stash the AuthKit session id so /auth/logout can terminate the AuthKit
+    # cookie too, not just our local Flask session. Without this, a logout
+    # only clears our cookie — AuthKit silently re-issues the same identity
+    # on next sign-in, blocking the "switch to a different account" flow
+    # (e.g. the reviewer test account).
+    session["workos_session_id"] = claims.get("sid")
 
     return redirect(post_login_next)
 
 
 @bp.route("/auth/logout")
 def logout():
-    """Clear the local session. WorkOS sign-out happens at AuthKit."""
+    """Terminate both the Flask session AND the AuthKit session.
+
+    Without the AuthKit-side termination, a user signing out and then signing
+    back in gets silently re-issued the same identity (AuthKit's own session
+    cookie is still valid). That broke the "sign out and sign in as a
+    different account" flow on 2026-06-07.
+    """
+    workos_session_id = session.get("workos_session_id")
     session.clear()
-    return redirect("/")
+    if not workos_session_id:
+        # No AuthKit session id (legacy login before this stash existed, or
+        # session expired). Fall back to local-only logout; user may have to
+        # clear cookies manually if AuthKit still recognizes them.
+        return redirect("/")
+    try:
+        return_to = request.url_root.rstrip("/")
+        logout_url = _workos().user_management.get_logout_url(
+            session_id=workos_session_id,
+            return_to=return_to,
+        )
+        return redirect(logout_url)
+    except Exception as e:
+        logger.warning("WorkOS get_logout_url failed (falling back to local-only logout): %s", e)
+        return redirect("/")
 
 
 # --- /dashboard/* -------------------------------------------------------------

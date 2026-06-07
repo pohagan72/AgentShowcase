@@ -479,3 +479,58 @@ def test_logout_clears_session(client):
     with client.session_transaction() as sess:
         assert "user_id" not in sess
         assert "current_org_id" not in sess
+
+
+def test_logout_redirects_to_workos_logout_when_session_id_present(client, monkeypatch):
+    """When the AuthKit session id was stashed at callback time, /auth/logout
+    must redirect to the WorkOS-issued logout URL so AuthKit terminates its
+    own cookie too — otherwise the user gets silently re-signed-in next time
+    and can't switch accounts. Regression guard for the bug caught 2026-06-07
+    while creating the reviewer test account."""
+    captured = {}
+
+    def fake_get_logout_url(*, session_id, return_to=None, **_):
+        captured["session_id"] = session_id
+        captured["return_to"] = return_to
+        return f"https://test.authkit.app/sessions/logout?session_id={session_id}"
+
+    stub = SimpleNamespace(
+        user_management=SimpleNamespace(get_logout_url=fake_get_logout_url)
+    )
+    import auth_routes
+    monkeypatch.setattr(auth_routes, "_workos", lambda: stub)
+
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["current_org_id"] = 1
+        sess["workos_session_id"] = "session_abc123"
+
+    res = client.get("/auth/logout")
+    assert res.status_code == 302
+    assert res.location.startswith("https://test.authkit.app/sessions/logout")
+    assert captured["session_id"] == "session_abc123"
+    assert captured["return_to"]  # whatever url_root resolves to in tests
+    with client.session_transaction() as sess:
+        assert "user_id" not in sess
+        assert "workos_session_id" not in sess
+
+
+def test_logout_falls_back_to_local_only_when_workos_call_fails(client, monkeypatch):
+    """If WorkOS get_logout_url raises (network blip, SDK shape drift), we
+    must still drop the local session and redirect home — never leave the
+    user stuck on a Flask 500 with their cookie intact."""
+    def boom(*, session_id, return_to=None, **_):
+        raise RuntimeError("network down")
+    stub = SimpleNamespace(user_management=SimpleNamespace(get_logout_url=boom))
+    import auth_routes
+    monkeypatch.setattr(auth_routes, "_workos", lambda: stub)
+
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+        sess["workos_session_id"] = "session_abc"
+
+    res = client.get("/auth/logout")
+    assert res.status_code == 302
+    assert res.location.endswith("/")
+    with client.session_transaction() as sess:
+        assert "user_id" not in sess
