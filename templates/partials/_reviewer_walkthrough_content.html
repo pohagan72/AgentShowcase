@@ -1,0 +1,181 @@
+{# templates/partials/_reviewer_walkthrough_content.html
+   Unlisted reviewer-facing page. URL is shared via the Anthropic submission
+   form, NOT linked from the public footer/nav. The Cache-Control header is
+   set to private+no-store at the route so search engines don't index it
+   even if discovered. Content targeted at a senior MCP/GenAI reviewer:
+   server URL, credentials, per-tool prompt and expected response shape,
+   no MCP/OAuth handholding. Visual language matches /docs (.feature-container,
+   .legal-section). #}
+
+<style>
+    /* Scoped to /reviewer-walkthrough. Everything else lives in style.css. */
+    .reviewer-creds {
+        background: #fff7ed; border: 1px solid #fed7aa; border-radius: var(--radius-md);
+        padding: 1rem 1.25rem; margin: 0.75rem 0 1rem;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.9rem; color: var(--text-primary); line-height: 1.7;
+    }
+    .reviewer-creds dt { display: inline-block; min-width: 160px; color: var(--text-secondary); font-weight: 600; }
+    .reviewer-creds dd { display: inline; margin: 0; }
+    .reviewer-creds dd::after { content: "\A"; white-space: pre; }
+
+    .bundle-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+    .bundle-table th, .bundle-table td {
+        text-align: left; padding: 10px 12px;
+        border-bottom: 1px solid var(--border-subtle);
+        vertical-align: top; font-size: 0.92rem; color: var(--text-primary);
+    }
+    .bundle-table th {
+        background: #f8fafc; font-weight: 700; color: var(--text-secondary);
+        text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.72rem;
+    }
+    .bundle-table tr:last-child td { border-bottom: none; }
+    .bundle-table code { font-size: 0.9em; }
+
+    .tool-block {
+        border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+        padding: 1rem 1.25rem; margin-bottom: 1rem; background: #ffffff;
+    }
+    .tool-block h4 {
+        margin: 0 0 0.35rem; display: flex; align-items: baseline; gap: 0.5rem;
+        font-size: 1rem;
+    }
+    .tool-block h4 code { font-size: 0.95em; }
+    .tool-block .meta {
+        font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 0.6rem;
+    }
+    .tool-block .prompt {
+        background: #f8fafc; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+        padding: 0.6rem 0.85rem; margin: 0.35rem 0;
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.88rem; line-height: 1.5; color: var(--text-primary);
+    }
+    .tool-block .shape {
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.82rem; color: var(--text-secondary); margin: 0.35rem 0 0;
+    }
+
+    .quota-note {
+        background: #eff6ff; border-left: 3px solid var(--brand-primary);
+        padding: 0.75rem 1rem; margin: 1rem 0;
+        font-size: 0.92rem; color: var(--text-primary);
+    }
+</style>
+
+<div class="feature-container">
+
+    <header class="page-hero">
+        <h1>Synzo MCP &mdash; reviewer walkthrough</h1>
+        <p class="page-meta">For Anthropic Connector Directory reviewers. Five tools, one OAuth flow, ~5&nbsp;minutes end-to-end. Credentials and sample data below; quota provisioned for review.</p>
+    </header>
+
+    <section class="legal-section" id="at-a-glance">
+        <h2>At a glance</h2>
+        <table class="bundle-table">
+            <tr><th>Server URL</th><td><code>https://www.synzo.ai/mcp</code></td></tr>
+            <tr><th>Transport</th><td>Streamable HTTP (<code>application/json</code>). No SSE branch &mdash; synchronous tool shapes only.</td></tr>
+            <tr><th>Protocol versions</th><td><code>2025-06-18</code>, <code>2025-03-26</code></td></tr>
+            <tr><th>Auth</th><td>OAuth 2.0 via WorkOS AuthKit. DCR per RFC&nbsp;7591. Augmented <code>/.well-known/oauth-authorization-server</code> injects <code>registration_endpoint</code> &mdash; WorkOS supports DCR but doesn't advertise it.</td></tr>
+            <tr><th>Tools</th><td>5 &mdash; see <a href="{{ url_for('docs.docs') }}">/docs</a> for the live registry table. Tool catalog is generated at <code>create_app()</code> startup from <code>mcp_tools.TOOLS</code> joined against a sidecar YAML; drift raises at boot.</td></tr>
+            <tr><th>Resources / Prompts</th><td>None implemented.</td></tr>
+            <tr><th>Sample bundle</th><td><a href="{{ url_for('static', filename='files/reviewer-bundle.zip') }}">reviewer-bundle.zip</a> (~3.2&nbsp;MB &mdash; five files, one per tool)</td></tr>
+        </table>
+    </section>
+
+    <section class="legal-section" id="credentials">
+        <h2>Test account</h2>
+        <p>This account exists for review. It's on the free tier, scoped to its own org, and isolated from production traffic.</p>
+        <dl class="reviewer-creds">
+            <dt>Email</dt><dd>mcp-review@synzo.ai</dd>
+            <dt>Password</dt><dd>{{ reviewer_password | default('&lt;set at submission time&gt;', true) }}</dd>
+            <dt>Plan</dt><dd>free (50 calls/month, 20 pages/call, 10 rpm)</dd>
+            <dt>Sign-in</dt><dd>WorkOS AuthKit (Email + Password, or Google/MS/GitHub/Apple SSO)</dd>
+        </dl>
+        <div class="quota-note">
+            <strong>Quota note.</strong> A full sweep of all five tools burns <strong>5 calls</strong> against the 50-call monthly cap. Repeat passes are fine; <code>/dashboard/usage</code> shows live consumption. Per-org RPM is 10 &mdash; pacing only matters if you script the calls.
+        </div>
+    </section>
+
+    <section class="legal-section" id="connect">
+        <h2>Connect</h2>
+        <h4>claude.ai (web)</h4>
+        <ol>
+            <li>Settings &rarr; Connectors &rarr; Add custom connector.</li>
+            <li>Server URL: <code>https://www.synzo.ai/mcp</code></li>
+            <li>OAuth prompt redirects to <code>real-vine-49-staging.authkit.app</code>. Sign in with the credentials above.</li>
+            <li>Five tools appear in the connector's tool list. Discovery is via <code>/.well-known/oauth-protected-resource</code> &rarr; our augmented auth-server doc &rarr; WorkOS DCR.</li>
+        </ol>
+        <h4>Claude Desktop</h4>
+        <p>Same flow. <strong>Caveat:</strong> some work-account org policies disable connectors at the policy layer &mdash; if Desktop blocks the add, use claude.ai. We hit this during our own end-to-end testing on 2026-06-06.</p>
+        <h4>Direct JSON-RPC (curl)</h4>
+        <p>Useful for verifying server health without going through a client. Bearer is the WorkOS JWT; for API-key auth, swap in an <code>sk_synzo_*</code> from <code>/dashboard/keys</code>.</p>
+<pre class="prompt">curl -sS -X POST https://www.synzo.ai/mcp \
+  -H 'Authorization: Bearer &lt;jwt&gt;' \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2025-06-18' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</pre>
+    </section>
+
+    <section class="legal-section" id="sweep">
+        <h2>End-to-end sweep</h2>
+        <p>One prompt per tool, paired with the matching file from <a href="{{ url_for('static', filename='files/reviewer-bundle.zip') }}">reviewer-bundle.zip</a>. Each prompt is written to elicit exactly one tool call; Claude's tool-selection step is the only nondeterminism.</p>
+
+        <div class="tool-block">
+            <h4><code>summarize_document</code> &middot; <span class="meta">PDF / DOCX / PPTX / XLSX &le;10&nbsp;MB, &le;20 pages on free tier</span></h4>
+            <p class="meta">File: <code>summarize-sample.pdf</code> &middot; classify + structured summary, no source-text echo</p>
+            <p class="prompt">Use Synzo to classify and summarize this document.</p>
+            <p class="shape">&rarr; <code>{ classification, summary, filename }</code></p>
+        </div>
+
+        <div class="tool-block">
+            <h4><code>translate_document</code> &middot; <span class="meta">DOCX / PPTX / XLSX only (no PDF), &le;10&nbsp;MB</span></h4>
+            <p class="meta">File: <code>translate-sample.docx</code> &middot; markdown output, no binary round-trip</p>
+            <p class="prompt">Translate this document to Spanish using Synzo.</p>
+            <p class="shape">&rarr; <code>{ filename, target_language, translated_text }</code></p>
+        </div>
+
+        <div class="tool-block">
+            <h4><code>redact_pii</code> &middot; <span class="meta">DOCX / PPTX only, &le;10&nbsp;MB &middot; Microsoft Presidio</span></h4>
+            <p class="meta">File: <code>redact-sample.docx</code> &middot; in-place redaction, returns base64 + mimetype. Per-paragraph analysis with full default English recognizer set (PERSON, EMAIL_ADDRESS, PHONE_NUMBER, US_SSN, CREDIT_CARD, US_PASSPORT, LOCATION, DATE_TIME, NRP, ORGANIZATION).</p>
+            <p class="prompt">Redact the PII in this document using Synzo.</p>
+            <p class="shape">&rarr; <code>{ filename, content_base64, mimetype, original_size_bytes, redacted_size_bytes }</code></p>
+            <p class="meta">All seeded entities &mdash; synthetic name, email, phone, SSN (<code>211-61-2524</code>), passport, Visa test card &mdash; are replaced with U+2588 block characters. Verifiable end-to-end via <code>scripts/verify_redact_sample.py</code> in the repo.</p>
+        </div>
+
+        <div class="tool-block">
+            <h4><code>analyze_image</code> &middot; <span class="meta">JPG / PNG / WEBP / HEIC / HEIF &le;10&nbsp;MB &middot; Gemini vision + OpenCV palette</span></h4>
+            <p class="meta">File: <code>analyze-sample.jpg</code> &middot; normalized + resized before the Gemini call so giant uploads don't OOM</p>
+            <p class="prompt">Analyze this image with Synzo.</p>
+            <p class="shape">&rarr; <code>{ filename, analysis: { description, rich_description, extracted_text, safety_flags, detected_objects }, dominant_colors }</code></p>
+        </div>
+
+        <div class="tool-block">
+            <h4><code>detect_faces</code> &middot; <span class="meta">JPG / PNG / WEBP / HEIC / HEIF &le;10&nbsp;MB &middot; MTCNN</span></h4>
+            <p class="meta">File: <code>detect-faces-sample.jpg</code> &middot; returns PNG with faces blurred or redacted. Tool name describes the detect-and-obscure pipeline; response is the processed image, not bounding boxes.</p>
+            <p class="prompt">Use Synzo to blur the faces in this image.</p>
+            <p class="shape">&rarr; <code>{ filename, mode, content_base64, mimetype }</code></p>
+            <p class="meta"><strong>Cold-start cost:</strong> first call on a fresh Waitress process pays ~10&ndash;30s for the MTCNN/TensorFlow graph to load. Subsequent calls on the same replica are fast.</p>
+        </div>
+    </section>
+
+    <section class="legal-section" id="errors">
+        <h2>Error envelope (for reference)</h2>
+        <p>All tool-layer failures surface as JSON-RPC errors. Auth-layer rejections of <code>tools/call</code> additionally return HTTP&nbsp;401 with a <code>WWW-Authenticate</code> header so MCP clients can initiate OAuth per spec &sect;2.1 / RFC&nbsp;9728.</p>
+        <table class="bundle-table">
+            <tr><th>Code</th><th>Meaning</th><th>When you'd see it</th></tr>
+            <tr><td><code>-32001</code></td><td>Auth</td><td>Missing/invalid bearer; expired token; orphan org; missing JWT claim</td></tr>
+            <tr><td><code>-32002</code></td><td>Quota</td><td>Monthly call cap exhausted</td></tr>
+            <tr><td><code>-32003</code></td><td>Rate limit</td><td>Per-org RPM exceeded (cap surfaced in message)</td></tr>
+            <tr><td><code>-32004</code></td><td>Units exceeded</td><td>Per-call cap exceeded (e.g. &gt;20 pages on free tier)</td></tr>
+            <tr><td><code>-32005</code></td><td>Tool timeout</td><td>60s wall-clock ceiling; quota refunded, metered as <code>timeout</code></td></tr>
+        </table>
+        <p>Tool-internal failures (handler exception, downstream model error) come back as <code>isError: true</code> in the <code>result</code> envelope &mdash; not a JSON-RPC error &mdash; so Claude can recover. Quota is still refunded on the exception path.</p>
+    </section>
+
+    <section class="legal-section" id="contact">
+        <h2>Questions during review</h2>
+        <p>Email <a href="mailto:mcp-review@anthropic.com?subject=Synzo%20review">mcp-review@anthropic.com</a> from your reviewer address, or open a thread through the submission. We respond within 2 business days per the <a href="{{ url_for('docs.support') }}">support SLA</a>; review threads jump the queue.</p>
+        <p>Security disclosures go to <code>security@synzo.ai</code> &mdash; see <a href="{{ url_for('docs.security') }}">/security</a>.</p>
+    </section>
+
+</div>

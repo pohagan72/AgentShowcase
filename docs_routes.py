@@ -10,7 +10,9 @@
 #
 # Phase 3 status: routes + footer + minimal stubs only. Content fill-in tracked
 # in MCP_SUBMISSION_PLAN.md §6 Phase 3.
-from flask import Blueprint, current_app, render_template
+import os
+
+from flask import Blueprint, current_app, make_response, render_template
 from markupsafe import Markup
 
 from main_routes import FEATURES_DATA, DEFAULT_FEATURE_KEY
@@ -64,3 +66,27 @@ def security():
 @bp.route("/terms")
 def terms():
     return _render_static_page("terms", "partials/_terms_content.html", "Terms of Service")
+
+
+@bp.route("/reviewer-walkthrough")
+def reviewer_walkthrough():
+    # Unlisted page for the Anthropic Connector Directory reviewer. URL is
+    # shared via the submission form, NOT linked from the public footer/nav.
+    # Reviewer password is read from REVIEWER_PASSWORD env var so the literal
+    # credential never lives in the repo; the partial renders a placeholder
+    # if the var isn't set.
+    reviewer_password = os.environ.get("REVIEWER_PASSWORD")
+    resp = make_response(
+        _render_static_page(
+            "reviewer-walkthrough",
+            "partials/_reviewer_walkthrough_content.html",
+            "Reviewer walkthrough",
+            reviewer_password=reviewer_password,
+        )
+    )
+    # Defense in depth alongside the unlisted URL: prevent search engines from
+    # indexing the page if they ever discover it, and stop intermediate caches
+    # from storing the credentials block.
+    resp.headers["Cache-Control"] = "private, no-store"
+    resp.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return resp
