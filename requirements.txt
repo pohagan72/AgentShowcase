@@ -1,5 +1,6 @@
 # --extra-index-url https://download.pytorch.org/whl/cpu
 beautifulsoup4
+filetype
 Flask
 Flask-Limiter
 Flask-SQLAlchemy
