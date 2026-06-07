@@ -11,27 +11,29 @@
         </div>
 
     {% else %}
-        {# This block handles the successful result, showing the two images. #}
-        <div class="blurring-image-results-grid">
-            <div class="image-result-container">
-                <h4>Original</h4>
-                <img src="{{ original_image_url }}" alt="Original Image" class="img-fluid result-image">
+        {# Wrap the success branch in the card so it matches the analytics-result-card polish. #}
+        <div class="blurring-result-card">
+            <div class="blurring-image-results-grid">
+                <div class="image-result-container">
+                    <h4>Original</h4>
+                    <img src="{{ original_image_url }}" alt="Original Image" class="result-image">
+                </div>
+                <div class="image-result-container">
+                    <h4>Blurred</h4>
+                    <img src="{{ blurred_image_url }}" alt="Blurred Image" class="result-image">
+                </div>
             </div>
-            <div class="image-result-container">
-                <h4>Blurred</h4>
-                <img src="{{ blurred_image_url }}" alt="Blurred Image" class="img-fluid result-image">
-            </div>
-        </div>
 
-        {% if message %}
-            <div class="message-item category-success" role="alert" style="margin-top: 1rem;">
-                <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
-                {{ message }} 
-                {% if processing_time is defined %}
-                    Processing time: {{ "%.2f"|format(processing_time) }}s.
-                {% endif %}
-            </div>
-        {% endif %}
+            {% if message %}
+                <div class="message-item category-success" role="alert" style="margin-top: 1.5rem;">
+                    <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+                    {{ message }}
+                    {% if processing_time is defined %}
+                        Processing time: {{ "%.2f"|format(processing_time) }}s.
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
 
     {% endif %}
 
