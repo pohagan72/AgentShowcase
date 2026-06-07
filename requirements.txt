@@ -35,6 +35,7 @@ requests
 # scikit-learn
 spacy
 # stanza
+tenacity
 tensorflow-cpu
 keras>=3.13.2
 # torch
