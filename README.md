@@ -1,13 +1,13 @@
 # Synzo
 
-Synzo is a document-intelligence API for AI agents, applications, and people. It exposes six capabilities — summarize, translate, redact PII, analyze images, detect faces — through three surfaces sharing one backend: a public HTMX site, a metered JSON API, and an MCP server.
+Synzo is a document-intelligence API for AI agents, applications, and people. It exposes five capabilities — summarize, translate, redact PII, analyze images, detect faces — through three surfaces sharing one backend: a public HTMX site, a metered JSON API, and an MCP server.
 
 - **Live site:** [www.synzo.ai](https://www.synzo.ai)
 - **MCP endpoint:** `https://www.synzo.ai/mcp`
 - **OAuth discovery:** `https://www.synzo.ai/.well-known/oauth-protected-resource`
 - **Full plan and architecture:** [MCP_SUBMISSION_PLAN.md](MCP_SUBMISSION_PLAN.md)
 
-> Status: Phase 0 / 1 / 1.5 shipped and verified live. Phase 2 tool surface (5 MCP tools) is complete locally and partially deployed (`summarize_document` is live; `translate_document`, `redact_pii`, `analyze_image`, `detect_faces` ship in the next deploy). `transcribe_audio` is deferred — see the plan for the rationale.
+> Status: Phase 0 / 1 / 1.5 / 2 / 2.5.A shipped and verified live. All five MCP tools (`summarize_document`, `translate_document`, `redact_pii`, `analyze_image`, `detect_faces`) are live at `https://www.synzo.ai/mcp`. `transcribe_audio` is dropped from submission scope. Phase 3 is ~75% shipped — see [MCP_SUBMISSION_PLAN.md](MCP_SUBMISSION_PLAN.md) for the remaining items.
 
 ---
 
@@ -125,7 +125,7 @@ The app boots on port 5001. Run tests with:
 .venv/Scripts/python.exe -m pytest -q
 ```
 
-Currently 82/82 passing. The test suite forces `DATABASE_URL=sqlite:///:memory:` so it never touches Railway Postgres.
+Currently 140/140 passing. The test suite forces `DATABASE_URL=sqlite:///:memory:` so it never touches Railway Postgres.
 
 ---
 
@@ -145,11 +145,12 @@ Currently 82/82 passing. The test suite forces `DATABASE_URL=sqlite:///:memory:`
 
 The full plan, including the multi-tenant data model, abuse defense layers, and submission deliverables, lives in [MCP_SUBMISSION_PLAN.md](MCP_SUBMISSION_PLAN.md). Open items:
 
-- Deploy the four new tools (translate / redact_pii / analyze_image / detect_faces) and re-smoke-test `tools/list` live
-- Phase 2.5.A — waitress thread bump + per-tool 60s timeout before public traffic
-- Decide on `transcribe_audio` — build the real Gemini-audio pipeline or formally drop transcription from the submission
-- MCP Inspector validation against the deployed URL (Phase 3 gate)
 - `SECURITY.md` scoped to the MCP server (existing [SAST_REPORT.md](SAST_REPORT.md) is Flask-scoped)
+- Cloudflare Email Routing aliases (`support@`, `privacy@`, `security@`) — pages already reference these
+- Magic-byte file-type detection (currently extension-based at 4 sites)
+- Tenacity retry / circuit breaker around Gemini calls
+- Integration tests per tool at the JSON-RPC layer (translate / redact / analyze / detect)
+- Phase 3.5 submission package — Anthropic Directory form deliverables
 
 ## License & contact
 
