@@ -6,6 +6,8 @@ from PIL import Image
 import io
 from pillow_heif import register_heif_opener
 
+from gemini_retry import retry_gemini_call
+
 # Register HEIC/HEIF support for PIL
 register_heif_opener()
 
@@ -46,7 +48,15 @@ def analyze_image_with_gemini(image_bytes: bytes, gemini_model) -> dict | None:
         prompt = build_analytics_prompt()
         
         logging.info("Sending image to Gemini for analysis with robust prompt...")
-        response = gemini_model.generate_content([prompt, image_for_model])
+
+        # Wrapped in retry_gemini_call so transient 5xx / rate-limit blips
+        # from Gemini don't surface as an immediate {"error": ...} to the
+        # caller. Up to 3 attempts, exp backoff 1/2/4s (~7s worst case).
+        @retry_gemini_call
+        def _call():
+            return gemini_model.generate_content([prompt, image_for_model])
+
+        response = _call()
 
         # Clean the response text to isolate the JSON object
         raw_text = response.text.strip()

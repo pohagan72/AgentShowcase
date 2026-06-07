@@ -4,6 +4,7 @@ import logging
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
 from ..prompts import analyst_prompts
+from gemini_retry import retry_gemini_call
 
 def classify_document(text_content, model, filename=""):
     """
@@ -20,9 +21,15 @@ def classify_document(text_content, model, filename=""):
         # UPDATED: Pass metadata to the prompt builder
         prompt = analyst_prompts.get_classification_prompt(excerpt, metadata=metadata)
         
-        # We use a non-streaming call for classification as it's short and blocking
-        response = model.generate_content(prompt)
-        
+        # We use a non-streaming call for classification as it's short and blocking.
+        # Wrapped in retry_gemini_call so transient 5xx / rate-limit blips don't
+        # default this caller to "General Business Document" on the first hiccup.
+        @retry_gemini_call
+        def _call():
+            return model.generate_content(prompt)
+
+        response = _call()
+
         if response and response.text:
             # UPDATED: Pass metadata to parser for heuristic overrides (e.g. filename checks)
             return analyst_prompts.parse_classification_response(
