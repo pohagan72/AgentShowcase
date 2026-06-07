@@ -68,6 +68,26 @@ def _seed_org(app, *, name, plan="free"):
         }
 
 
+def _minimal_ooxml_bytes(kind: str) -> bytes:
+    """Return a tiny but format-valid OOXML zip.
+
+    The magic-byte check in mcp_tools._verify_magic_bytes peeks inside the
+    zip directory to distinguish .docx / .pptx / .xlsx, so test stubs need
+    to be real zips with the right marker directory ("word/" / "ppt/" /
+    "xl/"). The downstream tool handlers are monkeypatched in every test
+    that uses this helper, so the file content itself doesn't matter.
+    """
+    import io as _io
+    import zipfile as _zipfile
+
+    marker = {"docx": "word/", "pptx": "ppt/", "xlsx": "xl/"}[kind]
+    buf = _io.BytesIO()
+    with _zipfile.ZipFile(buf, "w") as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types/>')
+        z.writestr(marker + "document.xml", "<x/>")
+    return buf.getvalue()
+
+
 def _rpc(client, method, params=None, *, request_id=1, headers=None):
     """POST one JSON-RPC request to /mcp and return the parsed response.
 
@@ -607,7 +627,7 @@ def test_tools_call_translate_document_returns_translated_text(
             "name": "translate_document",
             "arguments": {
                 "filename": "memo.docx",
-                "content_base64": base64.b64encode(b"PK fake docx").decode(),
+                "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
                 "target_language": "Spanish",
             },
         },
@@ -655,7 +675,7 @@ def test_translate_document_blocked_by_safety_filter_returns_isError(
             "name": "translate_document",
             "arguments": {
                 "filename": "memo.docx",
-                "content_base64": base64.b64encode(b"PK fake").decode(),
+                "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
                 "target_language": "French",
             },
         },
@@ -731,7 +751,7 @@ def test_tools_call_redact_pii_returns_base64_redacted_document(
             "name": "redact_pii",
             "arguments": {
                 "filename": "contract.docx",
-                "content_base64": base64.b64encode(b"PK original docx").decode(),
+                "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
             },
         },
         headers=org["auth_header"],
@@ -758,7 +778,7 @@ def test_redact_pii_pptx_uses_pptx_pipeline(client, app, fake_redact):
             "name": "redact_pii",
             "arguments": {
                 "filename": "deck.pptx",
-                "content_base64": base64.b64encode(b"PK pptx").decode(),
+                "content_base64": base64.b64encode(_minimal_ooxml_bytes("pptx")).decode(),
             },
         },
         headers=org["auth_header"],
@@ -801,7 +821,7 @@ def test_redact_pii_when_presidio_unavailable_refunds_quota(client, app, monkeyp
             "name": "redact_pii",
             "arguments": {
                 "filename": "doc.docx",
-                "content_base64": base64.b64encode(b"PK").decode(),
+                "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
             },
         },
         headers=org["auth_header"],
@@ -990,7 +1010,7 @@ def test_detect_faces_redact_mode_uses_opaque_rect(client, app, fake_detect_face
             "name": "detect_faces",
             "arguments": {
                 "filename": "group.jpg",
-                "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+                "content_base64": base64.b64encode(b"\xff\xd8\xff").decode(),
                 "mode": "redact",
             },
         },
@@ -1013,7 +1033,7 @@ def test_detect_faces_invalid_mode_returns_isError(client, app, fake_detect_face
             "name": "detect_faces",
             "arguments": {
                 "filename": "x.jpg",
-                "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+                "content_base64": base64.b64encode(b"\xff\xd8\xff").decode(),
                 "mode": "annihilate",
             },
         },
@@ -1035,7 +1055,7 @@ def test_detect_faces_invalid_blur_strength_returns_isError(
             "name": "detect_faces",
             "arguments": {
                 "filename": "x.jpg",
-                "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+                "content_base64": base64.b64encode(b"\xff\xd8\xff").decode(),
                 "blur_strength": 9,
             },
         },
@@ -1060,20 +1080,20 @@ def test_mcp_new_tools_record_usage_against_caller_org_only(
     calls = [
         ("translate_document", {
             "filename": "memo.docx",
-            "content_base64": base64.b64encode(b"PK").decode(),
+            "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
             "target_language": "Spanish",
         }),
         ("redact_pii", {
             "filename": "memo.docx",
-            "content_base64": base64.b64encode(b"PK").decode(),
+            "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
         }),
         ("analyze_image", {
             "filename": "p.jpg",
-            "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+            "content_base64": base64.b64encode(b"\xff\xd8\xff").decode(),
         }),
         ("detect_faces", {
             "filename": "p.jpg",
-            "content_base64": base64.b64encode(b"\xff\xd8").decode(),
+            "content_base64": base64.b64encode(b"\xff\xd8\xff").decode(),
         }),
     ]
 

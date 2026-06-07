@@ -23,6 +23,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Callable
 
+import filetype
 from flask import current_app
 from werkzeug.datastructures import FileStorage
 
@@ -105,6 +106,50 @@ def _units_from_base64(args: dict, *, divisor_bytes: int = 50 * 1024) -> int:
     return max(1, approx_bytes // divisor_bytes)
 
 
+# Maps the user-facing extension (lowercased, with dot) to the set of detection
+# results `filetype.guess(...).extension` may return for a genuine file of that
+# type. This lets us reject a `.docx` filename whose bytes are actually a JPG,
+# without forcing the caller to know our internal detection lib's naming.
+# .heif is accepted alongside .heic because real-world HEIF files use the same
+# ISO BMFF container; `filetype` reports both as 'heic'. Same for jpg/jpeg.
+_VALID_DETECTED_FOR_EXT: dict[str, set[str]] = {
+    ".pdf": {"pdf"},
+    ".docx": {"docx"},
+    ".pptx": {"pptx"},
+    ".xlsx": {"xlsx"},
+    ".jpg": {"jpg"},
+    ".jpeg": {"jpg"},
+    ".png": {"png"},
+    ".webp": {"webp"},
+    ".heic": {"heic"},
+    ".heif": {"heic"},
+}
+
+
+def _verify_magic_bytes(raw: bytes, ext: str) -> None:
+    """Reject files whose magic bytes don't match the declared extension.
+
+    `filetype.guess()` peeks at the first ~256 bytes; for OOXML it also peeks
+    inside the zip's directory listing to distinguish docx/pptx/xlsx. If the
+    bytes are unrecognized OR detected as a different format than the
+    declared extension, raise ToolError so the MCP route can surface the
+    problem as isError=true (and the quota is refunded by run_metered_tool).
+    """
+    expected = _VALID_DETECTED_FOR_EXT.get(ext)
+    if expected is None:
+        # Unknown extension shouldn't reach here — the per-tool ext-set check
+        # runs first. Belt-and-braces: don't crash, just don't enforce.
+        return
+
+    kind = filetype.guess(raw)
+    detected = kind.extension if kind else None
+    if detected not in expected:
+        raise ToolError(
+            f"File content does not match extension {ext} "
+            f"(detected: {detected or 'unknown'})"
+        )
+
+
 # --- summarize_document --------------------------------------------------------
 
 
@@ -144,6 +189,7 @@ def _summarize_document(principal: Principal, args: dict) -> dict:
         raise ToolError(
             f"Unsupported file type {ext}. Allowed: {sorted(SUPPORTED_DOC_EXTENSIONS)}"
         )
+    _verify_magic_bytes(raw, ext)
 
     file = FileStorage(stream=io.BytesIO(raw), filename=filename)
 
@@ -231,6 +277,7 @@ def _translate_document(principal: Principal, args: dict) -> dict:
         raise ToolError(
             f"Unsupported file type {ext}. Allowed: {sorted(SUPPORTED_TRANSLATE_EXTENSIONS)}"
         )
+    _verify_magic_bytes(raw, ext)
 
     target_language = (args.get("target_language") or "").strip()
     if not target_language:
@@ -301,6 +348,7 @@ def _redact_pii(principal: Principal, args: dict) -> dict:
         raise ToolError(
             f"Unsupported file type {ext}. Allowed: {sorted(SUPPORTED_REDACT_EXTENSIONS)}"
         )
+    _verify_magic_bytes(raw, ext)
 
     from features.pii_redaction import routes as pii_routes
 
@@ -365,6 +413,7 @@ def _analyze_image(principal: Principal, args: dict) -> dict:
         raise ToolError(
             f"Unsupported file type {ext}. Allowed: {sorted(SUPPORTED_IMAGE_EXTENSIONS)}"
         )
+    _verify_magic_bytes(raw, ext)
 
     from features.multimedia import routes as multimedia_routes
     from features.multimedia.analytics_utils import (
@@ -451,6 +500,7 @@ def _detect_faces(principal: Principal, args: dict) -> dict:
         raise ToolError(
             f"Unsupported file type {ext}. Allowed: {sorted(SUPPORTED_IMAGE_EXTENSIONS)}"
         )
+    _verify_magic_bytes(raw, ext)
 
     mode = (args.get("mode") or "blur").lower()
     if mode not in ("blur", "redact"):
