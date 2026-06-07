@@ -715,6 +715,111 @@ def test_translate_document_unsupported_extension_returns_isError(
     assert "unsupported" in body["result"]["content"][0]["text"].lower()
 
 
+def test_translate_document_missing_target_language_returns_isError(
+    client, app, fake_translate
+):
+    """target_language is required; an empty value (after .strip()) raises
+    ToolError so the model sees a recoverable failure with the quota refunded.
+    The JSON schema also requires the field, but the handler check is the last
+    line of defense."""
+    org = _seed_org(app, name="mcp_translate_no_lang")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "translate_document",
+            "arguments": {
+                "filename": "memo.docx",
+                "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
+                "target_language": "   ",
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "target_language" in body["result"]["content"][0]["text"]
+
+
+def test_translate_document_when_gemini_not_configured_refunds_quota(
+    client, app, monkeypatch
+):
+    """If GEMINI_CONFIGURED is False the handler raises RuntimeError before
+    any work happens; the MCP layer must refund the quota and surface
+    isError=true so the model can react. Same contract as summarize_document's
+    Gemini-off path, which /api/v1/summarize_e2e covers for HTTP but not MCP."""
+    app.config["GEMINI_CONFIGURED"] = False
+    org = _seed_org(app, name="mcp_translate_no_gemini")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "translate_document",
+            "arguments": {
+                "filename": "memo.docx",
+                "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
+                "target_language": "Spanish",
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "gemini" in body["result"]["content"][0]["text"].lower()
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        statuses = sorted(e.status for e in events)
+        assert "refunded" in statuses
+
+
+def test_translate_document_when_gemini_returns_failure_refunds_quota(
+    client, app, monkeypatch
+):
+    """translate_text_util can return ('error', ..., msg) for non-blocked
+    failures (Gemini outage, parse error, etc.). The handler raises RuntimeError
+    so run_metered_tool refunds the quota; the model sees isError=true.
+
+    Distinct from the 'blocked by safety filter' path (which is a ToolError);
+    this is the generic downstream-failure path that the existing tests don't
+    pin."""
+    app.config["GEMINI_CONFIGURED"] = True
+    from features.summarization import utils as summarization_utils
+    from features.translation import routes as translation_routes
+
+    monkeypatch.setattr(
+        summarization_utils, "extract_text_from_stream",
+        lambda stream, ext: "some text",
+    )
+    monkeypatch.setattr(
+        translation_routes, "translate_text_util",
+        lambda text, lang, model: ("error", text, "Gemini upstream is unhappy"),
+    )
+
+    org = _seed_org(app, name="mcp_translate_gemini_fail")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "translate_document",
+            "arguments": {
+                "filename": "memo.docx",
+                "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
+                "target_language": "Spanish",
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "Gemini upstream is unhappy" in body["result"]["content"][0]["text"]
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        statuses = sorted(e.status for e in events)
+        assert "refunded" in statuses
+
+
 # --- redact_pii ---------------------------------------------------------------
 
 
@@ -833,6 +938,63 @@ def test_redact_pii_when_presidio_unavailable_refunds_quota(client, app, monkeyp
         events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
         statuses = sorted(e.status for e in events)
         assert "refunded" in statuses
+
+
+def test_redact_pii_when_redactor_returns_none_refunds_quota(client, app, monkeypatch):
+    """If redact_word_document_pii returns None (corrupted docx, internal
+    parse failure), the handler raises RuntimeError and the MCP layer refunds
+    the quota. This is the path a malformed-but-magic-byte-valid file hits."""
+    app.config["PRESIDIO_ANALYZER_AVAILABLE"] = True
+    app.presidio_analyzer = object()
+
+    from features.pii_redaction import routes as pii_routes
+    monkeypatch.setattr(pii_routes, "redact_word_document_pii", lambda s, a: None)
+
+    org = _seed_org(app, name="mcp_redact_internal_fail")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "redact_pii",
+            "arguments": {
+                "filename": "broken.docx",
+                "content_base64": base64.b64encode(_minimal_ooxml_bytes("docx")).decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "redaction failed" in body["result"]["content"][0]["text"].lower()
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        statuses = sorted(e.status for e in events)
+        assert "refunded" in statuses
+
+
+def test_redact_pii_response_carries_real_byte_sizes(client, app, fake_redact):
+    """Sanity-pin the byte-size fields in the response. original_size_bytes
+    must match the decoded input length; redacted_size_bytes must match the
+    stub redactor's output. These fields are part of the documented response
+    contract (reviewer bundle / /docs); future refactors mustn't drift them."""
+    org = _seed_org(app, name="mcp_redact_sizes")
+    raw = _minimal_ooxml_bytes("docx")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "redact_pii",
+            "arguments": {
+                "filename": "memo.docx",
+                "content_base64": base64.b64encode(raw).decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    sc = resp.get_json()["result"]["structuredContent"]
+    assert sc["original_size_bytes"] == len(raw)
+    assert sc["redacted_size_bytes"] == len(b"REDACTED-DOCX-BYTES")
 
 
 # --- analyze_image ------------------------------------------------------------
@@ -957,6 +1119,73 @@ def test_analyze_image_when_model_returns_error_dict_returns_isError(
     assert "invalid format" in body["result"]["content"][0]["text"].lower()
 
 
+def test_analyze_image_when_gemini_not_configured_refunds_quota(client, app):
+    """GEMINI_CONFIGURED=False on the analyze path: RuntimeError -> refund."""
+    app.config["GEMINI_CONFIGURED"] = False
+    org = _seed_org(app, name="mcp_analyze_no_gemini")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "analyze_image",
+            "arguments": {
+                "filename": "photo.jpg",
+                "content_base64": base64.b64encode(b"\xff\xd8\xff\xe0").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "gemini" in body["result"]["content"][0]["text"].lower()
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        statuses = sorted(e.status for e in events)
+        assert "refunded" in statuses
+
+
+def test_analyze_image_when_gemini_returns_none_refunds_quota(client, app, monkeypatch):
+    """analyze_image_with_gemini returns None when the SDK call yields no
+    parseable response. Handler raises RuntimeError; layer refunds. This is
+    distinct from the error-dict path (which is a ToolError); None is the
+    'AI service had nothing to say' path."""
+    app.config["GEMINI_CONFIGURED"] = True
+    from features.multimedia import routes as multimedia_routes
+    from features.multimedia import analytics_utils
+
+    monkeypatch.setattr(multimedia_routes, "normalize_and_resize_image", lambda d: d)
+    monkeypatch.setattr(
+        analytics_utils, "analyze_image_with_gemini",
+        lambda image_bytes, model: None,
+    )
+    monkeypatch.setattr(analytics_utils, "extract_dominant_colors", lambda d, num_colors=5: [])
+    import google.generativeai as genai
+    monkeypatch.setattr(genai, "GenerativeModel", lambda name: object())
+
+    org = _seed_org(app, name="mcp_analyze_none")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "analyze_image",
+            "arguments": {
+                "filename": "photo.jpg",
+                "content_base64": base64.b64encode(b"\xff\xd8\xff\xe0").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "no response" in body["result"]["content"][0]["text"].lower()
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        statuses = sorted(e.status for e in events)
+        assert "refunded" in statuses
+
+
 # --- detect_faces -------------------------------------------------------------
 
 
@@ -1063,6 +1292,91 @@ def test_detect_faces_invalid_blur_strength_returns_isError(
     )
     body = resp.get_json()
     assert body["result"]["isError"] is True
+
+
+def test_detect_faces_unsupported_extension_returns_isError(
+    client, app, fake_detect_faces
+):
+    """detect_faces only accepts the image extension set; a .pdf must be
+    rejected with isError=true before the MTCNN pipeline is touched."""
+    org = _seed_org(app, name="mcp_faces_bad_ext")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "detect_faces",
+            "arguments": {
+                "filename": "doc.pdf",
+                "content_base64": base64.b64encode(b"%PDF").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "unsupported" in body["result"]["content"][0]["text"].lower()
+
+
+def test_detect_faces_when_blur_pipeline_returns_none_refunds_quota(
+    client, app, monkeypatch
+):
+    """blur_image_opencv returns None if the OpenCV pipeline can't decode or
+    process the image (corrupt bytes, unsupported codec quirk). Handler raises
+    RuntimeError; layer refunds quota; model sees isError=true.
+
+    This is the reviewer-blocker-class failure: if MTCNN/TensorFlow misbehaves
+    on a real reviewer-uploaded image, the user must see a usable error AND
+    get their quota back."""
+    from features.multimedia import routes as multimedia_routes
+    from features.multimedia import blur_utils
+
+    monkeypatch.setattr(multimedia_routes, "normalize_and_resize_image", lambda d: d)
+    monkeypatch.setattr(blur_utils, "blur_image_opencv", lambda b, s: None)
+
+    org = _seed_org(app, name="mcp_faces_pipeline_fail")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "detect_faces",
+            "arguments": {
+                "filename": "broken.jpg",
+                "content_base64": base64.b64encode(b"\xff\xd8\xff\xe0").decode(),
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "face detection" in body["result"]["content"][0]["text"].lower()
+
+    with app.app_context():
+        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
+        statuses = sorted(e.status for e in events)
+        assert "refunded" in statuses
+
+
+def test_detect_faces_blur_strength_1_maps_to_light_blur(client, app, fake_detect_faces):
+    """blur_strength=1 -> blur_size=35 (light). Pins the strength map at the
+    MCP layer so a future change to _BLUR_STRENGTH_MAP doesn't silently change
+    reviewer-visible behavior."""
+    org = _seed_org(app, name="mcp_faces_light")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "detect_faces",
+            "arguments": {
+                "filename": "group.jpg",
+                "content_base64": base64.b64encode(b"\xff\xd8\xff\xe0").decode(),
+                "blur_strength": 1,
+            },
+        },
+        headers=org["auth_header"],
+    )
+    sc = resp.get_json()["result"]["structuredContent"]
+    out = base64.b64decode(sc["content_base64"])
+    assert b"FAKE-PNG-35" in out
 
 
 # --- Cross-tenant isolation across the new tools ------------------------------
