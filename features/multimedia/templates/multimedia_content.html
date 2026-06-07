@@ -73,6 +73,30 @@
         display: flex; align-items: center; gap: 10px; color: var(--brand-primary); font-weight: 600; font-size: 0.9rem;
     }
 
+    /* 4. BLURRING RESULTS — match the polish of the analytics-result-card */
+    .blurring-result-card {
+        background: #ffffff; border: 1px solid var(--border-subtle); border-radius: 12px;
+        padding: 2rem; box-shadow: var(--shadow-md); margin-top: 2rem;
+        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+    .blurring-image-results-grid {
+        display: grid; grid-template-columns: 1fr; gap: 1.5rem;
+    }
+    @media (min-width: 720px) {
+        .blurring-image-results-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .image-result-container { display: flex; flex-direction: column; gap: 0.5rem; }
+    .image-result-container h4 {
+        font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);
+        text-transform: uppercase; letter-spacing: 0.05em; margin: 0;
+    }
+    .image-result-container .result-image {
+        width: 100%; height: auto; border-radius: 8px;
+        border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm); display: block;
+    }
+
     @media (max-width: 768px) {
         .info-grid { grid-template-columns: 1fr; }
         .cp-settings-bar { flex-direction: column; align-items: stretch; }
@@ -241,5 +265,28 @@
 
     setupAutoDrop('blur-drop-area', 'blur-drop-zone', 'blur-file-input', 'blur-file-name', 'blur-upload-form');
     setupAutoDrop('analytics-drop-area', 'analytics-drop-zone', 'analytics-file-input', 'analytics-file-name', 'analytics-upload-form');
+
+    // After HTMX swaps in a result partial, scroll it into view and reset the
+    // upload label so the page doesn't still say "Processing X..." next to a
+    // finished result. Both forms wired the same way.
+    function wireAfterSwap(formId, resultsAreaId, labelId, defaultLabelText) {
+        const form = document.getElementById(formId);
+        const resultsArea = document.getElementById(resultsAreaId);
+        const label = document.getElementById(labelId);
+        if (!form || !resultsArea) return;
+
+        form.addEventListener('htmx:afterSwap', () => {
+            if (label) {
+                label.textContent = defaultLabelText;
+                label.style.color = '';
+            }
+            // Defer the scroll one frame so layout has settled (esp. for images).
+            requestAnimationFrame(() => {
+                resultsArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    }
+    wireAfterSwap('blur-upload-form', 'blurring-results-area', 'blur-file-name', 'Click to upload or drag and drop');
+    wireAfterSwap('analytics-upload-form', 'analytics-results-area', 'analytics-file-name', 'Click to upload or drag and drop');
 })();
 </script>
