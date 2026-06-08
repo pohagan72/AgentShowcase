@@ -671,7 +671,7 @@ The form requires the inventory in the exact format `tool_name (Human Readable N
 - [ ] Support Channel → `https://www.synzo.ai/support` (page publishes `paul@redmapleresearch.ca` directly per the locked 2026-06-07 mailbox decision). Must be distinct from the docs URL. GitHub Issues is NOT an option because the repo is private.
 
 **Branding & visuals (form page 4)**
-- [ ] Square 1:1 logo, hosted publicly (Drive link OK). Form prefers SVG. Decide PNG vs commissioned SVG.
+- [x] Square 1:1 logo, hosted publicly (Drive link OK). Form prefers SVG. Decide PNG vs commissioned SVG. **DONE 2026-06-08.** Using the existing in-app brand mark at [static/images/synzo-icon.png](static/images/synzo-icon.png), 500×500 RGBA PNG, served live at `https://www.synzo.ai/static/images/synzo-icon.png` (verified 200 / image/png / 180 KB). Form prefers SVG; we ship PNG. The icon is already used throughout the app's sidebar so it's brand-consistent with what reviewers will see on `/docs`, `/dashboard`, etc. No commissioned SVG worth the time at submission stage — revisit in v1.1 if the listing layout makes the PNG look low-fidelity.
 - [x] Site favicon at `www.synzo.ai` updated (commit `90218af`).
 - [ ] Verify `https://www.google.com/s2/favicons?domain=synzo.ai&sz=64` after Google's 24–48h cache refresh. Check the box "I have verified that the favicon is correct" only after this confirms.
 - [ ] 3–5 promotional screenshots of the server running inside claude.ai. Form requires ≥1000px wide, PNG, cropped to the response itself, each paired with the matching prompt. Demo video optional.
