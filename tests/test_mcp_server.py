@@ -469,20 +469,16 @@ def test_delete_on_mcp_returns_405_with_allow(client):
 # --- /.well-known/oauth-protected-resource ------------------------------------
 
 
-def test_oauth_protected_resource_points_at_workos_authorization_server(
+def test_oauth_protected_resource_points_at_our_own_authorization_server(
     client, monkeypatch
 ):
-    """The RFC 9728 resource doc must advertise the WorkOS AuthKit subdomain
-    as the authorization server — NOT www.synzo.ai itself.
+    """The RFC 9728 resource doc must advertise OUR /.well-known/oauth-authorization-server,
+    not WorkOS's directly.
 
-    History: we used to advertise ourselves and proxy/augment WorkOS metadata
-    to inject `registration_endpoint`. That worked around a WorkOS gap circa
-    2026-06-06. WorkOS later added registration_endpoint to its own discovery
-    doc, at which point our wrapper became actively harmful: it returned
-    issuer=<authkit.app> while served from www.synzo.ai/.well-known/..., and
-    modern MCP clients (claude.ai post Nov-2025 update) reject the issuer
-    mismatch per RFC 8414 §3.3 and silently abandon OAuth. Pointing directly
-    at AuthKit lets clients fetch the canonical metadata.
+    Reason (see oauth_authorization_server() in mcp_routes.py): WorkOS doesn't
+    advertise its DCR endpoint in its own discovery doc, so MCP clients
+    abandon the OAuth bootstrap. We host an augmented discovery doc and
+    point clients at it instead.
     """
     monkeypatch.setenv(
         "WORKOS_ISSUER", "https://test-tenant.authkit.app",
@@ -493,27 +489,84 @@ def test_oauth_protected_resource_points_at_workos_authorization_server(
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["resource"] == "https://www.synzo.ai"
-    # The authorization server is WorkOS's AuthKit subdomain, not us.
-    assert body["authorization_servers"] == ["https://test-tenant.authkit.app"]
+    # NOT the WORKOS_ISSUER — we advertise OURSELVES as the discoverable
+    # authorization server so we can serve an augmented metadata doc.
+    assert body["authorization_servers"] == ["https://www.synzo.ai"]
     assert "header" in body["bearer_methods_supported"]
 
 
-def test_oauth_protected_resource_falls_back_to_self_if_issuer_missing(
-    client, monkeypatch
-):
-    """If WORKOS_ISSUER is unset (deploy misconfiguration), the discovery doc
-    still returns 200 with a structurally-valid response that advertises
-    ourselves as a placeholder. The OAuth flow won't actually work but the
-    discovery layer doesn't 500."""
-    monkeypatch.delenv("WORKOS_ISSUER", raising=False)
-    monkeypatch.setenv("SYNZO_PUBLIC_URL", "https://www.synzo.ai")
+# --- /.well-known/oauth-authorization-server (the augmented discovery doc) ----
 
-    resp = client.get("/.well-known/oauth-protected-resource")
+
+def _stub_authkit_metadata(monkeypatch, doc: dict | None = None) -> None:
+    """Patch the AuthKit metadata fetch so tests don't hit the network."""
+    import mcp_routes
+
+    # Clear any previously-cached metadata from earlier tests in this process.
+    mcp_routes._AUTH_SERVER_METADATA_CACHE = None
+    if doc is None:
+        doc = {
+            "issuer": "https://test-tenant.authkit.app",
+            "authorization_endpoint": "https://test-tenant.authkit.app/oauth2/authorize",
+            "token_endpoint": "https://test-tenant.authkit.app/oauth2/token",
+            "jwks_uri": "https://test-tenant.authkit.app/oauth2/jwks",
+            "code_challenge_methods_supported": ["S256"],
+            "grant_types_supported": ["authorization_code", "refresh_token"],
+            "response_types_supported": ["code"],
+            "scopes_supported": ["openid", "profile", "email", "offline_access"],
+            "token_endpoint_auth_methods_supported": [
+                "none",
+                "client_secret_basic",
+                "client_secret_post",
+            ],
+        }
+    monkeypatch.setattr(mcp_routes, "_fetch_authkit_metadata", lambda: doc)
+
+
+def test_oauth_authorization_server_injects_registration_endpoint(client, monkeypatch):
+    """The whole point of this endpoint: claude.ai needs `registration_endpoint`
+    in the discovery doc to perform Dynamic Client Registration. WorkOS doesn't
+    expose it; we inject it. Without this, OAuth never starts."""
+    monkeypatch.setenv("WORKOS_ISSUER", "https://test-tenant.authkit.app")
+    _stub_authkit_metadata(monkeypatch)
+
+    resp = client.get("/.well-known/oauth-authorization-server")
     assert resp.status_code == 200
     body = resp.get_json()
-    # Defensive fallback: advertise self so the doc is at least structurally
-    # valid. Operator misconfig — see deploy log for ERROR oauth_config_error.
-    assert body["authorization_servers"] == ["https://www.synzo.ai"]
+
+    assert body["registration_endpoint"] == (
+        "https://test-tenant.authkit.app/oauth2/register"
+    )
+    # Issuer must match WORKOS_ISSUER — we don't blindly echo upstream, so
+    # an upstream rename can't break audience checks in _resolve_oauth.
+    assert body["issuer"] == "https://test-tenant.authkit.app"
+
+
+def test_oauth_authorization_server_preserves_upstream_endpoints(client, monkeypatch):
+    """We proxy WorkOS's endpoints unchanged so authorization / token / JWKS
+    URLs route to AuthKit. The injection only adds; it doesn't replace."""
+    monkeypatch.setenv("WORKOS_ISSUER", "https://test-tenant.authkit.app")
+    _stub_authkit_metadata(monkeypatch)
+
+    resp = client.get("/.well-known/oauth-authorization-server")
+    body = resp.get_json()
+    assert body["authorization_endpoint"] == (
+        "https://test-tenant.authkit.app/oauth2/authorize"
+    )
+    assert body["token_endpoint"] == "https://test-tenant.authkit.app/oauth2/token"
+    assert body["jwks_uri"] == "https://test-tenant.authkit.app/oauth2/jwks"
+    assert "S256" in body["code_challenge_methods_supported"]
+
+
+def test_oauth_authorization_server_503_when_upstream_unreachable(client, monkeypatch):
+    """If we can't reach WorkOS, return 503 rather than serving an incomplete
+    doc. Lets the client surface a real error instead of silently dying mid-
+    OAuth."""
+    monkeypatch.setenv("WORKOS_ISSUER", "https://test-tenant.authkit.app")
+    _stub_authkit_metadata(monkeypatch, doc={})  # empty -> treated as fetch failure
+
+    resp = client.get("/.well-known/oauth-authorization-server")
+    assert resp.status_code == 503
 
 
 # --- tools/list now advertises all five Phase 2 tools -------------------------
@@ -1635,7 +1688,7 @@ def test_oauth_protected_resource_exposes_cors_to_claude_ai(client, monkeypatch)
 def test_oauth_protected_resource_falls_back_to_host_url_when_env_unset(
     client, monkeypatch
 ):
-    """If SYNZO_PUBLIC_URL is unset, the `resource` field falls back to
+    """[mcp_routes.py:422] If SYNZO_PUBLIC_URL is unset, fall back to
     request.host_url. In prod behind Railway's edge proxy this resolves to
     'http://' (TLS terminated upstream) — that's the §6 Phase 2 'CRITICAL'
     operator note: clients will reject the OAuth flow when audience is http.
@@ -1644,7 +1697,6 @@ def test_oauth_protected_resource_falls_back_to_host_url_when_env_unset(
     (SYNZO_PUBLIC_URL must be set in Railway) is documented in the plan, not
     in tests."""
     monkeypatch.delenv("SYNZO_PUBLIC_URL", raising=False)
-    monkeypatch.setenv("WORKOS_ISSUER", "https://test-tenant.authkit.app")
 
     resp = client.get("/.well-known/oauth-protected-resource")
     assert resp.status_code == 200
@@ -1654,9 +1706,8 @@ def test_oauth_protected_resource_falls_back_to_host_url_when_env_unset(
     # exactly what the prod fallback would also return (without TLS info).
     assert body["resource"].startswith(("http://", "https://"))
     assert body["resource"].rstrip("/") == body["resource"]
-    # authorization_servers points at the configured AuthKit issuer, NOT the
-    # resource — clients fetch metadata from the AS, not from us.
-    assert body["authorization_servers"] == ["https://test-tenant.authkit.app"]
+    # authorization_servers must match the resource (we advertise ourselves).
+    assert body["authorization_servers"] == [body["resource"]]
 
 
 # --- Gap #6: JSON-RPC `id` echo on error responses ----------------------------
