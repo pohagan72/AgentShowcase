@@ -91,7 +91,9 @@ def _get_jwks_client() -> PyJWKClient:
     if _jwks_client is None:
         url = os.environ.get("WORKOS_JWKS_URL")
         if not url:
+            logger.error("oauth_config_error: WORKOS_JWKS_URL env var is missing")
             raise AuthError("OAuth not configured: WORKOS_JWKS_URL missing", status=500)
+        logger.info("oauth_config: initializing PyJWKClient url=%s", url)
         _jwks_client = PyJWKClient(url, cache_keys=True, lifespan=3600)
     return _jwks_client
 
@@ -102,13 +104,16 @@ def _resolve_oauth(bearer_token: str) -> Principal:
     Audience and issuer are pinned via env vars so a token meant for some other
     WorkOS application can't be replayed against us.
     """
+    token_prefix = bearer_token[:12] if bearer_token else "<empty>"
     try:
         signing_key = _get_jwks_client().get_signing_key_from_jwt(bearer_token).key
     except jwt.PyJWKClientError as e:
+        logger.warning("oauth_reject: reason='signing_key_not_found' token_prefix=%s err=%s", token_prefix, e)
         raise AuthError(f"Token signing key not found: {e}", status=401) from e
     except jwt.DecodeError as e:
         # Token isn't a well-formed JWT at all (e.g. random string). Treat as 401
         # rather than letting it bubble to a 500.
+        logger.warning("oauth_reject: reason='malformed_token' token_prefix=%s err=%s", token_prefix, e)
         raise AuthError("Malformed token", status=401) from e
 
     audience = os.environ.get("WORKOS_CLIENT_ID")
@@ -124,22 +129,43 @@ def _resolve_oauth(bearer_token: str) -> Principal:
             options={"require": ["exp", "iat", "sub"]},
         )
     except jwt.ExpiredSignatureError as e:
+        logger.warning("oauth_reject: reason='expired' token_prefix=%s", token_prefix)
         raise AuthError("Token expired", status=401) from e
     except jwt.InvalidTokenError as e:
+        # Catches: InvalidAudienceError, InvalidIssuerError, MissingRequiredClaimError, etc.
+        # The exception type name tells us *which* validation failed.
+        logger.warning(
+            "oauth_reject: reason='invalid_token' token_prefix=%s err_type=%s err=%s "
+            "expected_audience=%s expected_issuer=%s",
+            token_prefix, type(e).__name__, e, audience, issuer,
+        )
         raise AuthError(f"Invalid token: {e}", status=401) from e
 
+    workos_user_id = claims.get("sub")
     workos_org_id = claims.get("org_id") or claims.get("organization_id")
+    claim_keys = sorted(claims.keys())
+
     if not workos_org_id:
+        logger.warning(
+            "oauth_reject: reason='missing_org_id_claim' token_prefix=%s workos_user_id=%s "
+            "email=%s claim_keys=%s",
+            token_prefix, workos_user_id, claims.get("email"), claim_keys,
+        )
         raise AuthError("Token missing org_id claim", status=401)
 
     org = db.session.query(Org).filter_by(workos_org_id=workos_org_id).one_or_none()
     if org is None:
+        logger.warning(
+            "oauth_reject: reason='org_not_provisioned' token_prefix=%s workos_user_id=%s "
+            "workos_org_id=%s email=%s",
+            token_prefix, workos_user_id, workos_org_id, claims.get("email"),
+        )
         raise AuthError("Org not provisioned", status=401)
 
     # Upsert User + OrgMembership so OAuth callers (Claude Desktop / claude.ai
     # over MCP) populate the membership graph the same way browser callers do.
     # API-key callers don't have a user concept and skip this entirely.
-    workos_user_id = claims.get("sub")
+    # (workos_user_id already pulled above so the reject logs can reference it.)
     user_id: int | None = None
     if workos_user_id:
         user = (
@@ -167,6 +193,10 @@ def _resolve_oauth(bearer_token: str) -> Principal:
         db.session.commit()
         user_id = user.id
 
+    logger.info(
+        "oauth_ok: org_id=%s plan=%s workos_org_id=%s workos_user_id=%s user_id=%s",
+        org.id, org.plan, workos_org_id, workos_user_id, user_id,
+    )
     return Principal(
         org_id=org.id,
         plan=org.plan,
@@ -354,16 +384,29 @@ def _check_rpm(principal: Principal) -> bool:
 
 def _identify_principal() -> Principal:
     auth_header = request.headers.get("Authorization", "")
+    x_api_key = request.headers.get("X-API-Key", "").strip()
+    ua = request.headers.get("User-Agent", "<none>")[:120]
+    origin = request.headers.get("Origin", "<none>")
+
     if auth_header.startswith("Bearer "):
         token = auth_header[len("Bearer ") :].strip()
         if token.startswith(API_KEY_PREFIX):
+            logger.info("auth_identify: path=api_key_bearer ua=%s origin=%s", ua, origin)
             return _resolve_api_key(token)
+        logger.info(
+            "auth_identify: path=oauth token_prefix=%s ua=%s origin=%s",
+            token[:12] if token else "<empty>", ua, origin,
+        )
         return _resolve_oauth(token)
 
-    api_key_header = request.headers.get("X-API-Key", "").strip()
-    if api_key_header:
-        return _resolve_api_key(api_key_header)
+    if x_api_key:
+        logger.info("auth_identify: path=x_api_key_header ua=%s origin=%s", ua, origin)
+        return _resolve_api_key(x_api_key)
 
+    logger.warning(
+        "auth_identify: path=none reason='missing_authorization' ua=%s origin=%s",
+        ua, origin,
+    )
     raise AuthError("Missing Authorization header", status=401)
 
 

@@ -197,8 +197,19 @@ def _handle_tools_call(params: dict):
     name = (params or {}).get("name")
     arguments = (params or {}).get("arguments") or {}
 
+    ua = request.headers.get("User-Agent", "<none>")[:120]
+    origin = request.headers.get("Origin", "<none>")
+    has_auth_header = bool(request.headers.get("Authorization", "").strip())
+    has_x_api_key = bool(request.headers.get("X-API-Key", "").strip())
+    arg_keys = sorted((arguments or {}).keys()) if isinstance(arguments, dict) else "<not_dict>"
+    logger.info(
+        "tools_call: tool=%s arg_keys=%s has_auth_header=%s has_x_api_key=%s ua=%s origin=%s",
+        name, arg_keys, has_auth_header, has_x_api_key, ua, origin,
+    )
+
     spec = TOOLS.get(name)
     if spec is None:
+        logger.warning("tools_call_reject: reason='unknown_tool' tool=%s", name)
         return None, ("Method not found: tool '{}'".format(name), JSONRPC_METHOD_NOT_FOUND)
 
     # Identify caller. We let _identify_principal pull from request.headers
@@ -206,6 +217,10 @@ def _handle_tools_call(params: dict):
     try:
         principal = _identify_principal()
     except AuthError as e:
+        logger.warning(
+            "tools_call_auth_failed: tool=%s status=%d message=%s ua=%s origin=%s",
+            name, e.status, e.message, ua, origin,
+        )
         return None, (e.message, _AUTH_STATUS_TO_RPC_CODE.get(e.status, JSONRPC_INTERNAL_ERROR))
 
     try:
