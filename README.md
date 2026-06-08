@@ -7,7 +7,7 @@ Synzo is a document-intelligence API for AI agents, applications, and people. It
 - **OAuth discovery:** `https://www.synzo.ai/.well-known/oauth-protected-resource`
 - **Full plan and architecture:** [MCP_SUBMISSION_PLAN.md](MCP_SUBMISSION_PLAN.md)
 
-> Status: Phase 0 / 1 / 1.5 / 2 / 2.5.A shipped and verified live. All five MCP tools (`summarize_document`, `translate_document`, `redact_pii`, `analyze_image`, `detect_faces`) are live at `https://www.synzo.ai/mcp`. `transcribe_audio` is dropped from submission scope. Phase 3 is ~75% shipped — see [MCP_SUBMISSION_PLAN.md](MCP_SUBMISSION_PLAN.md) for the remaining items.
+> Status: Phase 0 / 1 / 1.5 / 2 / 2.5.A shipped and verified live. All five MCP tools (`summarize_document`, `translate_document`, `redact_pii`, `analyze_image`, `detect_faces`) are live at `https://www.synzo.ai/mcp`. `transcribe_audio` is dropped from submission scope. Phase 3 is ~90% shipped — see [MCP_SUBMISSION_PLAN.md](MCP_SUBMISSION_PLAN.md) for the remaining items.
 
 ---
 
@@ -97,6 +97,7 @@ The MCP layer surfaces auth / quota / rate-limit failures as JSON-RPC protocol e
 | Monthly quota exhausted | JSON-RPC error envelope | `-32002 MCP_QUOTA_EXHAUSTED` |
 | Per-org rate limit hit | JSON-RPC error envelope | `-32003 MCP_RATE_LIMITED` |
 | Single call exceeds per-call cap | JSON-RPC error envelope | `-32004 MCP_UNITS_EXCEEDED` |
+| Tool exceeded 60s wall-clock (quota refunded) | JSON-RPC error envelope | `-32005 MCP_TIMEOUT` |
 | Bad argument (wrong file type, bad base64) | Tool result with `isError: true` | Human-readable text content |
 | Unknown method / malformed JSON | JSON-RPC standard codes | `-32601` / `-32700` / `-32600` |
 
@@ -125,7 +126,7 @@ The app boots on port 5001. Run tests with:
 .venv/Scripts/python.exe -m pytest -q
 ```
 
-Currently 140/140 passing. The test suite forces `DATABASE_URL=sqlite:///:memory:` so it never touches Railway Postgres.
+Currently 186/186 passing. The test suite forces `DATABASE_URL=sqlite:///:memory:` so it never touches Railway Postgres.
 
 ---
 
@@ -145,12 +146,11 @@ Currently 140/140 passing. The test suite forces `DATABASE_URL=sqlite:///:memory
 
 The full plan, including the multi-tenant data model, abuse defense layers, and submission deliverables, lives in [MCP_SUBMISSION_PLAN.md](MCP_SUBMISSION_PLAN.md). Open items:
 
-- `SECURITY.md` scoped to the MCP server (existing [SAST_REPORT.md](SAST_REPORT.md) is Flask-scoped)
-- Cloudflare Email Routing aliases (`support@`, `privacy@`, `security@`) — pages already reference these
-- Magic-byte file-type detection (currently extension-based at 4 sites)
-- Tenacity retry / circuit breaker around Gemini calls
-- Integration tests per tool at the JSON-RPC layer (translate / redact / analyze / detect)
-- Phase 3.5 submission package — Anthropic Directory form deliverables
+- Live MCP Inspector walkthrough against the deployed `/mcp` endpoint
+- API-ownership framing for Gemini in the submission-form notes field
+- Phase 3.5 submission package — Anthropic Directory form deliverables (listing copy, capability classification, 3–5 promotional screenshots, square logo, reviewer-bundle dry-run from a clean browser)
+- Phase 2.5.B post-submission: Redis + SSE + worker dyno to stop blocking Waitress threads on Gemini calls
+- Phase 4 post-submission: Stripe + paid tiers
 
 ## License & contact
 
