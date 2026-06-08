@@ -530,9 +530,9 @@ The form requires answers to all of the following. Each needs to be re-derived a
 - [ ] Connection requirements field — derive from the actual sign-in flow shipped in [auth_routes.py](auth_routes.py) (WorkOS AuthKit; SSO providers configured per §6.5.B). Confirm what's truly required (e.g., no admin seat, no custom URL, no geographic restriction).
 
 **Auth & test access (form page 2)**
-- [ ] Authentication Type — derive from the live OAuth flow proven on 2026-06-06.
-- [ ] Auth Client — **Dynamic** (locked 2026-06-07). §6.2 proved DCR works end-to-end via claude.ai; no static-client fallback in the reviewer bundle. Verify the form still offers Dynamic at submission time.
-- [ ] Static Client ID / Secret — **leave blank** (Dynamic was chosen; see above and the Phase 3.5 reviewer-bundle locked decisions).
+- [ ] Authentication Type — **API key (Bearer)** as primary path for reviewers; OAuth via WorkOS AuthKit also implemented but de-emphasized for review (see locked decision below — 2026-06-06 OAuth proof + 2026-06-08 client-side regression on claude.ai web means we can't guarantee a reviewer will get the OAuth popup).
+- [ ] Auth Client — **Static**, updated 2026-06-08. Earlier locked-decision "Dynamic" reversed after a full day's diagnosis on 2026-06-08: claude.ai stopped triggering the OAuth sign-in popup despite (a) WorkOS DCR endpoint verified working via direct curl, (b) Synzo's 401 + WWW-Authenticate response RFC-compliant, (c) discovery doc chain RFC 8414-compliant. Root cause not isolated; Anthropic's MCP client behavior likely changed post the 2025-11-25 spec update. Rather than block submission on a client-side opacity, we ship a Static API key as the primary auth path (works in claude.ai, Claude Desktop, MCP Inspector, and direct API). The OAuth code stays in the codebase — it was proven working 2026-06-06 and `_resolve_oauth` is still wired — but the form answer is Static.
+- [ ] Static Client ID / Secret — paste the **reviewer API key** (`sk_synzo_...`) issued from the dashboard for `paul@redmapleresearch.ca`'s org. Reviewers paste this as `Bearer sk_synzo_...` in their MCP client's connector setup. Form may label this field "API key" or "Static Token" depending on the page; intent is identical.
 - [ ] Transport Support (Streamable HTTP / SSE) — verify against [mcp_routes.py](mcp_routes.py)'s response Content-Type and whether any SSE branch exists. As of the 2026-06-06 verification, the server returns `application/json` only; SSE is not implemented (planned for Phase 2.5.B).
 
 **Reviewer test bundle (form page 2 — gates the review; if incomplete, review is blocked)**
@@ -542,7 +542,7 @@ This is the highest-risk Phase 3.5 item. The form explicitly says: "Incomplete o
 > **Locked decisions (2026-06-07):**
 > - **Reviewer mailbox** — `paul@redmapleresearch.ca` (existing address Paul controls). Updated 2026-06-07 from the original `mcp-review@synzo.ai`-via-Cloudflare plan. **Decision finalized 2026-06-07**: all per-purpose synzo.ai aliases (`support@`, `privacy@`, `security@`, `mcp-review@`) collapsed to the single live `paul@redmapleresearch.ca` mailbox across every public page, SECURITY.md, and the reviewer-contact field. Trade-off: reveals the sole-maintainer shape of Synzo to anyone who reads the address closely (Red Maple Research is the maintainer entity). Acceptable for a portfolio-stage SaaS at submission; revisit if a team forms or a brand alias becomes a customer ask. No Cloudflare DNS migration needed pre- or post-submission. The Anthropic submission form's reviewer-contact field is separate and can still surface `mcp-review@anthropic.com` if asked.
 > - **Plan tier** — **free (50 calls/month, 20 pages/call, 10 rpm)**. Reviewer sees the same plan a real signup gets — most honest demo of `redact_pii`-class behavior at submission. Quota risk: review window must stay under 50 total calls. Mitigation: walkthrough doc lists exactly one prompt per tool so a single end-to-end pass burns 5 calls.
-> - **No static API-key fallback.** The form asks "Auth Type" + "Auth Client (Static vs Dynamic)"; shipping a key alongside OAuth muddies the answer and sidesteps the exact flow Anthropic is reviewing. OAuth via claude.ai was proven end-to-end on 2026-06-06 (see §6.2); if it breaks on the reviewer side we fix it and resubmit, not work around it.
+> - **Static API key is the primary reviewer auth path (locked 2026-06-08, reverses the earlier 2026-06-07 "no static fallback" decision).** Earlier decision was based on OAuth being verified end-to-end via claude.ai on 2026-06-06 (§6.2). On 2026-06-08 a full day of diagnosis confirmed that path no longer triggers a sign-in popup on claude.ai web — neither for Paul's account nor Vlad's Claude Desktop — despite the server-side discovery chain remaining RFC-compliant (verified by direct curl). Root cause not isolated (likely Anthropic-side client behavior change post the 2025-11-25 MCP spec update; Synzo's behavior is unchanged since 2026-06-06). Rather than gamble on a client-side regression we can't repro from the server side, we ship a Static API key as the primary path — proven 5/5 via sweep + MCP Inspector — and keep OAuth implemented as a documented fallback. Trade-off accepted: form Answer "Auth Client" is Static instead of Dynamic; the OAuth/DCR machinery stays in the codebase for v1.1.
 > - **Bundle hosting** — `https://www.synzo.ai/reviewer-bundle.zip`, served from Flask static dir. Avoids Drive/external-vendor dependency in the review path; lives on our own domain.
 
 - [x] ~~Cloudflare: add `mcp-review@synzo.ai` alias~~ **Dropped 2026-06-07.** No alias needed: reviewer-contact field on the submission form will be `paul@redmapleresearch.ca` directly, same as `/support`, `/privacy`, `/security`, and the inline credentials block in the form's reviewer-instructions field. See Phase 3 Privacy mailbox decision for the broader scope.
@@ -555,16 +555,46 @@ This is the highest-risk Phase 3.5 item. The form explicitly says: "Incomplete o
   ````
   **Server URL:** https://www.synzo.ai/mcp
   **Transport:** Streamable HTTP (application/json). Protocol versions: 2025-06-18, 2025-03-26.
-  **Auth:** OAuth 2.0 via WorkOS AuthKit. DCR per RFC 7591 (we host an augmented /.well-known/oauth-authorization-server that injects registration_endpoint — WorkOS supports DCR but doesn't advertise it).
+  **Auth:** Bearer API key (recommended for review) OR OAuth 2.0 via WorkOS AuthKit.
   **Tools/Resources/Prompts:** 5 / 0 / 0. Live registry visible at https://www.synzo.ai/docs.
 
-  **Test account** (free tier — 50 calls/month, 20 pages/call, 10 rpm):
+  ## Recommended auth: paste this API key
+
+  When adding Synzo as a custom MCP connector, configure auth as **Bearer token** and paste:
+
+      <PASTE_REVIEWER_API_KEY_AT_SUBMISSION_TIME>
+
+  (Key starts with `sk_synzo_`. Issued from the dashboard for the reviewer account
+  paul@redmapleresearch.ca; bound to a free-tier org with 50 calls/month, 20 pages/call,
+  10 RPM. Verified end-to-end via MCP Inspector + automated sweep on 2026-06-08.)
+
+  This is the fastest, lowest-friction path. The five tools are immediately callable;
+  no sign-in flow, no popup. If your MCP client only supports OAuth, see fallback below.
+
+  ## Fallback: OAuth 2.0 via WorkOS AuthKit (optional)
+
+  Synzo also implements OAuth 2.0 with Dynamic Client Registration (RFC 7591) against
+  WorkOS AuthKit. This was verified end-to-end via claude.ai web on 2026-06-06 (a real
+  user signed in, consented, and invoked a tool through claude.ai's chat UI).
+  Disclosure: as of 2026-06-08 we observed claude.ai web no longer triggering the
+  WorkOS sign-in popup when the connector is added — root cause not isolated on our
+  side; the server-side discovery chain (RFC 9728 / RFC 8414) is intact per direct
+  curl probes. We've therefore made the API key the primary path. If your client does
+  initiate OAuth: sign in with the reviewer credentials in the "Test account" section
+  below.
+
+  ## Test account (for dashboard / OAuth path / general access)
+
   - Email: paul@redmapleresearch.ca
   - Password: <PASTE_AT_SUBMISSION_TIME>
+  - Dashboard: https://www.synzo.ai/dashboard
+  - Plan: free (50 calls/month, 20 pages/call, 10 req/min)
 
-  **Sample bundle:** https://www.synzo.ai/static/files/reviewer-bundle.zip (3.2 MB, 5 files; one per tool).
+  ## Sample bundle
 
-  **End-to-end sweep — one prompt per tool. Each burns ~1 call (full sweep = 5 of 50).**
+  https://www.synzo.ai/static/files/reviewer-bundle.zip (3.2 MB, 5 files; one per tool).
+
+  ## End-to-end sweep — one prompt per tool. Each burns ~1 call (full sweep = 5 of 50).
 
   1. summarize_document → file: summarize-sample.pdf
      "Use Synzo to classify and summarize this document."
@@ -588,7 +618,15 @@ This is the highest-risk Phase 3.5 item. The form explicitly says: "Incomplete o
      Returns: { filename, mode, content_base64, mimetype } — PNG with faces blurred. Tool name describes the detect-and-obscure pipeline; response is the processed image, not bounding boxes.
      Cold-start note: first call on a fresh replica pays ~10–30s for MTCNN/TensorFlow graph load. Subsequent calls fast.
 
-  **Error envelope (for reference):**
+  ## Direct verification (if you want to confirm without a connector)
+
+  MCP Inspector path: `npx @modelcontextprotocol/inspector` → Transport: Streamable HTTP →
+  URL: https://www.synzo.ai/mcp → Auth: Bearer + the API key above. Click Connect, all
+  5 tools render with full schemas and annotations. We sweep this path on every deploy
+  via `scripts/sweep_tools.py`.
+
+  ## Error envelope (for reference)
+
   - -32001 Auth (missing/expired/invalid bearer; orphan org; missing JWT claim)
   - -32002 Quota (monthly call cap exhausted)
   - -32003 Rate limit (per-org RPM cap surfaced in message)
@@ -596,7 +634,9 @@ This is the highest-risk Phase 3.5 item. The form explicitly says: "Incomplete o
   - -32005 Tool timeout (60s wall-clock; quota refunded, metered as 'timeout')
   Tool-internal failures (handler exception, downstream model error) come back as isError: true in the result envelope — not a JSON-RPC error — so Claude can recover. Quota is still refunded on the exception path.
 
-  **Contact during review:** paul@redmapleresearch.ca. Security: same address, but please use the disclosure flow at https://www.synzo.ai/security so it lands with the right framing + SLA.
+  ## Contact during review
+
+  paul@redmapleresearch.ca. Security: same address, but please use the disclosure flow at https://www.synzo.ai/security so it lands with the right framing + SLA.
   ````
 - [x] **Sample file set built and locked, all five staged at `C:\Users\651802\Downloads\synzo-mcp-testing\`. Every file fits the free-tier `pages_per_call: 20` and `MAX_DOC_BYTES: 10 MB` caps.** (2026-06-07)
 
