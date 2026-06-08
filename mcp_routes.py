@@ -29,7 +29,6 @@ import logging
 import os
 from typing import Any
 
-import requests
 from flask import Blueprint, current_app, jsonify, make_response, request
 
 from auth import AuthError, _identify_principal, run_metered_tool
@@ -416,14 +415,25 @@ def mcp_get_delete():
 
 @bp.route("/.well-known/oauth-protected-resource", methods=["GET", "OPTIONS"])
 def oauth_protected_resource():
-    """Points MCP clients at our WorkOS authorization server.
+    """Points MCP clients directly at the WorkOS AuthKit authorization server.
 
     Spec: https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization
     RFC 9728: https://datatracker.ietf.org/doc/html/rfc9728
 
-    The minimum field set per RFC 9728 is `resource` and `authorization_servers`.
-    We also surface `bearer_methods_supported` so well-behaved clients know to
-    use the Authorization header (not a query param).
+    History (kept here so the wrapper isn't re-introduced by mistake): we used
+    to advertise OUR OWN /.well-known/oauth-authorization-server endpoint as
+    the authorization server and proxy/augment WorkOS's metadata to inject
+    `registration_endpoint`. That worked around a WorkOS gap circa 2026-06-06.
+    WorkOS later updated AuthKit to advertise `registration_endpoint`
+    natively, at which point our wrapper became actively harmful: per RFC 8414
+    §3.3 the issuer in metadata MUST equal the URL the metadata was fetched
+    from, but our wrapper returned issuer=<authkit.app> while serving at
+    www.synzo.ai/.well-known/oauth-authorization-server. Modern MCP clients
+    (claude.ai post the November 2025 spec/security update) reject this
+    mismatch and abandon the OAuth bootstrap silently — no sign-in prompt, no
+    error. By advertising the AuthKit subdomain directly, we let clients fetch
+    WorkOS's canonical metadata (which now includes registration_endpoint)
+    and the issuer check passes.
     """
     if request.method == "OPTIONS":
         resp = make_response("", 204)
@@ -436,15 +446,27 @@ def oauth_protected_resource():
     # (which is unreliable behind Railway's edge proxy).
     resource = os.environ.get("SYNZO_PUBLIC_URL", request.host_url.rstrip("/"))
 
-    # We advertise OUR OWN /.well-known/oauth-authorization-server as the
-    # authorization-server discovery URL — not WorkOS's directly. Reason:
-    # WorkOS's discovery doc does not include `registration_endpoint`, so MCP
-    # clients (claude.ai) abandon the OAuth bootstrap silently. Our wrapper
-    # endpoint proxies WorkOS's AuthKit metadata AND injects the registration
-    # endpoint, restoring the flow. See oauth_authorization_server() below.
+    # Authorization server: point straight at the WorkOS AuthKit subdomain
+    # configured in WORKOS_ISSUER. Its /.well-known/oauth-authorization-server
+    # already advertises registration_endpoint (DCR), code_challenge_methods,
+    # grant_types_supported, and scopes — everything an MCP client needs.
+    authkit_issuer = os.environ.get("WORKOS_ISSUER", "").rstrip("/")
+    if authkit_issuer:
+        authorization_servers = [authkit_issuer]
+    else:
+        # Defensive fallback: if WORKOS_ISSUER is unset (misconfigured deploy),
+        # advertise ourselves so a probe at least gets a structurally-valid
+        # response. The auth flow won't work but the discovery layer doesn't
+        # 500.
+        authorization_servers = [resource]
+        logger.error(
+            "oauth_config_error: WORKOS_ISSUER env var is missing — "
+            "advertising self as authorization_servers; OAuth will not work"
+        )
+
     payload = {
         "resource": resource,
-        "authorization_servers": [resource],
+        "authorization_servers": authorization_servers,
         "bearer_methods_supported": ["header"],
         "resource_documentation": resource + "/docs",
     }
@@ -453,113 +475,6 @@ def oauth_protected_resource():
     resp = make_response(jsonify(payload), 200)
     # This endpoint is meant to be discoverable from any origin (MCP clients
     # fetch it before auth). Apply our same allowlist if Origin is present.
-    for header, value in _cors_headers(origin).items():
-        resp.headers[header] = value
-    return resp
-
-
-# Module-level cache for the upstream WorkOS metadata. WorkOS's discovery doc
-# changes rarely (issuer, endpoints, JWKS URL). We fetch on first request and
-# cache for the process lifetime; a Railway restart re-fetches. If WorkOS goes
-# down mid-request we still serve the cached copy.
-_AUTH_SERVER_METADATA_CACHE: dict | None = None
-
-
-def _fetch_authkit_metadata() -> dict:
-    """Fetch the AuthKit OAuth 2.0 Authorization Server Metadata (RFC 8414).
-
-    The AuthKit hosted-UI subdomain (e.g. real-vine-49-staging.authkit.app)
-    publishes a richer doc than the api.workos.com one — it includes
-    code_challenge_methods_supported, grant_types_supported, scopes_supported,
-    etc. that MCP clients require for the OAuth handshake.
-
-    The AuthKit URL comes from WORKOS_ISSUER. Operator MUST set this to the
-    authkit.app subdomain (not the api.workos.com URL) for OAuth to work.
-    """
-    global _AUTH_SERVER_METADATA_CACHE
-    if _AUTH_SERVER_METADATA_CACHE is not None:
-        return _AUTH_SERVER_METADATA_CACHE
-
-    issuer = os.environ.get("WORKOS_ISSUER", "").rstrip("/")
-    if not issuer:
-        return {}
-
-    url = f"{issuer}/.well-known/oauth-authorization-server"
-    try:
-        r = requests.get(url, timeout=5)
-        r.raise_for_status()
-        _AUTH_SERVER_METADATA_CACHE = r.json()
-    except Exception as e:
-        logger.error("Failed to fetch AuthKit metadata from %s: %s", url, e)
-        return {}
-    return _AUTH_SERVER_METADATA_CACHE
-
-
-@bp.route("/.well-known/oauth-authorization-server", methods=["GET", "OPTIONS"])
-def oauth_authorization_server():
-    """RFC 8414 OAuth 2.0 Authorization Server Metadata, augmented for MCP.
-
-    Why this exists (i.e. why we don't just point MCP clients at WorkOS
-    directly):
-
-    WorkOS supports Dynamic Client Registration (RFC 7591) — POSTing to
-    /oauth2/register on the AuthKit subdomain succeeds — but does NOT
-    advertise `registration_endpoint` in its discovery document. MCP clients
-    (notably claude.ai) read the discovery doc, see no registration_endpoint,
-    and silently abandon the OAuth bootstrap. The user never sees a sign-in
-    prompt; tools/list works (anonymous) but tools/call fails with no
-    indication why.
-
-    Our wrapper proxies WorkOS's AuthKit metadata and injects the missing
-    `registration_endpoint` field. claude.ai then finds the registration
-    URL, performs DCR, drives PKCE + user consent, and obtains a bearer
-    token. This makes Synzo work as a public MCP connector without requiring
-    every client to pre-register.
-
-    The injected URL points at AuthKit's actual DCR endpoint, so the work
-    happens on WorkOS — we just advertise it correctly.
-    """
-    if request.method == "OPTIONS":
-        resp = make_response("", 204)
-        for header, value in _cors_headers(request.headers.get("Origin", "")).items():
-            resp.headers[header] = value
-        return resp
-
-    upstream = _fetch_authkit_metadata()
-    if not upstream:
-        # If we can't reach WorkOS, return 503 rather than serving garbage —
-        # the client will surface a real error instead of silently failing
-        # later in the OAuth dance.
-        resp = make_response(
-            jsonify({"error": "Authorization server metadata unavailable"}),
-            503,
-        )
-        for header, value in _cors_headers(request.headers.get("Origin", "")).items():
-            resp.headers[header] = value
-        return resp
-
-    issuer = os.environ.get("WORKOS_ISSUER", "").rstrip("/")
-
-    # Start from WorkOS's doc, then override / inject the fields claude.ai
-    # needs. We don't blindly trust upstream's `issuer` field — pin it to
-    # what we control so a WorkOS-side rename doesn't break audience checks.
-    payload = dict(upstream)
-    payload["issuer"] = issuer
-    payload["registration_endpoint"] = f"{issuer}/oauth2/register"
-
-    # MCP clients expect these even if upstream omits them. Defensive: only
-    # set defaults if upstream didn't already supply them.
-    payload.setdefault("code_challenge_methods_supported", ["S256"])
-    payload.setdefault("grant_types_supported", ["authorization_code", "refresh_token"])
-    payload.setdefault("response_types_supported", ["code"])
-    payload.setdefault("scopes_supported", ["openid", "profile", "email", "offline_access"])
-    payload.setdefault(
-        "token_endpoint_auth_methods_supported",
-        ["none", "client_secret_basic", "client_secret_post"],
-    )
-
-    origin = request.headers.get("Origin", "")
-    resp = make_response(jsonify(payload), 200)
     for header, value in _cors_headers(origin).items():
         resp.headers[header] = value
     return resp
