@@ -1,8 +1,8 @@
 # docs_routes.py
 # Public-facing documentation, privacy policy, support, and security pages.
 # These are the three submission-form-required URLs (Docs / Privacy / Support)
-# plus a /security page that backs `security@synzo.ai` disclosure per Anthropic
-# Software Directory Terms.
+# plus a /security page that documents the vulnerability disclosure process
+# per Anthropic Software Directory Terms.
 #
 # All routes are unauthenticated (public-site surface per MCP_SUBMISSION_PLAN §3.3),
 # render layout.html with a partial as the `initial_content_template` (same shape

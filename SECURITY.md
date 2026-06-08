@@ -21,9 +21,7 @@ staff, and denial-of-service attacks against the running service.
 ## How to report
 
 Email reports to **paul@redmapleresearch.ca**. This is the address Synzo's
-maintainer monitors directly while the `security@synzo.ai` alias is being
-provisioned; both will resolve to the same inbox once DNS migration is
-complete.
+maintainer monitors directly.
 
 Please include:
 
