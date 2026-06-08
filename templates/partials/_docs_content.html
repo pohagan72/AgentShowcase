@@ -107,8 +107,8 @@
             <p>Sign out and sign back in. If the issue persists, re-add the connector — claude.ai caches the WorkOS client registration and a fresh add re-runs DCR.</p>
         </details>
         <details>
-            <summary>Invalid file type (error <code>-32004</code>)</summary>
-            <p>Each tool only accepts specific file types — see Available tools above for the supported types per tool.</p>
+            <summary>Invalid file type or bad argument</summary>
+            <p>Each tool only accepts specific file types — see Available tools above for the supported types per tool. Argument failures (wrong extension, magic-bytes mismatch, bad base64) come back as <code>isError: true</code> in the tool result envelope so the model can recover, not as a JSON-RPC error code. Your quota is refunded automatically.</p>
         </details>
         <details>
             <summary>Quota exceeded (error <code>-32002</code>)</summary>
@@ -119,8 +119,12 @@
             <p>Wait a moment and retry, or upgrade your plan for a higher per-minute rate limit.</p>
         </details>
         <details>
+            <summary>File too large for plan tier (error <code>-32004</code>)</summary>
+            <p>The decoded file exceeds the per-call page cap for your plan. Free tier allows up to 20 pages per call; reduce the file size or upgrade your plan.</p>
+        </details>
+        <details>
             <summary>Tool timed out (error <code>-32005</code>)</summary>
-            <p>The file is too large for your plan tier. Each tool call has a 60-second wall-clock limit; large PDFs at the free-tier page cap should complete within this.</p>
+            <p>Each tool call has a 60-second wall-clock limit. Your quota is refunded automatically when a timeout fires. Retry with a smaller file or split the work into multiple calls.</p>
         </details>
     </section>
 
