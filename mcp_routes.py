@@ -33,6 +33,7 @@ import requests
 from flask import Blueprint, current_app, jsonify, make_response, request
 
 from auth import AuthError, _identify_principal, run_metered_tool
+from blob_store import get_default_store
 from mcp_tools import TOOLS, ToolError, list_tool_descriptors
 
 logger = logging.getLogger(__name__)
@@ -493,6 +494,41 @@ def _fetch_authkit_metadata() -> dict:
         logger.error("Failed to fetch AuthKit metadata from %s: %s", url, e)
         return {}
     return _AUTH_SERVER_METADATA_CACHE
+
+
+# --- Blob serve endpoint ------------------------------------------------------
+
+
+@bp.route("/u/<token>", methods=["GET"])
+def serve_blob(token: str):
+    """Serve a blob uploaded via the `upload_file` MCP tool.
+
+    Anyone with the token can fetch — the token IS the auth (256-bit entropy
+    from secrets.token_urlsafe(32), 1h TTL). This mirrors the S3-presigned-URL
+    pattern. Used by:
+      1. The other MCP tools fetching the user's uploaded file via content_url.
+         (Same-origin self-fetch; SSRF guard in url_fetcher allows www.synzo.ai
+         because it's a public IP.)
+      2. Reviewers / chat clients downloading binary outputs from redact_pii
+         and detect_faces, which stash their results in the blob store too.
+    """
+    store = get_default_store()
+    entry = store.get(token)
+    if entry is None:
+        # Indistinguishable from "never existed" so we don't leak whether a
+        # token was previously valid.
+        return make_response(jsonify({"error": "Not found"}), 404)
+
+    resp = make_response(entry.data, 200)
+    resp.headers["Content-Type"] = entry.content_type or "application/octet-stream"
+    resp.headers["Content-Length"] = str(len(entry.data))
+    # Suggest a download filename so reviewers downloading the redact output
+    # get a sensible name. inline disposition so the browser can preview.
+    resp.headers["Content-Disposition"] = f'inline; filename="{entry.filename}"'
+    # Don't let any caching layer hold these — TTL is 1h and tokens are
+    # single-use-ish.
+    resp.headers["Cache-Control"] = "private, no-store"
+    return resp
 
 
 @bp.route("/.well-known/oauth-authorization-server", methods=["GET", "OPTIONS"])

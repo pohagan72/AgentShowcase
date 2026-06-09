@@ -74,6 +74,60 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture(autouse=True)
+def _reset_blob_store():
+    """Wipe the module-level blob store between tests so token reuse / TTL /
+    cap state doesn't leak across cases. Autouse so every test sees a clean
+    store; tests that don't care pay no attention."""
+    import blob_store
+    blob_store.reset_default_store()
+    yield
+    blob_store.reset_default_store()
+
+
+@pytest.fixture
+def url_for_bytes(monkeypatch):
+    """Return a helper that stashes bytes in the blob store and returns a
+    synzo.test URL the MCP tools can pass through _load_payload.
+
+    Also monkeypatches url_fetcher.fetch_url_bytes so the tool handlers see
+    the stashed bytes instead of trying a real network fetch. This lets the
+    1000+ lines of test_mcp_server.py keep their existing intent — supply
+    bytes to a tool handler — while exercising the URL-only code path in
+    _load_payload.
+    """
+    import url_fetcher
+    from blob_store import get_default_store
+
+    TEST_URL_PREFIX = "https://synzo.test/u/"
+
+    def _make(raw: bytes, filename: str = "x.bin", content_type: str = "application/octet-stream") -> str:
+        entry = get_default_store().put(
+            filename=filename, content_type=content_type, data=raw
+        )
+        return f"{TEST_URL_PREFIX}{entry.token}"
+
+    def _fake_fetch(url: str, *, max_bytes: int):
+        if not url.startswith(TEST_URL_PREFIX):
+            raise url_fetcher.UrlFetchError(
+                f"Test fetcher only accepts {TEST_URL_PREFIX} URLs (got {url})"
+            )
+        token = url[len(TEST_URL_PREFIX):]
+        entry = get_default_store().get(token)
+        if entry is None:
+            raise url_fetcher.UrlFetchError("Test URL expired or unknown")
+        if len(entry.data) > max_bytes:
+            raise url_fetcher.UrlFetchError(
+                f"Test blob {len(entry.data)} > max_bytes {max_bytes}"
+            )
+        return entry.data, entry.content_type
+
+    import mcp_tools
+    monkeypatch.setattr(mcp_tools, "fetch_url_bytes", _fake_fetch)
+
+    return _make
+
+
 @pytest.fixture
 def seeded_org(app):
     """Create a fresh free-tier org + current-period quota + API key per test.
