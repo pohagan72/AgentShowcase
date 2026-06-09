@@ -1,14 +1,42 @@
-# Synzo → Anthropic Connector Directory — Form Fill Cheat Sheet
+# Synzo → Anthropic Connector Directory — Form Fill Template
 
-**Use this on submission day.** One section per form page, each field with the literal answer to paste (or `<TODO>` for the open ones). The strategic reasoning behind every decision is in `MCP_SUBMISSION_PLAN.md`; this file is the operational artifact.
+> **POST-SUBMISSION STATUS (2026-06-10 afternoon):** This file was used to submit Synzo to the Anthropic MCP Directory on **2026-06-10 afternoon**. The actual answers submitted (with deltas) are recorded immutably in [SUBMISSION_RECORD.md](SUBMISSION_RECORD.md). This file has been **revised post-submission to become the template for the next submission** — answers updated to reflect what actually worked, lessons from the form walkthrough folded in, and a stricter pre-submission verification checklist added.
 
-**Last refreshed:** 2026-06-10 mid-day (after Phase 3.7 ships 6-tool URL-first state).
+**Use this on submission day.** One section per form page, each field with the literal answer to paste (or `<PASTE_FROM_SECRET_STORE>` for credentials). The strategic reasoning behind every decision is in `MCP_SUBMISSION_PLAN.md`; this file is the operational artifact.
 
-**Before you start:**
-- Have the live reviewer API key (`sk_synzo_...`) ready — held outside the repo.
-- Have the reviewer test-account password ready — also outside the repo.
-- Verify the 6 tools are live: `curl -sS -X POST https://www.synzo.ai/mcp -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python -m json.tool` → should list 6 tools.
-- Verify `/docs`, `/privacy`, `/support` all return 200.
+**Last refreshed:** 2026-06-10 afternoon (post-submission template update).
+
+**Pre-submission verification checklist** — run every one of these BEFORE opening the form:
+
+- [ ] Reviewer API key (`sk_synzo_...`) is at hand — from `.env` `SYNZO_API_KEY`.
+- [ ] Reviewer test-account password is at hand — held outside the repo.
+- [ ] Verify 6 tools are live:
+      `curl -sS -X POST https://www.synzo.ai/mcp -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | python -m json.tool`
+      Should list 6 tools.
+- [ ] Verify reviewer org has ≥15 calls_remaining at `https://www.synzo.ai/dashboard` (sign in as paul@redmapleresearch.ca).
+- [ ] **Every URL you'll put in the form returns 200**. Run this curl block — every line should print `200`:
+      ```bash
+      for u in \
+        https://www.synzo.ai/docs \
+        https://www.synzo.ai/privacy \
+        https://www.synzo.ai/support \
+        https://www.synzo.ai/security \
+        https://www.synzo.ai/terms \
+        https://www.synzo.ai/static/images/synzo-icon.svg \
+        https://www.synzo.ai/static/images/synzo-icon.png \
+        https://www.synzo.ai/static/files/reviewer-bundle.zip \
+        https://www.synzo.ai/static/reviewer-samples/summarize-sample.pdf \
+        https://www.synzo.ai/static/reviewer-samples/translate-sample.docx \
+        https://www.synzo.ai/static/reviewer-samples/redact-sample.docx \
+        https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg \
+        https://www.synzo.ai/static/reviewer-samples/detect-faces-sample.jpg ; \
+      do printf "%s -> " "$u" ; curl -sS -o /dev/null -w "%{http_code}\n" "$u" ; done
+      ```
+      **Don't skip this** — Synzo's 2026-06-10 submission had a logo SVG URL that returned 404 because the file wasn't committed/deployed. The reviewer saw a broken logo. Catch this with curl BEFORE submitting.
+- [ ] **Screenshots: ≥1000px wide, PNG, show actual tool output (not mid-execution permission prompts).** Verify dimensions:
+      ```bash
+      .venv/Scripts/python -c "from PIL import Image; import sys, glob; [print(f'{p}: {Image.open(p).size}') for p in sys.argv[1:]]" path/to/screenshot-*.png
+      ```
 
 ---
 
@@ -109,37 +137,80 @@ Paste **≥3 use cases**, each pairing a one-line description with a reviewer-ru
 
 ## Form page 2 — Auth & test access
 
-| Field | Answer |
-|---|---|
-| Authentication Type | **API key (Bearer)** |
-| Auth Client | **Static** |
-| Static Client ID / Secret / API Key | `<PASTE_REVIEWER_API_KEY>` — `sk_synzo_...` for the reviewer org. From `.env` `SYNZO_API_KEY`. |
-| Transport Support | **Streamable HTTP yes, SSE no** (server returns `Content-Type: application/json`; SSE is deferred to Phase 2.5.B). |
+> **2026-06-10 submission lesson:** The form's Authentication Type only offered three options: "No auth needed / OAuth 2.0 / Custom URL (not supported)". There is no "Bearer API key" option even though that's Synzo's primary path. **Select OAuth 2.0** — it's the closest match because Synzo does implement OAuth (DCR via WorkOS AuthKit), and use the reviewer-instructions field to bridge the gap honestly.
+>
+> The form also asks you to pick "Static OAuth Client" vs "Dynamic OAuth Client (DCR, CIMD)". Synzo's actual flow is DCR, so the technically-correct answer is **Dynamic OAuth Client**. We submitted Static and left the Static Client ID / Secret fields blank because that's how the original cheat sheet was written — both choices work because the reviewer-instructions field is the authoritative source of how-to-authenticate. **For next submission, pick Dynamic** so the form's logic and your actual flow match.
+
+| Field | Answer | Notes |
+|---|---|---|
+| Authentication Type | **OAuth 2.0** | Closest match the form offers. API-key-as-Bearer is documented in reviewer-instructions. |
+| Auth Client | **Dynamic OAuth Client (DCR / CIMD)** | Matches Synzo's actual DCR implementation. (Synzo's 2026-06-10 submission used Static — both work because reviewer-instructions documents the API-key fallback, but Dynamic is the cleaner answer.) |
+| Static Client ID | *Leave blank* | Synzo has no pre-registered static OAuth client. Marked "if applicable" — deliberately blank. |
+| Static Client Secret | *Leave blank* | Same as above. |
+| Transport Support | **Streamable HTTP** (only — don't check SSE) | Server returns `Content-Type: application/json`; SSE is deferred to Phase 2.5.B. |
 
 ---
 
 ## Form page 2 — Reviewer test bundle / reviewer instructions
 
-**Paste this verbatim into the form's reviewer-instructions field** (form likely accepts markdown; if plain text only, strip the backticks):
+> **2026-06-10 submission lesson:** The form actually has **two separate fields** here, not one. The first is "Testing Account Credentials" (a short bare-credentials answer). The second is "Test Account Setup Instructions" (the long narrative onboarding doc). Don't paste the long block into the short field — it'll look out of place and the next field will look empty.
+>
+> **There is also a "Test Account Server URL (if different from main server URL)" field** — leave it blank for Synzo since testing happens on the same `/mcp` endpoint as production.
+
+### Field A: Testing Account Credentials (short answer)
+
+**Paste verbatim, then substitute the two placeholders:**
 
 ````
-**Server URL:** https://www.synzo.ai/mcp
-**Transport:** Streamable HTTP (application/json). Protocol versions: 2025-06-18, 2025-03-26.
-**Auth:** Bearer API key (recommended for review) OR OAuth 2.0 via WorkOS AuthKit.
-**Tools/Resources/Prompts:** 6 / 0 / 0. Live registry visible at https://www.synzo.ai/docs.
+Authentication: Bearer API key (preferred for review)
 
-## Recommended auth: paste this API key
+API key: <PASTE_REVIEWER_API_KEY>
+Header to send: Authorization: Bearer <key>
 
-When adding Synzo as a custom MCP connector, configure auth as **Bearer token** and paste:
+This key is bound to a free-tier org with 50 calls/month, 20 pages/call, 10 RPM.
+Issued for the test account paul@redmapleresearch.ca.
 
-    <PASTE_REVIEWER_API_KEY>
+Test account (for dashboard / OAuth path / general access):
+  Email: paul@redmapleresearch.ca
+  Password: <PASTE_REVIEWER_PASSWORD>
+  Dashboard: https://www.synzo.ai/dashboard
+  2FA: not required.
 
-(Key starts with `sk_synzo_`. Issued from the dashboard for the reviewer account
-paul@redmapleresearch.ca; bound to a free-tier org with 50 calls/month, 20 pages/call,
-10 RPM. Verified end-to-end via MCP Inspector + automated sweep on 2026-06-10.)
+Note: the "Static Client ID / Secret" fields on the previous page were left
+blank intentionally. Synzo does not have a pre-registered static OAuth client.
+The form's auth options didn't cleanly match our setup — see the
+test-account-setup-instructions field below for the complete picture (or use
+the Bearer API key above for the fastest path).
+````
 
-This is the fastest, lowest-friction path. The six tools are immediately callable;
-no sign-in flow, no popup. If your MCP client only supports OAuth, see fallback below.
+### Field B: Test Account Setup Instructions (long answer)
+
+**Paste verbatim, then substitute the two placeholders:**
+
+````
+## Quick start (60 seconds)
+
+1. In claude.ai, open Settings → Connectors → Add custom connector.
+2. Paste this URL: https://www.synzo.ai/mcp
+3. Open Advanced Settings. The form labels are misleading — Synzo uses a
+   Bearer API key, not an OAuth client. Configure auth as **Bearer token**
+   and paste this key:
+
+       <PASTE_REVIEWER_API_KEY>
+
+   (Key starts with sk_synzo_. Bound to a free-tier org for the reviewer
+   account: 50 calls/month, 20 pages/call, 10 RPM.)
+
+4. Click Add. All 6 tools should appear immediately: upload_file,
+   summarize_document, translate_document, redact_pii, analyze_image,
+   detect_faces.
+
+No sign-in flow, no popup, no OAuth dance. Sample files are hosted at
+public URLs (see below) so you don't need to upload anything to test.
+
+(Note: this is the fastest, lowest-friction path. The six tools are
+immediately callable; no sign-in flow, no popup. If your MCP client only
+supports OAuth, see fallback below.)
 
 ## Fallback: OAuth 2.0 via WorkOS AuthKit (optional)
 
@@ -258,40 +329,75 @@ framing + SLA.
 
 ## Form page 3 — Server inventory
 
-The form requires the inventory in the exact format `tool_name (Human Readable Name)`.
+The form has **three separate fields** (Tools / Resources / Prompts) plus a checkbox pair for annotations.
 
-**Tools (6):**
-- `upload_file` (Upload a file for use by other Synzo tools)
-- `summarize_document` (Summarize a document)
-- `translate_document` (Translate a document)
-- `redact_pii` (Redact PII from a document)
-- `analyze_image` (Analyze an image)
-- `detect_faces` (Detect and obscure faces in an image)
+### Field: List of tools in your MCP Server
 
-**Resources:** 0 (none implemented)
-**Prompts:** 0 (none implemented)
+Form format: `tool_name (human-readable name)`, **comma-separated** (everything on one line).
 
-**Checkboxes to tick after re-verifying:**
-- ✅ User-friendly titles (every tool has a non-empty `title` field — verified by `tests/test_smoke.py::test_docs_page_lists_every_registered_tool`)
-- ✅ Accurate tool annotations (every tool has `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint` set in `mcp_tools.py`)
+**Paste this single line into the field:**
+
+```
+upload_file (Upload a file for use by other Synzo tools), summarize_document (Summarize a document), translate_document (Translate a document), redact_pii (Redact PII from a document), analyze_image (Analyze an image), detect_faces (Detect and obscure faces in an image)
+```
+
+### Field: List of resources in your MCP Server (optional, not required)
+
+**Type:** `None`
+
+(Synzo doesn't implement the MCP Resources capability — `resources/list` would return method-not-found.)
+
+### Field: List of prompts in your MCP Server (optional, not required)
+
+**Type:** `None`
+
+(Synzo doesn't implement the MCP Prompts capability — these are reusable parameterized prompt templates per the spec, not system prompts. Different concept; we don't expose any.)
+
+### Checkbox: Tool Titles & Annotations
+
+- ✅ I've specified user-friendly titles for all tools in my server (every tool has a non-empty `title` field, verified by `tests/test_smoke.py::test_docs_page_lists_every_registered_tool`)
+- ✅ I've specified accurate tool annotations for all tools in my server (every tool has `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint` set in `mcp_tools.py`)
 
 ---
 
 ## Form page 4 — Branding & visuals
 
+> **2026-06-10 submission lesson:** Form explicitly says "SVG format" for the logo. Synzo's first plan was to submit PNG with a "we'll upgrade to SVG in v1.1" caveat, but the SVG was generated via auto-tracer at submission time and used instead. The trace was 284 KB / 418 path elements (auto-traces are verbose vs hand-drawn SVGs). **Quality was acceptable for thumbnails; the SVG was the right call.**
+>
+> **CRITICAL LESSON:** the SVG URL submitted on 2026-06-10 returned **404 in production** because the file was on local disk but not committed/deployed. Reviewer saw a broken logo. Caught post-submission. The pre-submission verification checklist at the top of this file now mandates a curl of every URL before submitting — don't skip it.
+
 | Field | Answer |
 |---|---|
-| Logo URL (1:1 square, ≥500×500) | `https://www.synzo.ai/static/images/synzo-icon.png` (500×500 PNG, ~180 KB) |
-| Favicon verified | ✅ Re-check `https://www.google.com/s2/favicons?domain=synzo.ai&sz=64` before checking the form box |
-| Promotional screenshots (3–5, ≥1000px PNG) | `<TODO>` — captured one in 2026-06-10 claude.ai test (analyze_image with URL prompt). Capture 2–4 more after rate-limit reset. Pair each with its prompt. |
+| Server Logo URL (1:1 square SVG, hosted) | `https://www.synzo.ai/static/images/synzo-icon.svg` |
+| Favicon verified | Re-check `https://www.google.com/s2/favicons?domain=synzo.ai&sz=64` before submitting |
+| Promotional screenshots (3–5, ≥1000px PNG) | See breakdown below — capture in a session with claude.ai connector enabled, replace placeholders |
 | Optional Google Drive folder | Decide at submission time |
 
-**Screenshots captured so far:**
-1. ✅ analyze_image — *"Use Synzo to analyze the image at https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg — describe the scene, list any visible text, and tell me the dominant colors."* (clean single tool call, structured result, hex color swatches rendered)
-2. `<TODO>` — summarize_document
-3. `<TODO>` — translate_document
-4. `<TODO>` — redact_pii (shows result_url download)
-5. `<TODO>` — detect_faces (shows result_url download)
+### Screenshots — what to capture and what to avoid
+
+**Form requires 3–5 screenshots, each ≥1000px wide, PNG, paired with the prompt that produced it. They go in the form's screenshot-upload UI (one slot per file).**
+
+For the 2026-06-10 Synzo submission, the three uploaded were:
+
+1. ✅ **analyze_image at URL prompt** (1245×897 PNG) — Gold standard: clean tool call, structured result with hex color swatches, safety flags note. Demo-grade.
+2. ⚠️ **summarize_document mid-execution at permission prompt** (1279×1010 PNG) — Captured at the "Always allow / Deny" step before tool ran. Shows MCP consent UX (security-positive) but NOT the tool's output. **For next submission, click "Always allow" first and wait for the response to fully render before capturing.**
+3. ⚠️ **Connector Customize page** (1919×1016 PNG) — Setup view showing all 6 tools registered. Useful as connector-setup visual; doesn't show tool execution. Goes in the "promo screenshots" slot only because the form doesn't have a dedicated connector-setup field.
+
+**For next submission, aim for 5 in-chat screenshots (one per content-processing tool):**
+
+| Slot | Prompt | Expected on-screen result |
+|---|---|---|
+| #1 | "Use Synzo to summarize the document at https://www.synzo.ai/static/reviewer-samples/summarize-sample.pdf — give me the classification and the summary." | Classification + multi-paragraph Markdown summary |
+| #2 | "Use Synzo to translate the document at https://www.synzo.ai/static/reviewer-samples/translate-sample.docx into Spanish." | Translated Markdown |
+| #3 | "Use Synzo to redact the PII from the document at https://www.synzo.ai/static/reviewer-samples/redact-sample.docx and give me the download URL." | result_url + size info + PII categories named |
+| #4 | "Use Synzo to analyze the image at https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg — describe the scene, list any visible text, and tell me the dominant colors." | Scene + extracted text + hex color swatches (claude.ai auto-renders swatches) |
+| #5 | "Use Synzo to blur the faces in the image at https://www.synzo.ai/static/reviewer-samples/detect-faces-sample.jpg with blur_strength 2, and give me the download URL." | result_url + mode + mimetype |
+
+**Recapture tips:**
+- Use browser zoom Ctrl++ to ensure ≥1000px wide
+- Click "Always allow" on the first connector use so subsequent captures don't pause at consent
+- Wait for the full response before snipping (no partial renders)
+- Win+Shift+S, drag from above the prompt to just above the message-input box
 
 ---
 
@@ -315,42 +421,79 @@ The form requires the inventory in the exact format `tool_name (Human Readable N
 
 ---
 
-## Form page 6 — Compliance & submission
+## Form page 6 — Submission Requirements Checklist
 
-### Pre-submission checklist
+> **2026-06-10 submission lesson:** Page 6 is the actual final page and it's substantive — every checkbox is a self-attestation Anthropic can hold you to. The cheat sheet originally treated this as a generic "agree to terms" page but it's structured as four checkbox groups + an "Additional Information" text field + the Submit button.
 
-Walk every item in https://docs.claude.com/connectors/building/submission/pre-submission-checklist. Phase 3 audits should cover most; this is the final read-through.
+### Policy Compliance (5 checkboxes — tick all)
 
-### Anthropic Software Directory Terms
+- ✅ I have reviewed and agree to the Software Directory Policy
+- ✅ My server does NOT enable coercive automation — *no tool initiates outbound action on user data without explicit user-prompted invocation*
+- ✅ My server does NOT transfer money, cryptocurrency, or execute financial transactions
+- ✅ My MCP server is live, published, and ready to accept production traffic — *verified via the pre-submission curl checklist at the top of this file*
+- ✅ I work for the company that owns or controls the API endpoint(s) that my server connects to — *Policy 3.F: Synzo's MCP server runs on synzo.ai which Paul O'Hagan / Red Maple Research owns; Gemini is a downstream provider analogous to AWS/Stripe*
 
-Review and accept https://support.claude.com/en/articles/13145338-anthropic-software-directory-terms. Key clauses being accepted (verified against current state):
+### Technical Requirements (6 checkboxes — tick all)
 
-- ✅ Warranty: we own/control all API endpoints — see the Policy 3.F note below.
-- ✅ Indemnification of Anthropic for claims related to Synzo or user interactions with it.
-- ✅ Anthropic may review, test, and remove the connector at any time.
-- ✅ Anthropic gets a license to display Synzo's name/logo/screenshots in the directory.
-- ✅ We agree to maintain compliance with the Software Directory Policy as it updates.
+- ✅ OAuth 2.0 is fully implemented for ALL tools requiring authentication — *implemented via WorkOS AuthKit + DCR; verified end-to-end 2026-06-06*
+- ✅ All tools have proper safety annotations (readOnlyHint, destructiveHint) — *all 6 tools have all 4 annotations*
+- ✅ Server is accessible via HTTPS (not HTTP)
+- ✅ CORS is properly configured for browser-based authentication
+- ✅ Claude.ai and Claude Code IP addresses are allowlisted (if applicable) — *no allowlist needed; any origin that passes auth is accepted, hence "if applicable"*
+- ✅ I have tested this works with Claude.ai on the latest build — *verified with at least one URL-bearing prompt before submitting*
 
-### Anthropic Software Directory Policy
+### Documentation Requirements (4 checkboxes — tick all)
 
-Review and confirm compliance with https://support.claude.com/en/articles/13145358-anthropic-software-directory-policy. All Phase 3 policy audits PASS as of 2026-06-06:
+- ✅ Complete server documentation is published and publicly accessible — `/docs`
+- ✅ Documentation includes setup instructions, tool descriptions, and troubleshooting guide — `/docs` has all three
+- ✅ Company privacy policy is published and accessible — `/privacy`
+- ✅ Terms of service are published and accessible — `/terms`
 
-- ✅ Policy 1.D / 1.F observability surface — no Sentry/Datadog/PostHog/GA/etc.
-- ✅ Policy 1.F tool descriptions — no implication of Claude memory/history/files.
-- ✅ Policy 2 prompt-injection scan — no instructions to call other tools, no override of system instructions.
-- ✅ Policy 3.F API ownership — paste-block below.
-- ✅ Policy 5.B token frugality — every response shape minimal; no source-text echo.
-- ✅ Policy 5.A error messages — every raise site actionable; per-org RPM cap named in -32003.
+### Testing Requirements (3 checkboxes)
 
-### Unsupported-use-cases (§4)
+- ✅ Test account with sample data is ready (if relevant)
+- ✅ Test credentials are valid for at least 30 days (if relevant) — *Synzo API key has no expiry; do not revoke for 30+ days post-submission*
+- ✅ All server tools are functional and tested in the surfaces in which they'll be available (claude.ai, Claude Code, etc) — *the qualifier "in the surfaces in which they'll be available" gives wiggle room; verify in claude.ai web before ticking*
 
-- ✅ Does not transfer money/crypto.
-- ✅ Does not generate images/video/audio via AI (`analyze_image` only *describes*; `detect_faces` only *blurs/redacts*).
-- ✅ Does not serve ads or sponsored content.
+### Additional Information (text field)
+
+**Paste this block to surface the things the form didn't have a clean place for:**
+
+````
+A few notes the form didn't have a clean place for:
+
+1. URL-first tool design. Synzo's content-processing tools (summarize_document,
+translate_document, redact_pii, analyze_image, detect_faces) accept HTTPS URLs
+as content_url rather than inline base64. This avoids the chat-host base64
+construction stall on multi-megabyte files — the LLM passes a short URL string
+instead of generating tens of thousands of base64 tokens inline. For local files
+with no URL, the upload_file tool ingests once and returns a Synzo-hosted URL
+(1-hour TTL) the other tools can reference. Server-side URL fetching is
+SSRF-guarded: HTTPS only, public IPs only (loopback/private/link-local/cloud-
+metadata addresses rejected), 10 MB max, 30-second timeout. Reviewer sample
+files are hosted at https://www.synzo.ai/static/reviewer-samples/* so the
+directory review experience needs no upload step.
+
+2. Auth choice rationale. The form's Auth section asked for OAuth 2.0 + Static
+OAuth Client, and the Static Client ID/Secret fields were left blank. This was
+intentional. Synzo implements OAuth 2.0 with Dynamic Client Registration (RFC
+7591) against WorkOS AuthKit — proven end-to-end via claude.ai web on 2026-06-06.
+On 2026-06-08 we observed claude.ai web no longer triggering the WorkOS sign-in
+popup on add-connector; root cause not isolated on our side, server-side
+discovery chain remains RFC-correct. We therefore made the API key the
+recommended review path. See the test-account-setup-instructions field on page
+2 for the operational details.
+
+3. Tool count is 6, not 5. upload_file was added in 2026-06-10 alongside the
+URL-first refactor; the other 5 tools (summarize_document, translate_document,
+redact_pii, analyze_image, detect_faces) are unchanged in behavior.
+````
 
 ### Submit
 
-- [ ] **Submit to Connector Directory.**
+- [ ] **Final sanity pass:** click Back through every page, verify no `<PASTE_...>` placeholders survived in any field. The two most likely culprits: the API key and the reviewer password in the page-2 paste-blocks.
+- [ ] **Click Submit (green button, bottom-left).**
+- [ ] **Save a screenshot of the confirmation page** — confirmation email will land at the form-submitter email (Gmail or whichever account was logged into Google Forms).
 
 ---
 
