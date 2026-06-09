@@ -59,15 +59,23 @@
 
     <section class="legal-section" id="what-is-synzo">
         <h2>What is Synzo MCP?</h2>
-        <p>The Synzo MCP server exposes document-intelligence tools to MCP-compatible clients (claude.ai, Claude Desktop). It runs at <code>https://www.synzo.ai/mcp</code> and authenticates callers via OAuth (WorkOS) or API key.</p>
+        <p>The Synzo MCP server exposes document-intelligence tools to MCP-compatible clients (claude.ai, Claude Desktop). It runs at <code>https://www.synzo.ai/mcp</code> and authenticates callers via API key or OAuth (WorkOS).</p>
         <h4>What you can do with it</h4>
         <ul>
+            <li><strong>upload_file</strong> — upload a file once and receive a short-lived URL the other tools can reference. Use this first when operating on a local file.</li>
             <li><strong>summarize_document</strong> — extract a structured summary from a PDF, .docx, .pptx, or .xlsx file.</li>
             <li><strong>translate_document</strong> — translate a .docx, .pptx, or .xlsx file into the target language (returns markdown).</li>
-            <li><strong>redact_pii</strong> — produce a redacted copy of a .docx or .pptx with PII removed in place.</li>
+            <li><strong>redact_pii</strong> — produce a redacted copy of a .docx or .pptx with PII removed in place. Returns a short-lived download URL.</li>
             <li><strong>analyze_image</strong> — describe an image and extract dominant colors.</li>
-            <li><strong>detect_faces</strong> — detect faces in an image and return a blurred or redacted copy.</li>
+            <li><strong>detect_faces</strong> — detect faces in an image and return a blurred or redacted copy. Returns a short-lived download URL.</li>
         </ul>
+        <h4>How tools chain together</h4>
+        <p>The four content-processing tools accept a <code>content_url</code> argument rather than inline base64 data. The recommended flow for local files is:</p>
+        <ol>
+            <li>Call <strong>upload_file</strong> with the file's base64 bytes; the server returns a <code>content_url</code> valid for 1 hour.</li>
+            <li>Call any of the other tools with that <code>content_url</code> (and any tool-specific arguments).</li>
+        </ol>
+        <p>This design keeps chat-client tool calls fast: the base64 payload is paid once at upload time rather than re-sent in every downstream tool call. Programmatic callers can skip <code>upload_file</code> and pass any HTTPS URL the server can reach (subject to SSRF guards: HTTPS only, public IPs only, 10 MB max).</p>
     </section>
 
     <section class="legal-section" id="setup-guides">

@@ -1,16 +1,16 @@
 """Automated end-to-end sweep of every MCP tool against a live Synzo deployment.
 
-Companion to scripts/encode_for_inspector.py. Where that script supports the
-manual MCP Inspector walkthrough (paste base64, paste filename, click Run),
-this one drives the full test rig in code:
+Companion to scripts/encode_for_inspector.py. This script drives the full
+test rig in code:
 
   1. Reads SYNZO_API_KEY from .env.
   2. Calls tools/list to confirm the deployment is healthy and which tools
      are registered.
-  3. For each of summarize_document / translate_document / redact_pii /
-     analyze_image, synthesizes a minimal in-memory test payload, fires a
-     tools/call against /mcp, and asserts on the response shape from
-     mcp_tools.py.
+  3. For each of the 5 content-processing tools, the script:
+       (a) synthesizes a tiny in-memory test payload,
+       (b) calls upload_file to stash the bytes -> content_url,
+       (c) fires a tools/call against /mcp with the content_url,
+       (d) asserts on the response shape from mcp_tools.py.
   4. For detect_faces, requires --face-image <path> (MTCNN needs a real face;
      a synthetic shape won't exercise the model). Skipped with a clear note
      if not provided.
@@ -18,11 +18,12 @@ this one drives the full test rig in code:
      timeout / network error), latency, and a one-line result summary.
 
 The sweep ASSERTS on the response field names defined in mcp_tools.py:
+  - upload_file         -> content_url, expires_at, size_bytes, content_type, filename
   - summarize_document  -> classification, summary, filename
   - translate_document  -> translated_text, target_language, filename
-  - redact_pii          -> content_base64, mimetype, filename
+  - redact_pii          -> result_url, mimetype, filename, original_size_bytes, redacted_size_bytes
   - analyze_image       -> analysis, dominant_colors, filename
-  - detect_faces        -> content_base64, mode, mimetype, filename
+  - detect_faces        -> result_url, mode, mimetype, filename
 
 If a tool returns 200 but with the wrong shape, the script flags it as a
 contract drift — that would be a submission-blocking bug Inspector wouldn't
@@ -258,6 +259,22 @@ def interpret(name: str, response: dict | None, elapsed: float, expected_keys: s
 # --- Sweep -------------------------------------------------------------------
 
 
+def upload_payload(base_url: str, api_key: str, filename: str, b64: str) -> tuple[str | None, float, dict | None]:
+    """POST to upload_file. Returns (content_url, elapsed, raw_response).
+
+    The raw_response is returned so the caller can attribute upload_file's own
+    result line to the sweep summary.
+    """
+    resp, elapsed = call_tool(
+        base_url, api_key, "upload_file",
+        {"filename": filename, "content_base64": b64},
+    )
+    if resp is None or "result" not in resp:
+        return None, elapsed, resp
+    structured = resp["result"].get("structuredContent") or {}
+    return structured.get("content_url"), elapsed, resp
+
+
 def run_sweep(base_url: str, api_key: str, face_image_path: str | None) -> list[ToolResult]:
     results: list[ToolResult] = []
 
@@ -268,67 +285,125 @@ def run_sweep(base_url: str, api_key: str, face_image_path: str | None) -> list[
         sys.exit(2)
     listed = [t["name"] for t in response["result"].get("tools", [])]
     print(f"  OK ({elapsed:.2f}s): {len(listed)} tools advertised: {listed}")
+    if "upload_file" not in listed:
+        print("  FAIL: server does not advertise upload_file; sweep can't run the URL flow.")
+        sys.exit(2)
+
+    # Helper that uploads, prints a one-liner, and returns the URL or None on failure.
+    def _upload(idx: int, label: str, filename: str, b64: str) -> str | None:
+        print(f"  [{idx}.upload] uploading {filename} ({len(b64):,} b64 chars) ...")
+        url, up_elapsed, raw = upload_payload(base_url, api_key, filename, b64)
+        if url is None:
+            print(f"  [{idx}.upload] FAILED in {up_elapsed:.2f}s: {raw}")
+            return None
+        print(f"  [{idx}.upload] OK ({up_elapsed:.2f}s) -> {url}")
+        return url
+
+    # --- upload_file standalone (first tool in the sweep, since everything else depends on it)
+    print("\n[1/6] upload_file ...")
+    fn, b64 = make_summarize_payload()
+    resp, elapsed = call_tool(
+        base_url, api_key, "upload_file",
+        {"filename": fn, "content_base64": b64},
+    )
+    upload_result = interpret(
+        "upload_file", resp, elapsed,
+        expected_keys={"content_url", "expires_at", "size_bytes", "content_type", "filename"},
+        summary_fn=lambda s: f"size_bytes={s.get('size_bytes')}, content_type={s.get('content_type')!r}",
+    )
+    print(f"  {upload_result.status.upper()} ({upload_result.latency_s:.2f}s) {upload_result.summary}")
+    results.append(upload_result)
+
+    summarize_url = None
+    if upload_result.status == "success" and resp is not None:
+        summarize_url = resp["result"]["structuredContent"]["content_url"]
 
     # --- summarize_document
-    print("\n[1/5] summarize_document ...")
-    fn, b64 = make_summarize_payload()
-    resp, elapsed = call_tool(base_url, api_key, "summarize_document", {"filename": fn, "content_base64": b64})
-    result = interpret(
-        "summarize_document", resp, elapsed,
-        expected_keys={"classification", "summary", "filename"},
-        summary_fn=lambda s: f"classification={s.get('classification')!r}, summary[:80]={s.get('summary', '')[:80]!r}",
-    )
-    print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
-    results.append(result)
+    print("\n[2/6] summarize_document ...")
+    if summarize_url is None:
+        # Fallback: try fresh upload (in case the upload_file test was a retry without reseeding state).
+        summarize_url = _upload(2, "summarize", fn, b64)
+    if summarize_url is None:
+        results.append(ToolResult("summarize_document", "skipped", 0.0, "upload_file failed", None))
+    else:
+        resp, elapsed = call_tool(
+            base_url, api_key, "summarize_document",
+            {"filename": fn, "content_url": summarize_url},
+        )
+        result = interpret(
+            "summarize_document", resp, elapsed,
+            expected_keys={"classification", "summary", "filename"},
+            summary_fn=lambda s: f"classification={s.get('classification')!r}, summary[:80]={s.get('summary', '')[:80]!r}",
+        )
+        print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
+        results.append(result)
 
     # --- translate_document
-    print("\n[2/5] translate_document (target=Spanish) ...")
+    print("\n[3/6] translate_document (target=Spanish) ...")
     fn, b64 = make_translate_payload()
-    resp, elapsed = call_tool(
-        base_url, api_key, "translate_document",
-        {"filename": fn, "content_base64": b64, "target_language": "Spanish"},
-    )
-    result = interpret(
-        "translate_document", resp, elapsed,
-        expected_keys={"translated_text", "target_language", "filename"},
-        summary_fn=lambda s: f"translated_text[:80]={s.get('translated_text', '')[:80]!r}",
-    )
-    print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
-    results.append(result)
+    translate_url = _upload(3, "translate", fn, b64)
+    if translate_url is None:
+        results.append(ToolResult("translate_document", "skipped", 0.0, "upload_file failed", None))
+    else:
+        resp, elapsed = call_tool(
+            base_url, api_key, "translate_document",
+            {"filename": fn, "content_url": translate_url, "target_language": "Spanish"},
+        )
+        result = interpret(
+            "translate_document", resp, elapsed,
+            expected_keys={"translated_text", "target_language", "filename"},
+            summary_fn=lambda s: f"translated_text[:80]={s.get('translated_text', '')[:80]!r}",
+        )
+        print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
+        results.append(result)
 
     # --- redact_pii
-    print("\n[3/5] redact_pii ...")
+    print("\n[4/6] redact_pii ...")
     fn, b64 = make_pii_payload()
-    resp, elapsed = call_tool(base_url, api_key, "redact_pii", {"filename": fn, "content_base64": b64})
-    result = interpret(
-        "redact_pii", resp, elapsed,
-        expected_keys={"content_base64", "mimetype", "filename"},
-        summary_fn=lambda s: f"redacted_size={s.get('redacted_size_bytes')}, mimetype={s.get('mimetype')!r}",
-    )
-    print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
-    results.append(result)
+    redact_url = _upload(4, "redact", fn, b64)
+    if redact_url is None:
+        results.append(ToolResult("redact_pii", "skipped", 0.0, "upload_file failed", None))
+    else:
+        resp, elapsed = call_tool(
+            base_url, api_key, "redact_pii",
+            {"filename": fn, "content_url": redact_url},
+        )
+        result = interpret(
+            "redact_pii", resp, elapsed,
+            expected_keys={"result_url", "mimetype", "filename"},
+            summary_fn=lambda s: f"redacted_size={s.get('redacted_size_bytes')}, result_url={s.get('result_url')!r}",
+        )
+        print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
+        results.append(result)
 
     # --- analyze_image
-    print("\n[4/5] analyze_image (synthetic blue PNG) ...")
+    print("\n[5/6] analyze_image (synthetic blue PNG) ...")
     fn, b64 = make_analyze_image_payload()
-    resp, elapsed = call_tool(base_url, api_key, "analyze_image", {"filename": fn, "content_base64": b64})
+    analyze_url = _upload(5, "analyze", fn, b64)
+    if analyze_url is None:
+        results.append(ToolResult("analyze_image", "skipped", 0.0, "upload_file failed", None))
+    else:
+        resp, elapsed = call_tool(
+            base_url, api_key, "analyze_image",
+            {"filename": fn, "content_url": analyze_url},
+        )
 
-    def _analyze_summary(s):
-        analysis = s.get("analysis", {}) or {}
-        desc = (analysis.get("description") or "")[:80]
-        colors = s.get("dominant_colors", [])
-        return f"description[:80]={desc!r}, dominant_colors={colors[:3]}"
+        def _analyze_summary(s):
+            analysis = s.get("analysis", {}) or {}
+            desc = (analysis.get("description") or "")[:80]
+            colors = s.get("dominant_colors", [])
+            return f"description[:80]={desc!r}, dominant_colors={colors[:3]}"
 
-    result = interpret(
-        "analyze_image", resp, elapsed,
-        expected_keys={"analysis", "dominant_colors", "filename"},
-        summary_fn=_analyze_summary,
-    )
-    print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
-    results.append(result)
+        result = interpret(
+            "analyze_image", resp, elapsed,
+            expected_keys={"analysis", "dominant_colors", "filename"},
+            summary_fn=_analyze_summary,
+        )
+        print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
+        results.append(result)
 
     # --- detect_faces
-    print("\n[5/5] detect_faces ...")
+    print("\n[6/6] detect_faces ...")
     if not face_image_path:
         print("  SKIPPED — no --face-image provided. MTCNN won't surface anything useful")
         print("           on a synthetic PNG; re-run with --face-image path/to/photo.jpg.")
@@ -340,18 +415,23 @@ def run_sweep(base_url: str, api_key: str, face_image_path: str | None) -> list[
             print(f"  ERROR: {e}")
             results.append(ToolResult("detect_faces", "skipped", 0.0, str(e), None))
         else:
-            print(f"  Loaded {fn}, base64 len={len(b64):,}. First call may take 10-30s on cold start ...")
-            resp, elapsed = call_tool(
-                base_url, api_key, "detect_faces",
-                {"filename": fn, "content_base64": b64, "mode": "blur", "blur_strength": 2},
-            )
-            result = interpret(
-                "detect_faces", resp, elapsed,
-                expected_keys={"content_base64", "mode", "mimetype", "filename"},
-                summary_fn=lambda s: f"mode={s.get('mode')!r}, mimetype={s.get('mimetype')!r}, output_filename={s.get('filename')!r}",
-            )
-            print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
-            results.append(result)
+            print(f"  Loaded {fn}, base64 len={len(b64):,}.")
+            faces_url = _upload(6, "faces", fn, b64)
+            if faces_url is None:
+                results.append(ToolResult("detect_faces", "skipped", 0.0, "upload_file failed", None))
+            else:
+                print(f"  First call may take 10-30s on cold start ...")
+                resp, elapsed = call_tool(
+                    base_url, api_key, "detect_faces",
+                    {"filename": fn, "content_url": faces_url, "mode": "blur", "blur_strength": 2},
+                )
+                result = interpret(
+                    "detect_faces", resp, elapsed,
+                    expected_keys={"result_url", "mode", "mimetype", "filename"},
+                    summary_fn=lambda s: f"mode={s.get('mode')!r}, mimetype={s.get('mimetype')!r}, result_url={s.get('result_url')!r}",
+                )
+                print(f"  {result.status.upper()} ({result.latency_s:.2f}s) {result.summary}")
+                results.append(result)
 
     return results
 

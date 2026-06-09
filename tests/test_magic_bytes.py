@@ -198,7 +198,7 @@ def test_verify_magic_bytes_message_includes_detected_type():
 
 
 def test_mcp_summarize_with_jpg_inside_pdf_extension_isError_and_refunds(
-    client, app
+    client, app, url_for_bytes
 ):
     """A .pdf filename whose bytes are actually a JPG must surface to the
     model as a tool error (isError=true), and the quota must be refunded so
@@ -213,7 +213,7 @@ def test_mcp_summarize_with_jpg_inside_pdf_extension_isError_and_refunds(
             "name": "summarize_document",
             "arguments": {
                 "filename": "actually-a-photo.pdf",
-                "content_base64": base64.b64encode(JPG_BYTES).decode(),
+                "content_url": url_for_bytes(JPG_BYTES, filename="actually-a-photo.pdf"),
             },
         },
         headers=org["auth_header"],
@@ -232,7 +232,7 @@ def test_mcp_summarize_with_jpg_inside_pdf_extension_isError_and_refunds(
 
 
 def test_mcp_translate_with_pdf_inside_docx_extension_isError_and_refunds(
-    client, app
+    client, app, url_for_bytes
 ):
     app.config["GEMINI_CONFIGURED"] = True
     org = _seed_org(app, name="magic_translate_docx_with_pdf")
@@ -244,7 +244,7 @@ def test_mcp_translate_with_pdf_inside_docx_extension_isError_and_refunds(
             "name": "translate_document",
             "arguments": {
                 "filename": "actually-a-pdf.docx",
-                "content_base64": base64.b64encode(PDF_BYTES).decode(),
+                "content_url": url_for_bytes(PDF_BYTES, filename="actually-a-pdf.docx"),
                 "target_language": "Spanish",
             },
         },
@@ -258,7 +258,7 @@ def test_mcp_translate_with_pdf_inside_docx_extension_isError_and_refunds(
         assert quota.calls_remaining == quota.calls_limit
 
 
-def test_mcp_redact_pii_with_jpg_inside_docx_extension_isError(client, app):
+def test_mcp_redact_pii_with_jpg_inside_docx_extension_isError(client, app, url_for_bytes):
     app.config["PRESIDIO_ANALYZER_AVAILABLE"] = True
     app.presidio_analyzer = object()
     org = _seed_org(app, name="magic_redact_docx_with_jpg")
@@ -270,7 +270,7 @@ def test_mcp_redact_pii_with_jpg_inside_docx_extension_isError(client, app):
             "name": "redact_pii",
             "arguments": {
                 "filename": "actually-a-photo.docx",
-                "content_base64": base64.b64encode(JPG_BYTES).decode(),
+                "content_url": url_for_bytes(JPG_BYTES, filename="actually-a-photo.docx"),
             },
         },
         headers=org["auth_header"],
@@ -280,7 +280,7 @@ def test_mcp_redact_pii_with_jpg_inside_docx_extension_isError(client, app):
     assert "does not match extension" in body["result"]["content"][0]["text"].lower()
 
 
-def test_mcp_analyze_image_with_pdf_inside_jpg_extension_isError(client, app):
+def test_mcp_analyze_image_with_pdf_inside_jpg_extension_isError(client, app, url_for_bytes):
     app.config["GEMINI_CONFIGURED"] = True
     org = _seed_org(app, name="magic_analyze_jpg_with_pdf")
 
@@ -291,7 +291,7 @@ def test_mcp_analyze_image_with_pdf_inside_jpg_extension_isError(client, app):
             "name": "analyze_image",
             "arguments": {
                 "filename": "actually-a-pdf.jpg",
-                "content_base64": base64.b64encode(PDF_BYTES).decode(),
+                "content_url": url_for_bytes(PDF_BYTES, filename="actually-a-pdf.jpg"),
             },
         },
         headers=org["auth_header"],
@@ -300,7 +300,7 @@ def test_mcp_analyze_image_with_pdf_inside_jpg_extension_isError(client, app):
     assert body["result"]["isError"] is True
 
 
-def test_mcp_detect_faces_with_docx_inside_jpg_extension_isError(client, app):
+def test_mcp_detect_faces_with_docx_inside_jpg_extension_isError(client, app, url_for_bytes):
     org = _seed_org(app, name="magic_faces_jpg_with_docx")
 
     resp = _rpc(
@@ -310,7 +310,7 @@ def test_mcp_detect_faces_with_docx_inside_jpg_extension_isError(client, app):
             "name": "detect_faces",
             "arguments": {
                 "filename": "actually-a-doc.jpg",
-                "content_base64": base64.b64encode(_ooxml("docx")).decode(),
+                "content_url": url_for_bytes(_ooxml("docx"), filename="actually-a-doc.jpg"),
             },
         },
         headers=org["auth_header"],

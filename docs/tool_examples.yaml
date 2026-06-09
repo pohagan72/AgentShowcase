@@ -14,6 +14,10 @@
 # When you add or rename a tool in mcp_tools.TOOLS, update this file in the
 # same commit.
 
+upload_file:
+  example_prompt: |
+    Upload this PDF so I can summarize it.
+
 summarize_document:
   example_prompt: |
     Summarize the attached quarterly report and pull out the three biggest risks.

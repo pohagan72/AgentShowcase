@@ -4,10 +4,12 @@ Used to confirm the reviewer-bundle redact-sample.docx triggers Presidio's
 default English recognizers (PERSON, EMAIL_ADDRESS, PHONE_NUMBER, US_SSN,
 CREDIT_CARD, US_PASSPORT) end-to-end through the production endpoint.
 
-Reads SYNZO_API_KEY from .env. Posts to /mcp tools/call with the file as
-base64. On success, downloads the redacted bytes, extracts paragraph text, and
-prints which seeded strings survived (any survivor is a bug in the seed format
-or a gap in Presidio's defaults).
+Reads SYNZO_API_KEY from .env. Two MCP calls:
+  1. upload_file -> returns a short-lived content_url for the docx.
+  2. redact_pii(content_url=...) -> returns result_url for the redacted docx.
+Then fetches result_url, extracts paragraph text, and prints which seeded
+strings survived (any survivor is a bug in the seed format or a gap in
+Presidio's defaults).
 
 Run:
     .venv/Scripts/python -m scripts.verify_redact_sample <path-to-docx>
@@ -75,15 +77,35 @@ def main(path: Path) -> int:
 
     raw = path.read_bytes()
     b64 = base64.b64encode(raw).decode("ascii")
-    print(f"Sending {path.name} ({len(raw)} bytes) to {DEFAULT_BASE_URL}/mcp ...")
+    print(f"Step 1: uploading {path.name} ({len(raw)} bytes) to {DEFAULT_BASE_URL}/mcp ...")
 
+    up_resp, up_elapsed = post_jsonrpc(
+        DEFAULT_BASE_URL, api_key, "tools/call",
+        {"name": "upload_file", "arguments": {"filename": path.name, "content_base64": b64}},
+    )
+    print(f"  upload_file response in {up_elapsed:.2f}s")
+    if "error" in up_resp:
+        print(f"upload_file JSON-RPC error: {up_resp['error']}", file=sys.stderr)
+        return 1
+    up_result = up_resp.get("result", {})
+    if up_result.get("isError"):
+        print(f"upload_file returned isError=true: {up_result.get('content')}", file=sys.stderr)
+        return 1
+    up_structured = up_result.get("structuredContent") or {}
+    content_url = up_structured.get("content_url")
+    if not content_url:
+        print(f"upload_file did not return content_url: {up_result}", file=sys.stderr)
+        return 1
+    print(f"  -> content_url: {content_url}")
+
+    print(f"Step 2: calling redact_pii with content_url ...")
     resp, elapsed = post_jsonrpc(
         DEFAULT_BASE_URL, api_key, "tools/call",
-        {"name": "redact_pii", "arguments": {"filename": path.name, "content_base64": b64}},
+        {"name": "redact_pii", "arguments": {"filename": path.name, "content_url": content_url}},
     )
-    print(f"Response in {elapsed:.2f}s")
+    print(f"  Response in {elapsed:.2f}s")
     import json as _json
-    print(f"Raw response: {_json.dumps(resp, indent=2)[:1500]}")
+    print(f"  Raw response: {_json.dumps(resp, indent=2)[:1500]}")
 
     if "error" in resp:
         print(f"JSON-RPC error: {resp['error']}", file=sys.stderr)
@@ -94,26 +116,32 @@ def main(path: Path) -> int:
         print(f"Tool returned isError=true: {result.get('content')}", file=sys.stderr)
         return 1
 
-    # Tool returns structured content with content_base64 of the redacted file.
+    # Tool returns structured content with result_url pointing at the redacted file.
     structured = result.get("structuredContent") or {}
     if not structured:
         # Fall back to content[0].text — MCP servers may return either shape.
         content = result.get("content") or []
         if content and isinstance(content, list):
-            import json as _json
             try:
                 structured = _json.loads(content[0].get("text", "{}"))
             except Exception:
                 pass
 
-    redacted_b64 = structured.get("content_base64")
-    if not redacted_b64:
-        print(f"No content_base64 in result: {result}", file=sys.stderr)
+    result_url = structured.get("result_url")
+    if not result_url:
+        print(f"No result_url in result: {result}", file=sys.stderr)
         return 1
 
-    redacted_bytes = base64.b64decode(redacted_b64)
-    print(f"Redacted size: {len(redacted_bytes)} bytes")
-    print(f"Reported sizes: orig={structured.get('original_size_bytes')}, "
+    print(f"Step 3: fetching redacted file from {result_url} ...")
+    import requests as _requests
+    fetch_kwargs = {"timeout": 30, "verify": False}
+    fetch_resp = _requests.get(result_url, **fetch_kwargs)
+    if fetch_resp.status_code != 200:
+        print(f"Failed to fetch result_url: HTTP {fetch_resp.status_code}", file=sys.stderr)
+        return 1
+    redacted_bytes = fetch_resp.content
+    print(f"  Redacted size: {len(redacted_bytes)} bytes")
+    print(f"  Reported sizes: orig={structured.get('original_size_bytes')}, "
           f"redacted={structured.get('redacted_size_bytes')}")
 
     redacted_text = extract_text(redacted_bytes)
