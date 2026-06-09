@@ -1,5 +1,16 @@
 # Synzo → Anthropic MCP Connector Directory: Submission Plan
 
+> **🎯 SUBMITTED 2026-06-10 afternoon.** Phase 3.5 complete; awaiting reviewer correspondence at paul@redmapleresearch.ca. Immutable record of exactly what was submitted (every field, every checkbox, every paste-block) lives in **[SUBMISSION_RECORD.md](SUBMISSION_RECORD.md)** — this file remains the strategic doc; the cheat sheet at **[SUBMISSION_FORM_FILL.md](SUBMISSION_FORM_FILL.md)** has been revised post-submission to be the template for the next submission. **One critical open follow-up:** the Server Logo URL submitted (synzo-icon.svg) returns 404 in production because the SVG file is on local disk but was not committed/deployed at submission time. The reviewer will see a broken logo until that's fixed. **Top-priority action: commit and deploy `static/images/synzo-icon.svg`.** Other post-submission items: don't push code to the MCP surface until review concludes; don't revoke the reviewer API key for 30+ days; watch paul@redmapleresearch.ca for questions. Form submitter was pohagan72@gmail.com; primary correspondence is paul@redmapleresearch.ca.
+>
+> **2026-06-10 lessons captured for future submissions** (full detail in [SUBMISSION_RECORD.md](SUBMISSION_RECORD.md) "Lessons captured for next submission" section):
+> 1. Form's Static Client ID / Secret fields don't match a DCR-OAuth setup — leave blank, explain in reviewer-instructions
+> 2. Form's three Authentication Type options ("No auth / OAuth 2.0 / Custom URL not supported") don't include "Bearer API key" — pick OAuth 2.0 and bridge in reviewer-instructions
+> 3. ALWAYS curl every URL that will appear in the form right before submitting (this would have caught the logo 404)
+> 4. Screenshots must show tool output, not mid-execution permission prompts; click "Always allow" first, wait for full response, then capture
+> 5. Reviewer-instructions field is the highest-leverage field in the entire form; treat it as more important than any checkbox
+> 6. Tool count drifted 5 → 6 during build (upload_file added in Phase 3.6); factor update cost in for future spec-to-submission gaps
+> 7. SVG auto-trace from PNG (~30 min) is an acceptable bridge when SVG is required and you only have a PNG
+>
 > **Status as of 2026-06-10 mid-day (Phase 3.7 — URL-first reviewer flow):** After deploying Phase 3.6 (content_url + upload_file), a live claude.ai test showed the residual base64 problem: even with `upload_file` handling the ingestion in one call, claude.ai's chat sandbox still spent minutes generating the base64 string for a 316 KB image (visible in the chat: "Embedding base64 image data… Resize image to make base64 smaller… Get the small base64 for tool call"). Root cause is structural: the MCP spec gives chat hosts no affordance to deliver a user-attached file as a URL — the LLM must always construct the base64 itself if the source is a local attachment. Fix: **host the reviewer-facing sample files at public synzo.ai URLs and update the reviewer prompts to reference them by URL.** The LLM passes a short URL string to `content_url` and never constructs base64. Result: the chat-based reviewer sweep is now instant (server-side fetch is sub-second, plus the model call's normal latency). Phase 3.7 deltas:
 >
 > - **5 sample files copied to `static/reviewer-samples/`** at canonical names: `summarize-sample.pdf`, `translate-sample.docx`, `redact-sample.docx`, `analyze-sample.jpg`, `detect-faces-sample.jpg`. Served at `https://www.synzo.ai/static/reviewer-samples/*` via Flask's built-in static handler. SSRF fetcher accepts these URLs (synzo.ai resolves to a public IP, verified locally).
@@ -823,7 +834,7 @@ The form requires the inventory in the exact format `tool_name (Human Readable N
   - Does not transfer money/crypto.
   - Does not generate images/video/audio via AI (verify analyze_image still only *describes* and detect_faces still only *blurs*).
   - Does not serve ads or sponsored content.
-- [ ] **Submit to Connector Directory.**
+- [x] **Submit to Connector Directory.** **DONE 2026-06-10 afternoon.** Form-by-form record in [SUBMISSION_RECORD.md](SUBMISSION_RECORD.md). Lessons folded back into [SUBMISSION_FORM_FILL.md](SUBMISSION_FORM_FILL.md) as the next-submission template. Post-submission follow-ups tracked in the top-of-doc status block above and in [SUBMISSION_RECORD.md](SUBMISSION_RECORD.md) §"Open follow-ups (post-submission)".
 
 ### Phase 3.6 — content_url + upload_file refactor [DONE 2026-06-10 morning]
 
