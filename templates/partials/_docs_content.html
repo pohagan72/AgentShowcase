@@ -69,13 +69,21 @@
             <li><strong>analyze_image</strong> — describe an image and extract dominant colors.</li>
             <li><strong>detect_faces</strong> — detect faces in an image and return a blurred or redacted copy. Returns a short-lived download URL.</li>
         </ul>
-        <h4>How tools chain together</h4>
-        <p>The four content-processing tools accept a <code>content_url</code> argument rather than inline base64 data. The recommended flow for local files is:</p>
-        <ol>
-            <li>Call <strong>upload_file</strong> with the file's base64 bytes; the server returns a <code>content_url</code> valid for 1 hour.</li>
-            <li>Call any of the other tools with that <code>content_url</code> (and any tool-specific arguments).</li>
-        </ol>
-        <p>This design keeps chat-client tool calls fast: the base64 payload is paid once at upload time rather than re-sent in every downstream tool call. Programmatic callers can skip <code>upload_file</code> and pass any HTTPS URL the server can reach (subject to SSRF guards: HTTPS only, public IPs only, 10 MB max).</p>
+        <h4>URL-first by design</h4>
+        <p>The five content-processing tools accept a <code>content_url</code> argument — any HTTPS URL the server can reach. This is the design's core property: the chat-host LLM passes a short URL string in the tool call instead of generating a multi-megabyte base64 payload as model output tokens. For any file already at an HTTPS URL (your own site, a public GitHub raw URL, an image host, etc.) the cost is near-zero — the LLM emits a few dozen tokens and the server fetches the bytes in the background.</p>
+        <p>For local files with no URL, <strong>upload_file</strong> ingests one file once and returns a Synzo-hosted URL valid for 1 hour. Pass that URL to any of the other tools the same way.</p>
+        <p>The server fetches <code>content_url</code> through an SSRF-guarded fetcher: HTTPS only; public IPs only (loopback / private / link-local / cloud-metadata addresses are rejected); 10 MB max; 30 s timeout. We host a small library of sample files at <code>/static/reviewer-samples/*</code> so you can try the tools without staging a URL of your own.</p>
+        <h5>Examples</h5>
+        <pre><code>// Pass a URL directly (fastest path)
+analyze_image(
+  filename = "photo.jpg",
+  content_url = "https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg"
+)
+
+// Local file: upload first, then pass the returned URL
+upload_file(filename = "memo.docx", content_base64 = "...")
+  -> { content_url: "https://www.synzo.ai/u/abc123", expires_at: "..." }
+summarize_document(filename = "memo.docx", content_url = "https://www.synzo.ai/u/abc123")</code></pre>
     </section>
 
     <section class="legal-section" id="setup-guides">
@@ -84,7 +92,8 @@
         <ol>
             <li>Open Settings &rarr; Connectors &rarr; Add custom connector.</li>
             <li>Paste <code>https://www.synzo.ai/mcp</code> as the server URL.</li>
-            <li>Sign in via the WorkOS prompt. After sign-in, the five Synzo tools appear in <code>tools/list</code>.</li>
+            <li>Sign in via the WorkOS prompt. After sign-in, the six Synzo tools appear in <code>tools/list</code>.</li>
+            <li>Try a prompt with one of the sample URLs: <em>"Use Synzo to summarize the document at https://www.synzo.ai/static/reviewer-samples/summarize-sample.pdf"</em>.</li>
         </ol>
         <h4>Claude Desktop</h4>
         <ol>

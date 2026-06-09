@@ -1,6 +1,14 @@
 # Synzo → Anthropic MCP Connector Directory: Submission Plan
 
-> **Status as of 2026-06-10:** URL-flow refactor shipped (Phase 3.6). The MCP tool surface changed because the original chat-client UX with `content_base64` arguments was visibly stalling claude.ai for minutes per call as it constructed multi-MB base64 strings into JSON-RPC arguments. Replaced with: a new `upload_file` tool (the only base64-input tool) returns a short-lived `content_url`; the four content-processing tools now take `content_url` instead of `content_base64`; `redact_pii` and `detect_faces` return a `result_url` instead of inline base64 output. Tool count grows 5 → 6. New supporting infrastructure: `blob_store.py` (in-memory TTL store, 1h TTL, 100 MB total cap), `url_fetcher.py` (SSRF-guarded HTTPS-only fetcher with pinned-IP adapter — rejects loopback / private / link-local / metadata IPs and validates every redirect), `GET /u/<token>` blob-serve route. **Test suite: 232/232 green** (was 186; +46 across `tests/test_blob_store.py` (15), `tests/test_url_fetcher.py` (25), and 6 new upload_file/blob-serve cases in `tests/test_mcp_server.py`; existing 41 MCP tests + magic-byte tests rewritten to the URL flow via a per-test `url_for_bytes` fixture that stashes bytes in the test blob store and patches `fetch_url_bytes` to look them up). Public-facing changes: `/docs` "What you can do with it" section now lists `upload_file` and explains the two-step chain (upload → tool); `/privacy` §2 document-and-image-contents now discloses the 1h in-memory blob store and result-URL pattern; `scripts/sweep_tools.py` rewritten to upload-then-call (now 6 phases instead of 5); `scripts/verify_redact_sample.py` rewritten to upload-then-redact-then-fetch-result-url. Form impact: "Third-party Connections and Web Access" checkbox now flips to YES on "fetches from arbitrary URLs" (with SSRF guards documented in submission notes). Server inventory list grows from 5 to 6 tools.
+> **Status as of 2026-06-10 mid-day (Phase 3.7 — URL-first reviewer flow):** After deploying Phase 3.6 (content_url + upload_file), a live claude.ai test showed the residual base64 problem: even with `upload_file` handling the ingestion in one call, claude.ai's chat sandbox still spent minutes generating the base64 string for a 316 KB image (visible in the chat: "Embedding base64 image data… Resize image to make base64 smaller… Get the small base64 for tool call"). Root cause is structural: the MCP spec gives chat hosts no affordance to deliver a user-attached file as a URL — the LLM must always construct the base64 itself if the source is a local attachment. Fix: **host the reviewer-facing sample files at public synzo.ai URLs and update the reviewer prompts to reference them by URL.** The LLM passes a short URL string to `content_url` and never constructs base64. Result: the chat-based reviewer sweep is now instant (server-side fetch is sub-second, plus the model call's normal latency). Phase 3.7 deltas:
+>
+> - **5 sample files copied to `static/reviewer-samples/`** at canonical names: `summarize-sample.pdf`, `translate-sample.docx`, `redact-sample.docx`, `analyze-sample.jpg`, `detect-faces-sample.jpg`. Served at `https://www.synzo.ai/static/reviewer-samples/*` via Flask's built-in static handler. SSRF fetcher accepts these URLs (synzo.ai resolves to a public IP, verified locally).
+> - **Reviewer-instructions sweep block in §Phase 3.5 rewritten** to use URL-bearing prompts: e.g., "Use Synzo to analyze the image at https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg." No base64 in the chat sandbox; the URL is the side channel.
+> - **`upload_file` retained for honesty.** Still the right path for local-only files; documented as the local-file fallback in the reviewer instructions. Reviewers who want to exercise it can do so with one optional "attach this file and ask Synzo to upload it" prompt; the URL prompts above cover the bulk of the review.
+> - **No code changes needed.** Phase 3.6's tool surface, SSRF fetcher, and blob store all do the right thing — this phase is a hosting + framing change, not a refactor. Test suite stays at 232/232 (no churn). Plan updated; ready to deploy the static files and reverify in claude.ai.
+> - **Form-page impact**: submission notes get a paragraph framing the URL-first design as deliberate. Server inventory remains 6 tools. "Third-party Connections / Web Access" still YES on URL fetching (with SSRF guards).
+>
+> **Status as of 2026-06-10 (Phase 3.6):** URL-flow refactor shipped. The MCP tool surface changed because the original chat-client UX with `content_base64` arguments was visibly stalling claude.ai for minutes per call as it constructed multi-MB base64 strings into JSON-RPC arguments. Replaced with: a new `upload_file` tool (the only base64-input tool) returns a short-lived `content_url`; the four content-processing tools now take `content_url` instead of `content_base64`; `redact_pii` and `detect_faces` return a `result_url` instead of inline base64 output. Tool count grows 5 → 6. New supporting infrastructure: `blob_store.py` (in-memory TTL store, 1h TTL, 100 MB total cap), `url_fetcher.py` (SSRF-guarded HTTPS-only fetcher with pinned-IP adapter — rejects loopback / private / link-local / metadata IPs and validates every redirect), `GET /u/<token>` blob-serve route. **Test suite: 232/232 green** (was 186; +46 across `tests/test_blob_store.py` (15), `tests/test_url_fetcher.py` (25), and 6 new upload_file/blob-serve cases in `tests/test_mcp_server.py`; existing 41 MCP tests + magic-byte tests rewritten to the URL flow via a per-test `url_for_bytes` fixture that stashes bytes in the test blob store and patches `fetch_url_bytes` to look them up). Public-facing changes: `/docs` "What you can do with it" section now lists `upload_file` and explains the two-step chain (upload → tool); `/privacy` §2 document-and-image-contents now discloses the 1h in-memory blob store and result-URL pattern; `scripts/sweep_tools.py` rewritten to upload-then-call (now 6 phases instead of 5); `scripts/verify_redact_sample.py` rewritten to upload-then-redact-then-fetch-result-url. Form impact: "Third-party Connections and Web Access" checkbox now flips to YES on "fetches from arbitrary URLs" (with SSRF guards documented in submission notes). Server inventory list grows from 5 to 6 tools.
 >
 > **Status as of 2026-06-09 end-of-day:** Phase 3 effectively complete. Submission gated only on the form-fill work (tagline, description, use cases, screenshots, T&C acceptance) — ~75 minutes of mechanical typing against material already drafted in the plan. **Reviewer auth has pivoted from OAuth-Dynamic to Static API key** as the primary path, with OAuth retained as a documented (best-effort) fallback. The pivot was driven by a full day of diagnostic work on 2026-06-08 that could not reproduce the 2026-06-06 OAuth-working state from any client (claude.ai web, Claude Desktop via Vlad Dubrovenski). Root cause not isolated on our side; the server-side discovery chain remains RFC-correct (verified by direct curl). Most likely explanation is Anthropic-side MCP client behavior changed after the 2025-11-25 spec/security update, but we have no inside visibility. Today (2026-06-09) we explored WorkOS dashboard for static pre-registered OAuth clients — the Applications surface DOES support per-app `client_id`/`client_secret`/redirect_uri, but wiring that into Synzo's `_resolve_oauth` audience-validation path is a 2-4 hour change we declined to ship at submission time. Decision locked: ship API-key primary, OAuth fallback, submit. Concrete deltas vs the 2026-06-07 status that follows:
 >
@@ -44,7 +52,7 @@ Phase 1 turned the codebase from "Flask portfolio app" into "Flask portfolio app
 | Multi-tenant user/membership model | **IMPLEMENTED** ([db/models.py](db/models.py): `User`, `OrgMembership`; Alembic `0002_users_memberships`) |
 | WorkOS signup/login flow + dashboard | **IMPLEMENTED + VERIFIED LIVE** ([auth_routes.py](auth_routes.py), [templates/dashboard.html](templates/dashboard.html)) |
 | MCP server / protocol handlers | **IMPLEMENTED** ([mcp_routes.py](mcp_routes.py): JSON-RPC dispatch for `initialize` / `tools/list` / `tools/call` / `ping` / `notifications/initialized`) |
-| Tool registry, JSON Schemas, annotations | **IMPLEMENTED** ([mcp_tools.py](mcp_tools.py): 5 tools shipped — summarize, translate, redact_pii, analyze_image, detect_faces; transcribe_audio deferred — see §6 footnote) |
+| Tool registry, JSON Schemas, annotations | **IMPLEMENTED** ([mcp_tools.py](mcp_tools.py): 6 tools shipped — upload_file (Phase 3.6), summarize, translate, redact_pii, analyze_image, detect_faces; transcribe_audio deferred — see §6 footnote) |
 | Streamable HTTP / SSE transport | **IMPLEMENTED** (Flask-native, `application/json` responses — synchronous tool shapes don't need SSE upgrade; see §6 Phase 2 footnote) |
 | `/.well-known/oauth-protected-resource` + CORS for `claude.ai` | **IMPLEMENTED** ([mcp_routes.py](mcp_routes.py): RFC 9728 discovery, Origin allowlist with claude.ai + localhost for MCP Inspector) |
 | MCP Inspector validation | MISSING — Phase 3 |
@@ -554,7 +562,7 @@ The form requires answers to all of the following. Each needs to be re-derived a
 - [ ] **Read/Write Capabilities** (Read Only / Write Only / Read+Write) — walk every tool in [mcp_tools.py](mcp_tools.py), classify each tool's effect on the *user's* data (not Synzo's internal metering), then pick the form option that matches. `redact_pii` and `detect_faces` return transformed copies of the input — decide whether that counts as "write" or just transformation.
 - [ ] **Is this an "MCP App" (has interactive UI elements)?** (Yes / No) — current code in [mcp_routes.py](mcp_routes.py) does not implement `ui/open-link` or any interactive UI element. Confirm against the [MCP App specification](https://modelcontextprotocol.io/) before answering.
 - [ ] **Third-party Connections and Web Access** (multi-select) — categorize against actual code paths:
-  - Does any tool fetch from arbitrary URLs on the open web? (Check feature modules.)
+  - **Does any tool fetch from arbitrary URLs on the open web? YES (Phase 3.6).** All 5 content-processing tools accept a `content_url` argument and fetch the bytes server-side via [url_fetcher.py](url_fetcher.py). Fetches are constrained to HTTPS only, public IPs only (loopback/private/link-local/cloud-metadata IPs rejected via the `ipaddress` library), 10 MB max, 30 s wall-clock timeout, max 3 redirects with each hop re-validated. Submission notes should describe this as: *"Server-side URL fetching with SSRF guards — no risk of internal/private-network access."*
   - Does any tool call Gemini? (Yes — `summarize_document`, `translate_document`, `analyze_image`. This is "third-party AI model integration.")
   - Does any tool call other third-party data services?
 - [ ] **Data Handling checklist** — confirm each statement against current code before checking:
@@ -567,12 +575,13 @@ The form requires answers to all of the following. Each needs to be re-derived a
 - [ ] **Sponsored content / ads?** (No / banner ads / sponsored ranking) — verify against the listing implementation and product surface.
 
 **Use cases (form page 1)**
-- [ ] Draft **≥3 use cases**, each with an example user prompt that a reviewer can paste into Claude verbatim against the test account. Tool seeds, drawn from what's actually shipped in [mcp_tools.py](mcp_tools.py):
+- [ ] Draft **≥3 use cases**, each with an example user prompt that a reviewer can paste into Claude verbatim against the test account. Tool seeds, drawn from what's actually shipped in [mcp_tools.py](mcp_tools.py). **Per Phase 3.7 (URL-first reviewer flow), use cases SHOULD favor URL-bearing prompts** (e.g., *"Use Synzo to analyze the image at https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg"*) over local-attachment prompts. The URL path is instant on chat hosts; attachment prompts make the LLM construct base64 inline and stall visibly. The full URL-bearing prompt set lives in §Phase 3.5 "Reviewer test bundle" — copy from there for the form. Tool inventory:
+  - `upload_file` (Phase 3.6) — only base64-input tool; for local files with no URL. Returns a Synzo-hosted `content_url` (1h TTL) the other tools can reference.
   - `summarize_document` — input file types and behavior per [mcp_tools.py](mcp_tools.py).
   - `translate_document` — supported source types and output shape per [mcp_tools.py](mcp_tools.py).
-  - `redact_pii` — supported file types and output shape per [mcp_tools.py](mcp_tools.py).
+  - `redact_pii` — supported file types and output shape per [mcp_tools.py](mcp_tools.py). Returns `result_url` (1h TTL).
   - `analyze_image` — supported image types and output shape per [mcp_tools.py](mcp_tools.py).
-  - `detect_faces` — supported image types, modes, and output shape per [mcp_tools.py](mcp_tools.py).
+  - `detect_faces` — supported image types, modes, and output shape per [mcp_tools.py](mcp_tools.py). Returns `result_url` (1h TTL).
   Re-read the tool descriptions before drafting the use cases so the prompts match actual behavior.
 - [ ] Connection requirements field — derive from the actual sign-in flow shipped in [auth_routes.py](auth_routes.py) (WorkOS AuthKit; SSO providers configured per §6.5.B). Confirm what's truly required (e.g., no admin seat, no custom URL, no geographic restriction).
 
@@ -639,59 +648,96 @@ This is the highest-risk Phase 3.5 item. The form explicitly says: "Incomplete o
 
   ## Sample bundle
 
-  https://www.synzo.ai/static/files/reviewer-bundle.zip (3.2 MB, 5 files; one per tool).
+  Two ways to consume the same five sample files:
+
+  - **Individual public URLs (recommended for the chat-based sweep below):**
+    - https://www.synzo.ai/static/reviewer-samples/summarize-sample.pdf  (39 KB)
+    - https://www.synzo.ai/static/reviewer-samples/translate-sample.docx (14 KB)
+    - https://www.synzo.ai/static/reviewer-samples/redact-sample.docx    (36 KB)
+    - https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg    (2.9 MB)
+    - https://www.synzo.ai/static/reviewer-samples/detect-faces-sample.jpg (324 KB)
+
+  - **Zipped bundle:** https://www.synzo.ai/static/files/reviewer-bundle.zip (3.2 MB, same 5 files).
 
   ## Tool surface (6 tools)
 
   Synzo's MCP server exposes one **upload tool** plus five **content-processing tools**.
-  The content-processing tools accept a `content_url` argument rather than inline base64
-  bytes. The recommended workflow for a local file is:
+  The content-processing tools accept a `content_url` argument — any HTTPS URL the server
+  can reach. This is the design's core property: **the chat-host LLM passes a short URL
+  string in the tool call, not a multi-megabyte base64 payload.** When the file is local-
+  only and has no URL, the `upload_file` tool ingests it once and returns a Synzo-hosted
+  URL the other tools can reference.
 
-      upload_file(filename, content_base64)  ->  { content_url, expires_at, ... }
+      // URL-first path (instant — recommended for any public file)
       summarize_document(filename, content_url)  ->  { classification, summary, filename }
       translate_document(filename, content_url, target_language)  ->  { translated_text, ... }
       redact_pii(filename, content_url)  ->  { result_url, mimetype, ... }
       analyze_image(filename, content_url)  ->  { analysis, dominant_colors, ... }
       detect_faces(filename, content_url, mode?, blur_strength?)  ->  { result_url, mode, ... }
 
-  Why URL-based: chat clients (claude.ai, Claude Desktop) must construct tool-call
-  arguments as LLM output tokens. Inlining multi-MB base64 strings into every tool call
-  stalled the UI for minutes per call. With this design, the base64 payload is paid once
-  (at upload_file) and downstream tool calls are instant.
+      // Local-file path (one-time base64 ingestion, then URL flow)
+      upload_file(filename, content_base64)  ->  { content_url, expires_at, ... }
 
-  URLs are HTTPS only and protected by an SSRF guard (loopback/private/link-local/cloud
-  metadata IPs rejected; 10 MB max; 30s timeout). The `content_url` returned by
-  `upload_file` is a Synzo-hosted URL valid for 1 hour.
+  Why URL-first: chat-host LLMs (claude.ai, Claude Desktop) must construct tool-call
+  arguments as model output tokens. Inlining multi-MB base64 strings into every tool call
+  burns context, eats output tokens, and stalls the UI. Synzo's tools accept a URL string
+  instead — for any file already at an HTTPS URL the cost is near-zero. We host the
+  reviewer-facing samples at public URLs above so the directory review experience is
+  instant: the reviewer's prompt names a URL, the LLM passes that URL through, and Synzo's
+  server fetches the bytes via an SSRF-guarded fetcher (HTTPS only; public IPs only —
+  loopback / private / link-local / cloud-metadata rejected; 10 MB max; 30s timeout). For
+  reviewers who want to exercise the local-file path too, `upload_file` ingests one file
+  and returns a Synzo-hosted URL valid for 1 hour.
 
-  ## End-to-end sweep — one prompt chain per tool. Full sweep burns ~12 calls (6 uploads + 6 tools).
+  ## End-to-end sweep — paste each prompt into claude.ai with the connector enabled.
 
-  Each tool chain below starts with `upload_file` to stash the bytes, then calls the
-  target tool with the returned `content_url`. The reviewer-bundle.zip includes one
-  sample file per tool; the LLM is expected to read the file, call upload_file with its
-  base64, then call the downstream tool.
+  Each prompt names a public sample-file URL. The LLM is expected to pass that URL
+  through as the tool's `content_url` argument. No base64 construction in the chat
+  sandbox, no upload step, no stalls. Total quota burn: 5 of 50 free-tier calls.
 
-  1. summarize_document chain → file: summarize-sample.pdf
-     "Use Synzo to classify and summarize this document."
+  1. summarize_document → URL: https://www.synzo.ai/static/reviewer-samples/summarize-sample.pdf
+     "Use Synzo to summarize the document at
+     https://www.synzo.ai/static/reviewer-samples/summarize-sample.pdf — give me the
+     classification and the summary."
      Returns: { classification, summary, filename }. No source-text echo.
 
-  2. translate_document chain → file: translate-sample.docx
-     "Translate this document to Spanish using Synzo."
+  2. translate_document → URL: https://www.synzo.ai/static/reviewer-samples/translate-sample.docx
+     "Use Synzo to translate the document at
+     https://www.synzo.ai/static/reviewer-samples/translate-sample.docx into Spanish."
      Returns: { filename, target_language, translated_text }. Markdown output, no binary round-trip.
 
-  3. redact_pii chain → file: redact-sample.docx (synthetic HR memo with seeded fake PII)
-     "Redact the PII in this document using Synzo."
+  3. redact_pii → URL: https://www.synzo.ai/static/reviewer-samples/redact-sample.docx (synthetic HR memo with seeded fake PII)
+     "Use Synzo to redact the PII from the document at
+     https://www.synzo.ai/static/reviewer-samples/redact-sample.docx and give me the
+     download URL."
      Returns: { filename, result_url, expires_at, mimetype, original_size_bytes, redacted_size_bytes }.
      The redacted .docx is downloadable from result_url (HTTPS, 1h TTL).
      Presidio default English recognizers: PERSON, EMAIL_ADDRESS, PHONE_NUMBER, US_SSN, CREDIT_CARD, US_PASSPORT, LOCATION, DATE_TIME, NRP, ORGANIZATION. All seeded entities are replaced with U+2588 block characters in place.
 
-  4. analyze_image chain → file: analyze-sample.jpg
-     "Analyze this image with Synzo."
+  4. analyze_image → URL: https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg
+     "Use Synzo to analyze the image at
+     https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg — describe the
+     scene, list any visible text, and tell me the dominant colors."
      Returns: { filename, analysis: { description, rich_description, extracted_text, safety_flags, detected_objects }, dominant_colors }. Image is normalized + resized before the Gemini call.
 
-  5. detect_faces chain → file: detect-faces-sample.jpg
-     "Use Synzo to blur the faces in this image."
+  5. detect_faces → URL: https://www.synzo.ai/static/reviewer-samples/detect-faces-sample.jpg
+     "Use Synzo to blur the faces in the image at
+     https://www.synzo.ai/static/reviewer-samples/detect-faces-sample.jpg and give me
+     the download URL."
      Returns: { filename, mode, result_url, expires_at, mimetype } — result_url points at a PNG with faces blurred. Tool name describes the detect-and-obscure pipeline; response is a URL to the processed image, not bounding boxes.
      Cold-start note: first call on a fresh replica pays ~10–30s for MTCNN/TensorFlow graph load. Subsequent calls fast.
+
+  ## Optional: exercise the upload_file path with a local attachment
+
+  If you want to test the local-file ingestion path too, attach one of the bundle files
+  (or any small file) to the chat directly and say:
+
+     "Use Synzo to upload this file and then summarize it."
+
+  The LLM will call upload_file (which pays a one-time base64 cost — slower than the URL
+  path, especially on multi-MB files) and then chain to the target tool. This proves the
+  upload_file flow works end-to-end. We recommend the URL prompts above for the bulk of
+  the review because they better demonstrate the tool design's intent.
 
   ## Direct verification (if you want to confirm without a connector)
 
@@ -726,13 +772,13 @@ This is the highest-risk Phase 3.5 item. The form explicitly says: "Incomplete o
 - [x] **`redact-sample.docx` verified end-to-end against the live `redact_pii` MCP tool via [scripts/verify_redact_sample.py](scripts/verify_redact_sample.py).** (2026-06-07) Every seeded PII string (name, email, phone, SSN, passport, credit card, location, dates, org names) is redacted to block characters in the output. The verify script posts to `https://www.synzo.ai/mcp` with `SYNZO_API_KEY`, downloads the redacted bytes, extracts the paragraph text, and asserts no seeded string survives. Re-run before bundling: `.venv/Scripts/python -m scripts.verify_redact_sample <path>`.
 
 - [x] **Bundle zipped and staged at [static/files/reviewer-bundle.zip](static/files/reviewer-bundle.zip)** (2026-06-07, commit pending). 3.25 MB total. Files renamed inside the zip for reviewer-facing clarity: `summarize-sample.pdf`, `translate-sample.docx`, `redact-sample.docx`, `analyze-sample.jpg`, `detect-faces-sample.jpg` (the source `.jpeg` was renamed to `.jpg` for extension consistency — both are accepted by `detect_faces`). After deploy, served at `https://www.synzo.ai/static/files/reviewer-bundle.zip`; that URL goes into the Anthropic submission form's reviewer-bundle field.
-- [ ] Dry-run the walkthrough end-to-end from a clean browser as the reviewer account: add the connector at `synzo.ai/mcp`, OAuth sign-in, fetch the bundle, run all 5 prompts, confirm each tool's output matches the walkthrough's "what to expect" text. Watch quota tick down: 50 → 45 after the full sweep.
+- [ ] Dry-run the walkthrough end-to-end from a clean browser as the reviewer account: add the connector at `synzo.ai/mcp`, paste the API key (per the 2026-06-09 locked decision to ship Static API key primary), run the 5 URL-bearing prompts from the rewritten sweep block (Phase 3.7), confirm each tool's output matches the walkthrough's "what to expect" text. Watch quota tick down: 50 → 45 after the full sweep. Optional: one additional `upload_file` chain prompt to exercise the local-file path.
 - [ ] Check both "Test account includes sample data" and "All tools can be tested with provided data" form boxes only after the dry-run has been done end-to-end by someone other than the author. (If "someone other than the author" isn't available, dry-run from a fresh browser profile + different OS account as the closest substitute.)
 
 **Server inventory (form page 3)**
 
 The form requires the inventory in the exact format `tool_name (Human Readable Name)`.
-- [ ] Tools — derive from the live registry in [mcp_tools.py](mcp_tools.py). The current 5 are `summarize_document`, `translate_document`, `redact_pii`, `analyze_image`, `detect_faces` (`transcribe_audio` formally out of scope per §6 footnote). Author a human-readable name for each.
+- [ ] Tools — derive from the live registry in [mcp_tools.py](mcp_tools.py). The current 6 are `upload_file` (added Phase 3.6), `summarize_document`, `translate_document`, `redact_pii`, `analyze_image`, `detect_faces` (`transcribe_audio` formally out of scope per §6 footnote). Author a human-readable name for each.
 - [ ] Tool Titles & Annotations — check both form boxes ("user-friendly titles" + "accurate tool annotations") only after re-confirming every tool has `title`, `readOnlyHint`, and `destructiveHint` set in [mcp_tools.py](mcp_tools.py) (verified 2026-06-06; re-verify at submission time).
 - [ ] Resources — derive from current code. As of 2026-06-06 the server does not implement any MCP resources.
 - [ ] Prompts — derive from current code. As of 2026-06-06 the server does not implement any MCP prompts.
@@ -776,6 +822,47 @@ The form requires the inventory in the exact format `tool_name (Human Readable N
   - Does not generate images/video/audio via AI (verify analyze_image still only *describes* and detect_faces still only *blurs*).
   - Does not serve ads or sponsored content.
 - [ ] **Submit to Connector Directory.**
+
+### Phase 3.6 — content_url + upload_file refactor [DONE 2026-06-10 morning]
+
+**Why this phase exists.** Phase 2 shipped tools that accepted `content_base64` arguments inline. Live testing in claude.ai on 2026-06-09 revealed the chat-host LLM must construct that base64 string as model output tokens for every tool call — for a 316 KB image, that's hundreds of thousands of characters streamed back one token at a time. The chat UI visibly stalled for minutes; subsequent chained tool calls (analyze → blur) doubled the cost. This was an architectural problem, not a bug.
+
+**Tool surface: 5 → 6 tools.** All five content-processing tools (`summarize_document` / `translate_document` / `redact_pii` / `analyze_image` / `detect_faces`) now accept `content_url` instead of `content_base64`. New `upload_file` tool is the only base64-input tool: it ingests one file and returns a short-lived Synzo-hosted `content_url` (1h TTL). `redact_pii` and `detect_faces` now return a `result_url` instead of inline base64 output.
+
+- [x] **`blob_store.py`** ([blob_store.py](blob_store.py)) — process-local TTL store. 1h per-blob TTL, 100 MB total cap, 10 MB per blob, thread-safe via `RLock`, lazy expiry sweep, `secrets.token_urlsafe(32)` tokens. Single-replica only; swap for S3 when Phase 2.5.B lands.
+- [x] **`url_fetcher.py`** ([url_fetcher.py](url_fetcher.py)) — SSRF-guarded HTTPS fetcher. HTTPS only; public IPs only (rejects loopback/private/link-local/multicast/metadata via `ipaddress` library); pinned-IP `HTTPAdapter` so DNS rebinding can't switch targets between the SSRF check and the connect; 3 redirect max with each hop re-validated; 30s wall-clock + 5s connect timeout; 10 MB cap with mid-stream abort; no credential forwarding.
+- [x] **`GET /u/<token>` blob-serve route** ([mcp_routes.py](mcp_routes.py)) — `Cache-Control: private, no-store`, `Content-Disposition: inline; filename="..."`, 404 indistinguishable for unknown vs expired tokens.
+- [x] **All 5 content-processing tool schemas + handlers** ([mcp_tools.py](mcp_tools.py)) migrated to `content_url`. Shared `_load_payload()` helper does the fetch + size-check + extension-check + magic-byte verify.
+- [x] **`upload_file` tool added** to the registry. Accepts `content_base64` (the only base64-input tool); returns `{ content_url, expires_at, size_bytes, content_type, filename }`. `redact_pii` and `detect_faces` use `_stash_output_bytes()` to park their output in the blob store and return `result_url` + `expires_at`.
+- [x] **Test suite: 186 → 232 tests** (+46). New: `tests/test_blob_store.py` (15 cases — TTL, caps, concurrency, singleton), `tests/test_url_fetcher.py` (25 cases — scheme/SSRF/IP-class/redirect/size/timeout coverage), 6 new upload_file/blob-serve cases in `tests/test_mcp_server.py`. Existing 41 MCP tests + 8 magic-byte tests migrated via a new `url_for_bytes` conftest fixture that stashes bytes in the test blob store and patches `fetch_url_bytes` to look them up — test intent unchanged.
+- [x] **Public docs updated.** `/docs` "What you can do with it" lists 6 tools; `/privacy` §2 discloses the 1h in-memory blob store and result-URL pattern; `docs/tool_examples.yaml` has an `upload_file` entry (the startup guardrail enforces this against `mcp_tools.TOOLS`).
+- [x] **Reviewer scripts rewritten.** `scripts/sweep_tools.py` now does upload-then-call for all 6 tools (12 calls total); `scripts/verify_redact_sample.py` does upload → redact → fetch result_url → assert no seeded PII survived.
+- [x] **Deployed to Railway 2026-06-10 morning** (commit `e270791`). Live sweep against `https://www.synzo.ai/mcp`: 6/6 SUCCESS, latencies — upload_file 0.72s, summarize 5.19s, translate 0.70s, redact 0.53s, analyze 1.45s, detect_faces 2.81s warm. Programmatic-caller path proven instant.
+
+**The residual problem this phase did NOT solve.** A live claude.ai test of `analyze_image` against a 316 KB attached image still stalled, because chains start with `upload_file` and that *one* call still requires the LLM to emit the base64 string. Phase 3.7 below addresses this with a URL-first reviewer flow rather than another refactor.
+
+### Phase 3.7 — URL-first reviewer flow [DONE 2026-06-10 mid-day, deploy pending]
+
+**Why this phase exists.** The Phase 3.6 refactor moved the base64 cost from N tool calls to 1 (upload_file), but for local-file attachments that 1 call still happens. Live claude.ai screenshot evidence from 2026-06-10 showed Claude "Embedding base64 image data… Resize image to make base64 smaller… Get the small base64 for tool call" — i.e., the chat sandbox visibly struggling to construct the upload payload. External advice (paraphrased): "Passing base64 image data directly into an MCP tool's inputSchema is considered an anti-pattern for large files. The two viable patterns are (1) local-filesystem absolute_file_path for desktop/stdio hosts and (2) side-channel upload via presigned URLs for remote/web hosts. In pattern 2, the **client/host** does the upload — not the LLM." But MCP today gives chat hosts no affordance to deliver a user-attached file as a URL on the LLM's behalf; the LLM is the only thing that runs tool calls.
+
+**Pivot:** rather than wait for an Anthropic-side spec/client change, **host the reviewer-facing sample files at public synzo.ai URLs and update the reviewer prompts to reference them by URL.** The LLM sees a URL string in the prompt and passes that URL through as `content_url` — no base64 to construct. Synzo's server fetches its own static file via the existing SSRF-guarded fetcher (synzo.ai resolves to a public IP, passes the guard). The chat-based reviewer sweep becomes instant.
+
+This is a hosting + framing change, not a code change. Zero churn on the Phase 3.6 implementation.
+
+- [x] **5 sample files copied to `static/reviewer-samples/`** at canonical names: `summarize-sample.pdf` (39 KB), `translate-sample.docx` (14 KB), `redact-sample.docx` (36 KB), `analyze-sample.jpg` (2.9 MB), `detect-faces-sample.jpg` (324 KB). Served at `https://www.synzo.ai/static/reviewer-samples/*` via Flask's built-in static handler.
+- [x] **SSRF fetcher confirmed to accept the static URLs.** `www.synzo.ai` resolves to `69.46.46.34` (public), no private-range hit. Verified locally via `ipaddress.is_private/is_loopback/is_link_local` walk.
+- [x] **§Phase 3.5 reviewer-instructions sweep block rewritten** to URL-bearing prompts (e.g., *"Use Synzo to analyze the image at https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg"*). One optional `upload_file`-path prompt retained for reviewers who want to exercise the local-file fallback.
+- [x] **`/docs` partial updated** ([templates/partials/_docs_content.html](templates/partials/_docs_content.html)) — "How tools chain together" section replaced with "URL-first by design" framing + code examples + setup-guide hint pointing at a sample URL.
+- [x] **Plan top-of-doc status block updated** to capture the 3.7 reasoning, evidence, and deltas.
+- [x] **Test suite: 232/232 (no churn).** No code touched.
+- [ ] **Deploy the static files to Railway** so `https://www.synzo.ai/static/reviewer-samples/*` resolves in production. Quick verify after deploy: `curl -sI https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg` → 200 + `Content-Type: image/jpeg`.
+- [ ] **Live-retest in claude.ai** using the URL prompts from the rewritten sweep block. Expected: instant tool-call invocation, no base64 stalling, clean result rendering.
+- [ ] **Capture 3–5 promotional screenshots** in claude.ai for Phase 3.5 form-fill (the meatiest remaining submission item). Pair each with the prompt that produced it.
+
+**What this changes in the form (Phase 3.5):**
+- Submission notes: add a paragraph framing the URL-first design as deliberate — *"Synzo's tools accept HTTPS URLs as input. For files already on the public web, the workflow is instant; for local-only files, `upload_file` ingests one file and returns a Synzo-hosted URL. We host a small library of sample files at `synzo.ai/static/reviewer-samples/*` so the directory review experience needs no upload step."*
+- Server inventory: still 6 tools.
+- "Third-party Connections / Web Access": still YES on URL fetching (with SSRF guards documented).
 
 ### Phase 4 — Paid API (deferred until a real customer asks) [~1 week]
 - [ ] Stripe Checkout integration for plan upgrades (org-scoped — the org is the billable entity, not the user).
