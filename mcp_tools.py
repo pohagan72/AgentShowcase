@@ -372,7 +372,7 @@ def _redact_pii(principal: Principal, args: dict) -> dict:
     """Redact PII from a .docx or .pptx using Microsoft Presidio.
 
     Returns the redacted document as base64-encoded bytes so the caller can
-    save it directly. PII characters are replaced with the block symbol (█)
+    save it directly. PII characters are replaced with the block symbol (■)
     in-place so document structure / styling is preserved.
     """
     analyzer = getattr(current_app, "presidio_analyzer", None)
