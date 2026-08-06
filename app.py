@@ -16,10 +16,8 @@ from extensions import limiter
 # Shared SQLAlchemy instance
 from db import db
 
-# Import S3 Adapter and Presidio
+# Import S3 Adapter (Presidio is initialised via features.pii_redaction.build_analyzer)
 from s3_adapter import S3Client
-from presidio_analyzer import AnalyzerEngine
-from presidio_analyzer.nlp_engine import NlpEngineProvider
 
 # Import Blueprints
 from main_routes import bp as main_bp
@@ -155,16 +153,14 @@ def create_app(config_class=Config):
     else:
         logging.warning("Global: S3 Credentials or Bucket Name missing.")
 
-    # 4. Initialize Presidio (PII)
+    # 4. Initialize Presidio (PII). Uses the ORG-enabled analyzer from
+    # features.pii_redaction so "Full anonymisation" mode can blank employers.
     app.config['PRESIDIO_ANALYZER_AVAILABLE'] = False
     app.presidio_analyzer = None
     try:
         logging.info("Global: Initializing Presidio Analyzer Engine...")
-        provider = NlpEngineProvider(nlp_configuration={
-            "nlp_engine_name": "spacy",
-            "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}]
-        })
-        app.presidio_analyzer = AnalyzerEngine(nlp_engine=provider.create_engine(), supported_languages=["en"])
+        from features.pii_redaction.routes import build_analyzer
+        app.presidio_analyzer = build_analyzer()
         app.config['PRESIDIO_ANALYZER_AVAILABLE'] = True
     except Exception as e:
         logging.error(f"Global: Failed to initialize Presidio: {e}")
