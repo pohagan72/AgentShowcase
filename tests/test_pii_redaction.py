@@ -22,7 +22,7 @@ from features.pii_redaction.routes import (
 )
 
 
-BLOCK = "█"
+BLOCK = "■"
 CV_FIXTURE = Path(__file__).parent / "test-files" / "alex_morgan_cv.docx"
 
 

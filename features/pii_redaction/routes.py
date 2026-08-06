@@ -43,6 +43,12 @@ _FULL_ANON_ENTITIES = _PII_ONLY_ENTITIES + [
 # is what caused the CV over-redaction in the first place.
 _MIN_SCORE = 0.4
 
+# ■ (U+25A0 Black Square) instead of █ (U+2588 Full Block). U+2588 has poor
+# font coverage — Word substitutes glyphs from a fallback font and the output
+# renders as a mess of ù / empty rectangles in typical CV title fonts. U+25A0
+# ships in every mainstream font and reads as the same "redacted bar" intent.
+_REDACT_CHAR = "■"
+
 
 def build_analyzer():
     """Construct Presidio's AnalyzerEngine with ORGANIZATION enabled.
@@ -118,7 +124,7 @@ def apply_redaction_to_text(text, analysis_results):
         
         # Replace characters with block symbol
         for i in range(start, end):
-            text_chars[i] = '█'
+            text_chars[i] = _REDACT_CHAR
             
     return "".join(text_chars)
 
@@ -180,7 +186,7 @@ def redact_runs_in_paragraph(paragraph, analyzer, entities=None):
                 
                 # Replace specific characters
                 for i in range(local_start, local_end):
-                    new_run_chars[i] = '█'
+                    new_run_chars[i] = _REDACT_CHAR
                 
                 run_modified = True
                 redaction_occurred = True
@@ -282,7 +288,7 @@ def redact_powerpoint_document_pii(file_stream, analyzer, entities=None):
                                 local_end = overlap_end - run_start
                                 
                                 for k in range(local_start, local_end):
-                                    new_run_chars[k] = '█'
+                                    new_run_chars[k] = _REDACT_CHAR
                                 
                                 run_modified = True
                                 redacted_count += 1
