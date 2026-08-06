@@ -46,8 +46,71 @@ _MIN_SCORE = 0.4
 # ■ (U+25A0 Black Square) instead of █ (U+2588 Full Block). U+2588 has poor
 # font coverage — Word substitutes glyphs from a fallback font and the output
 # renders as a mess of ù / empty rectangles in typical CV title fonts. U+25A0
-# ships in every mainstream font and reads as the same "redacted bar" intent.
+# is broader but Aptos and other modern doc fonts still lack it, so we ALSO
+# force the redacted runs to Consolas below.
 _REDACT_CHAR = "■"
+
+# Consolas ships with every Windows install (and Word for macOS bundles it
+# too), and has clean glyphs for both U+25A0 and U+2588. Forcing the redacted
+# runs to this font sidesteps Word's font-substitution fallback that turns the
+# fill character into u-with-grave in some source fonts.
+_REDACT_FONT = "Consolas"
+
+
+def _force_font_all_ranges(run, font_name):
+    """Set the docx run's font across all four Word range slots.
+
+    Word picks a font per-character based on Unicode range:
+      w:ascii    -> 0x00-0x7F
+      w:hAnsi    -> 0x80-0xFF
+      w:eastAsia -> CJK + a bunch of symbol blocks (including U+25A0)
+      w:cs       -> complex scripts
+
+    Two subtleties this handles that `run.font.name = "X"` gets wrong:
+
+    1) python-docx only writes w:ascii and w:hAnsi. U+25A0 is classified as
+       east-asian by Word, so a run without w:eastAsia falls back to the
+       theme's east-asian slot (often empty -> system fallback -> u-with-grave
+       glyph in modern doc fonts like Aptos).
+
+    2) Heading runs on modern Word templates carry theme-reference attributes
+       (w:asciiTheme, w:hAnsiTheme, w:cstheme, w:eastAsiaTheme). Word gives
+       theme references PRIORITY over direct font names, so setting w:ascii
+       without deleting w:asciiTheme silently does nothing — the theme font
+       (usually Aptos) still applies. We remove the theme refs here so the
+       direct font wins.
+    """
+    from docx.oxml.ns import qn
+
+    rPr = run._element.get_or_add_rPr()
+    rFonts = rPr.find(qn("w:rFonts"))
+    if rFonts is None:
+        from docx.oxml import OxmlElement
+        rFonts = OxmlElement("w:rFonts")
+        rPr.insert(0, rFonts)
+    for attr in ("ascii", "hAnsi", "cs", "eastAsia"):
+        rFonts.set(qn(f"w:{attr}"), font_name)
+    for theme_attr in ("asciiTheme", "hAnsiTheme", "cstheme", "eastAsiaTheme"):
+        theme_qn = qn(f"w:{theme_attr}")
+        if rFonts.get(theme_qn) is not None:
+            del rFonts.attrib[theme_qn]
+
+
+def _force_pptx_font_all_ranges(run, font_name):
+    """PowerPoint equivalent: DrawingML uses <a:latin>, <a:ea>, <a:cs>, <a:sym>
+    instead of the Word rFonts attributes, but the same range-mismatch bug
+    applies. python-pptx's `run.font.name` writes only <a:latin>."""
+    from lxml import etree
+    A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    rPr = run._r.find(f"{{{A_NS}}}rPr")
+    if rPr is None:
+        rPr = etree.SubElement(run._r, f"{{{A_NS}}}rPr")
+        run._r.insert(0, rPr)
+    for tag in ("latin", "ea", "cs", "sym"):
+        node = rPr.find(f"{{{A_NS}}}{tag}")
+        if node is None:
+            node = etree.SubElement(rPr, f"{{{A_NS}}}{tag}")
+        node.set("typeface", font_name)
 
 
 def build_analyzer():
@@ -193,9 +256,13 @@ def redact_runs_in_paragraph(paragraph, analyzer, entities=None):
 
         if run_modified:
             run.text = "".join(new_run_chars)
-        
+            # Force Consolas across all four Word font ranges so U+25A0 (which
+            # Word classifies as east-asian, not ASCII/High-ANSI) uses the
+            # same font as ordinary characters in the run.
+            _force_font_all_ranges(run, _REDACT_FONT)
+
         current_offset += run_len
-    
+
     return redaction_occurred
 
 def redact_word_document_pii(file_stream, analyzer, entities=None):
@@ -295,6 +362,7 @@ def redact_powerpoint_document_pii(file_stream, analyzer, entities=None):
                         
                         if run_modified:
                             run.text = "".join(new_run_chars)
+                            _force_pptx_font_all_ranges(run, _REDACT_FONT)
                         
                         current_offset += run_len
 

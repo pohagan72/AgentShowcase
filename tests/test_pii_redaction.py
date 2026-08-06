@@ -112,6 +112,88 @@ class TestRedactRunsInParagraph:
         assert changed
         assert "john.doe@example.com" not in p.text
 
+    def test_modified_runs_get_font_across_all_four_ranges(self, analyzer):
+        """Regression test for a real user-visible bug: setting only
+        run.font.name (which writes w:ascii + w:hAnsi) leaves w:eastAsia
+        unset. Word classifies U+25A0 as east-asian, so it uses the theme's
+        east-asian font — which is usually a fallback that renders as garbage.
+
+        Also asserts theme-reference attributes are cleared: Word gives
+        w:*Theme attributes priority over direct font names, so a Heading run
+        that had w:asciiTheme="minorHAnsi" would ignore our w:ascii="Consolas"
+        and still render Aptos (i.e. still show ù for U+25A0)."""
+        from docx.oxml.ns import qn
+
+        p = self._para_with_runs(["reach me at ", "john.doe@example.com", " thanks"])
+        redact_runs_in_paragraph(p, analyzer)
+
+        modified_runs = [r for r in p.runs if BLOCK in r.text]
+        assert modified_runs, "expected at least one run to contain the redaction char"
+
+        for run in modified_runs:
+            rPr = run._element.find(qn("w:rPr"))
+            assert rPr is not None, "modified run must have rPr"
+            rFonts = rPr.find(qn("w:rFonts"))
+            assert rFonts is not None, "modified run must have rFonts"
+            # All four range slots must be set to the redaction font.
+            for attr in ("ascii", "hAnsi", "cs", "eastAsia"):
+                got = rFonts.get(qn(f"w:{attr}"))
+                assert got == "Consolas", (
+                    f"redacted run w:{attr} is {got!r}, expected 'Consolas' "
+                    f"(this is what caused U+25A0 to render as u-with-grave in Word)"
+                )
+            # Theme references must be gone — otherwise they win over the
+            # direct fonts and Aptos still applies.
+            for theme_attr in ("asciiTheme", "hAnsiTheme", "cstheme", "eastAsiaTheme"):
+                got = rFonts.get(qn(f"w:{theme_attr}"))
+                assert got is None, (
+                    f"redacted run still has w:{theme_attr}={got!r} — theme refs "
+                    f"take priority over w:ascii and will keep Aptos active"
+                )
+
+        # Non-redacted runs must be left alone (no forced font).
+        unmodified_runs = [r for r in p.runs if BLOCK not in r.text and r.text.strip()]
+        for run in unmodified_runs:
+            rPr = run._element.find(qn("w:rPr"))
+            if rPr is None:
+                continue  # totally unstyled — fine
+            rFonts = rPr.find(qn("w:rFonts"))
+            assert rFonts is None or rFonts.get(qn("w:eastAsia")) != "Consolas", (
+                "unmodified run must not have Consolas forced onto it"
+            )
+
+    def test_heading_run_with_theme_font_gets_fixed(self, analyzer):
+        """The user-facing failure mode: a Heading run carries
+        w:asciiTheme='minorHAnsi', which Word treats as authoritative and
+        which overrides any w:ascii we set. This test builds a run that
+        already has theme attributes (like real Heading runs) and verifies
+        the fix strips them so the direct font wins."""
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+
+        p = self._para_with_runs(["Operations Coordinator | ", "john.doe@example.com"])
+        # Simulate a Heading run by attaching theme-font attributes to the
+        # PII-containing run before redaction.
+        pii_run = p.runs[1]
+        rPr = pii_run._element.get_or_add_rPr()
+        rFonts = OxmlElement("w:rFonts")
+        rFonts.set(qn("w:asciiTheme"), "minorHAnsi")
+        rFonts.set(qn("w:hAnsiTheme"), "minorHAnsi")
+        rFonts.set(qn("w:cstheme"), "minorBidi")
+        rPr.insert(0, rFonts)
+
+        redact_runs_in_paragraph(p, analyzer)
+
+        # After redaction, the run's rFonts must have direct fonts and NO theme refs.
+        rFonts_after = pii_run._element.find(qn("w:rPr")).find(qn("w:rFonts"))
+        assert rFonts_after is not None
+        for theme_attr in ("asciiTheme", "hAnsiTheme", "cstheme", "eastAsiaTheme"):
+            assert rFonts_after.get(qn(f"w:{theme_attr}")) is None, (
+                f"heading-style theme ref w:{theme_attr} was not stripped"
+            )
+        for attr in ("ascii", "hAnsi", "cs", "eastAsia"):
+            assert rFonts_after.get(qn(f"w:{attr}")) == "Consolas"
+
 
 class TestRedactWordDocument:
     """End-to-end at the document-object level — exercises paragraphs + tables."""
