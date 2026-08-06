@@ -16,6 +16,84 @@ from extensions import limiter
 # Define the Blueprint
 bp = Blueprint('pii_redaction', __name__)
 
+# Entity sets per redaction mode. Presidio's default output (no entities= filter)
+# is too aggressive on CV-shaped documents — it flags cities, employment dates,
+# nationalities, etc. We opt in per mode instead.
+#
+# PII_ONLY: things that identify a specific person or account (names, contact,
+# IDs, cards, URLs). Deliberately excludes LOCATION and DATE_TIME so cities and
+# "five years experience" survive.
+# FULL_ANON: adds LOCATION, DATE_TIME, NRP, and ORGANIZATION for GDPR-style
+# anonymisation of CVs / memos where employers, cities, dates, and nationality
+# should also be blanked. ORGANIZATION requires the custom analyzer built by
+# build_analyzer() below — Presidio's default English registry strips ORG out
+# of the SpacyRecognizer's supported_entities.
+_PII_ONLY_ENTITIES = [
+    "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER",
+    "US_SSN", "CREDIT_CARD", "IBAN_CODE",
+    "US_PASSPORT", "US_DRIVER_LICENSE",
+    "URL",
+]
+_FULL_ANON_ENTITIES = _PII_ONLY_ENTITIES + [
+    "LOCATION", "DATE_TIME", "NRP", "ORGANIZATION",
+]
+# 0.4 catches phone numbers (~0.4) and US passports (~0.45) in weaker context
+# while still filtering the sub-0.4 noise on ordinary title-cased words like
+# "Microsoft" or "Foundation Certificate". Presidio's zero-threshold default
+# is what caused the CV over-redaction in the first place.
+_MIN_SCORE = 0.4
+
+
+def build_analyzer():
+    """Construct Presidio's AnalyzerEngine with ORGANIZATION enabled.
+
+    Presidio's default English SpacyRecognizer instance ships with
+    supported_entities = [DATE_TIME, PERSON, LOCATION, NRP] — ORGANIZATION is
+    stripped out even though spaCy's NER emits ORG labels for free. This
+    factory swaps in a SpacyRecognizer configured to keep the ORG channel so
+    "Full anonymisation" mode can actually blank employer names.
+
+    Callers must provide the nlp_engine (the app builds one lazily at startup).
+    Returns an AnalyzerEngine ready to hand to redact_*_document_pii.
+    """
+    from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
+    from presidio_analyzer.predefined_recognizers import SpacyRecognizer
+    from presidio_analyzer.nlp_engine import NlpEngineProvider
+
+    provider = NlpEngineProvider(nlp_configuration={
+        "nlp_engine_name": "spacy",
+        "models": [{"lang_code": "en", "model_name": "en_core_web_lg"}],
+    })
+    nlp_engine = provider.create_engine()
+
+    registry = RecognizerRegistry()
+    # Load the standard recognizer set (EmailRecognizer, PhoneRecognizer, etc.),
+    # then replace the default SpacyRecognizer with one that keeps ORGANIZATION.
+    registry.load_predefined_recognizers(languages=["en"], nlp_engine=nlp_engine)
+    registry.remove_recognizer("SpacyRecognizer")
+    registry.add_recognizer(SpacyRecognizer(
+        supported_language="en",
+        supported_entities=["DATE_TIME", "NRP", "LOCATION", "PERSON", "ORGANIZATION"],
+    ))
+
+    return AnalyzerEngine(
+        registry=registry,
+        nlp_engine=nlp_engine,
+        supported_languages=["en"],
+    )
+
+
+def entities_for_mode(mode):
+    """Map the client-supplied mode string to a Presidio entity allowlist.
+
+    Unknown / missing mode falls back to PII_ONLY so a broken form field can't
+    accidentally trigger the more aggressive anonymisation pass.
+    """
+    if mode == "full_anon":
+        return _FULL_ANON_ENTITIES
+    return _PII_ONLY_ENTITIES
+
+
 def allowed_file_pii(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in current_app.config.get('PII_ALLOWED_EXTENSIONS', {'docx', 'pptx'})
@@ -44,17 +122,22 @@ def apply_redaction_to_text(text, analysis_results):
             
     return "".join(text_chars)
 
-def redact_runs_in_paragraph(paragraph, analyzer):
+def redact_runs_in_paragraph(paragraph, analyzer, entities=None):
     """
     Analyzes a paragraph and redacts PII within its runs strictly where overlap occurs.
+    entities: iterable of Presidio entity names to detect; None = PII-only default.
     """
     text = paragraph.text
     if not text.strip():
         return False
 
+    if entities is None:
+        entities = _PII_ONLY_ENTITIES
+
     try:
-        # Analyze the full paragraph text to get contextual PII positions
-        results = analyzer.analyze(text=text, language='en')
+        results = analyzer.analyze(
+            text=text, language='en', entities=entities, score_threshold=_MIN_SCORE
+        )
     except Exception as e:
         logging.error(f"Error analyzing paragraph text: {e}")
         return False
@@ -109,7 +192,7 @@ def redact_runs_in_paragraph(paragraph, analyzer):
     
     return redaction_occurred
 
-def redact_word_document_pii(file_stream, analyzer):
+def redact_word_document_pii(file_stream, analyzer, entities=None):
     try:
         document = Document(file_stream)
         redacted_count = 0
@@ -117,7 +200,7 @@ def redact_word_document_pii(file_stream, analyzer):
 
         # 1. Process Paragraphs
         for para in document.paragraphs:
-            if redact_runs_in_paragraph(para, analyzer):
+            if redact_runs_in_paragraph(para, analyzer, entities=entities):
                 redacted_count += 1
 
         # 2. Process Tables
@@ -125,7 +208,7 @@ def redact_word_document_pii(file_stream, analyzer):
             for row in table.rows:
                 for cell in row.cells:
                     for para in cell.paragraphs:
-                        if redact_runs_in_paragraph(para, analyzer):
+                        if redact_runs_in_paragraph(para, analyzer, entities=entities):
                             redacted_count += 1
         
         logging.info(f"[{g.request_id if hasattr(g, 'request_id') else 'PII_REDACT'}] Modified approx {redacted_count} paragraphs/cells in Word document.")
@@ -138,7 +221,9 @@ def redact_word_document_pii(file_stream, analyzer):
         logging.error(f"[{g.request_id if hasattr(g, 'request_id') else 'PII_REDACT'}] Error processing Word document for PII: {e}", exc_info=True)
         return None
 
-def redact_powerpoint_document_pii(file_stream, analyzer):
+def redact_powerpoint_document_pii(file_stream, analyzer, entities=None):
+    if entities is None:
+        entities = _PII_ONLY_ENTITIES
     try:
         presentation = Presentation(file_stream)
         redacted_count = 0
@@ -157,7 +242,10 @@ def redact_powerpoint_document_pii(file_stream, analyzer):
                         continue
 
                     try:
-                        results = analyzer.analyze(text=text, language='en')
+                        results = analyzer.analyze(
+                            text=text, language='en',
+                            entities=entities, score_threshold=_MIN_SCORE,
+                        )
                     except Exception as e:
                         logging.error(f"[{req_id_tag}] Error analyzing PPTX paragraph: {e}")
                         continue
@@ -251,20 +339,22 @@ def process_redact():
         original_filename = secure_filename(file.filename)
         context["original_filename"] = original_filename
         file_ext = original_filename.rsplit('.', 1)[1].lower()
-        
-        logging.info(f"[{g.request_id}] File received: {original_filename} (Type: {file_ext})")
+
+        mode = request.form.get("mode", "full_anon")
+        entities = entities_for_mode(mode)
+        logging.info(f"[{g.request_id}] File received: {original_filename} (Type: {file_ext}, Mode: {mode})")
 
         file_stream = io.BytesIO(file.read())
         output_stream = None
-        
+
         analyzer = current_app.presidio_analyzer
         gcs_bucket = current_app.gcs_bucket
 
         try:
             if file_ext == 'docx':
-                output_stream = redact_word_document_pii(file_stream, analyzer)
+                output_stream = redact_word_document_pii(file_stream, analyzer, entities=entities)
             elif file_ext == 'pptx':
-                output_stream = redact_powerpoint_document_pii(file_stream, analyzer)
+                output_stream = redact_powerpoint_document_pii(file_stream, analyzer, entities=entities)
             
             if output_stream:
                 redacted_gcs_path = f"pii_redaction_results/{g.request_id}/redacted_{original_filename}"

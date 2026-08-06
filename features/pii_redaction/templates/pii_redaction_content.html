@@ -98,6 +98,80 @@
             flex-direction: column;
         }
 
+        /* Mode Selector (sits above the upload area) */
+        .cp-mode-area {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-subtle);
+            background: #ffffff;
+        }
+        .cp-mode-label {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+        .mode-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .mode-options input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .mode-card {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 1rem 1.25rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .mode-card:hover {
+            background: #ffffff;
+            border-color: var(--brand-primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+        }
+        .mode-card-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+        .mode-card-title i {
+            font-size: 1.15rem;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+        .mode-card-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        .mode-options input[type="radio"]:checked + .mode-card {
+            background: rgba(79, 70, 229, 0.06);
+            border-color: var(--brand-primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+        .mode-options input[type="radio"]:checked + .mode-card .mode-card-title,
+        .mode-options input[type="radio"]:checked + .mode-card .mode-card-title i {
+            color: var(--brand-primary);
+        }
+        .mode-options input[type="radio"]:focus-visible + .mode-card {
+            outline: 2px solid var(--brand-primary);
+            outline-offset: 2px;
+        }
+
         /* Upload Area */
         .cp-upload-area {
             background: #f8fafc;
@@ -159,6 +233,7 @@
 
         @media (max-width: 768px) {
             .info-grid { grid-template-columns: 1fr; }
+            .mode-options { grid-template-columns: 1fr; }
         }
     </style>
 
@@ -225,7 +300,40 @@
               hx-indicator="#pii-loading">
 
             <div class="control-panel">
-                
+
+                <!-- Mode Selector -->
+                <div class="cp-mode-area">
+                    <div class="cp-mode-label">Redaction mode</div>
+                    <div class="mode-options" role="radiogroup" aria-label="Redaction mode">
+                        <label>
+                            <input type="radio" name="mode" value="pii_only"
+                                   {% if not services_ready %}disabled{% endif %}>
+                            <div class="mode-card">
+                                <div class="mode-card-title">
+                                    <i class="ph ph-user-focus"></i>
+                                    PII only
+                                </div>
+                                <div class="mode-card-desc">
+                                    Names, emails, phones, IDs, cards, and URLs.
+                                </div>
+                            </div>
+                        </label>
+                        <label>
+                            <input type="radio" name="mode" value="full_anon" checked
+                                   {% if not services_ready %}disabled{% endif %}>
+                            <div class="mode-card">
+                                <div class="mode-card-title">
+                                    <i class="ph ph-shield-check"></i>
+                                    Full anonymisation
+                                </div>
+                                <div class="mode-card-desc">
+                                    Everything above, plus organisations, locations, dates, and nationalities.
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Upload Zone -->
                 <div class="cp-upload-area" id="cp-upload-area">
                     <label for="pii-file-input" class="upload-label" id="pii-drop-zone">
