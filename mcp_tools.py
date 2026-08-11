@@ -471,7 +471,12 @@ def _analyze_image(principal: Principal, args: dict) -> dict:
     # Normalize/resize so we don't ship 10 MB raw to Gemini.
     image_bytes = multimedia_routes.normalize_and_resize_image(raw)
 
-    model_name = current_app.config.get("GEMINI_MODEL_NAME", "gemini-1.5-flash-latest")
+    model_name = current_app.config.get("GEMINI_MODEL_NAME")
+    if not model_name:
+        # Refuse loudly rather than fall back to a hardcoded model ID (the
+        # previous default `gemini-1.5-flash-latest` was retired by Google
+        # and would 404 silently). Config must set GEMINI_MODEL.
+        raise RuntimeError("Gemini model name is not configured.")
     gemini_model = genai.GenerativeModel(model_name)
 
     analysis = analyze_image_with_gemini(image_bytes, gemini_model)
