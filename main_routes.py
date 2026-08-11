@@ -157,6 +157,85 @@ def pricing():
     )
 
 
+@bp.route('/benchmark')
+def benchmark():
+    """Public research page presenting the TranslationBench results that
+    inform Synzo's translation architecture. Numbers here come from a single
+    500-segment run against Canadian Hansard EN↔FR on gemini-3.6-flash with
+    adaptive thinking (same model Synzo runs in production); the raw JSON,
+    per-segment scores, and harness source are on GitHub for verification.
+    Keep this data in sync with `out-final/report.json` in the
+    TranslationBench repo.
+    """
+    results = {
+        "model": "gemini-3.6-flash (adaptive thinking, same model Synzo runs)",
+        "corpus": "Canadian Hansard EN↔FR (parliamentary proceedings)",
+        "segments": 500,
+        "seed": 42,
+        "sentence": {"bleu": 38.13, "chrf": 63.15, "comet": 0.8547, "cost_usd": 2.28},
+        "context":  {"bleu": 38.63, "chrf": 62.94, "comet": 0.8595, "cost_usd": 0.71},
+        "comet_delta": +0.0048,
+        "comet_ci_low": +0.0003,
+        "comet_ci_high": +0.0093,
+        "bottom_50_sentence_avg_comet": 0.6314,
+        "bottom_50_context_avg_comet":  0.6682,
+        "wins": 155,
+        "losses": 126,
+        # Concrete before/after quotes — every one is a real segment from the
+        # 500-run, chosen because its COMET delta shows the pattern clearly.
+        "wins_examples": [
+            {
+                "en": "I do not believe this is what my constituents want.",
+                "ref": "Je ne pense pas que c'est ce que mes électeurs recherchent.",
+                "sentence": "Je ne crois pas que ce soit ce que mes commettants veulent.",
+                "context": "Je ne crois pas que ce soit ce que mes électeurs veulent.",
+                "sentence_comet": 0.6048,
+                "context_comet": 0.9394,
+                "note": "Sentence mode picked <em>commettants</em>, dated legalese. "
+                        "Context saw the surrounding parliamentary register and "
+                        "chose <em>électeurs</em>, which is what the reference used.",
+            },
+            {
+                "en": "We are concerned with a statute.",
+                "ref": "Il s'agit d'une loi.",
+                "sentence": "Nous sommes concernés par une loi.",
+                "context": "Il s'agit d'une loi.",
+                "sentence_comet": 0.6902,
+                "context_comet": 0.9849,
+                "note": "&ldquo;Concerned with&rdquo; is idiomatic for &ldquo;this is about&rdquo;. "
+                        "Sentence mode calqued it word-for-word. Context "
+                        "produced the idiomatic French, matching the reference exactly.",
+            },
+        ],
+        "losses_example": {
+            "en": "Mr. Speaker, I ask that the remaining questions be allowed to stand.",
+            "ref": "Monsieur le Président, je demande que les autres questions restent au Feuilleton.",
+            "sentence": "Monsieur le Président, je demande que les autres questions restent en instance.",
+            "context": "Monsieur le Président, je demande que les autres questions restent en souffrance.",
+            "sentence_comet": 0.7970,
+            "context_comet": 0.4873,
+            "note": "Not every context-mode change is an improvement. Here, "
+                    "<em>en souffrance</em> implies unpaid mail; the correct "
+                    "parliamentary term is <em>en instance</em> (still deferred) — "
+                    "which sentence mode produced. Twenty-four of 500 segments "
+                    "regressed like this. We report both the wins and losses.",
+        },
+        "repo_url": "https://github.com/pohagan72/TranslationBench",
+        "raw_json_url": "https://github.com/pohagan72/TranslationBench/blob/main/out-final/report.json",
+    }
+    return render_template(
+        "layout.html",
+        features=FEATURES_DATA,
+        current_feature={"name": "Benchmark"},
+        active_feature_key="benchmark",
+        initial_content_template="partials/_benchmark_content.html",
+        DEFAULT_FEATURE_KEY=DEFAULT_FEATURE_KEY,
+        results=results,
+        gcs_available=False,
+        gemini_configured=False,
+    )
+
+
 @bp.route('/sitemap.xml')
 def sitemap():
     host = request.host_url.rstrip('/')
@@ -183,6 +262,15 @@ def sitemap():
                     <loc>{host}/pricing</loc>
                     <changefreq>weekly</changefreq>
                     <priority>0.9</priority>
+                </url>
+            """)
+
+    # /benchmark is a public research page with our translation-quality data.
+    xml_sitemap.append(f"""
+                <url>
+                    <loc>{host}/benchmark</loc>
+                    <changefreq>monthly</changefreq>
+                    <priority>0.7</priority>
                 </url>
             """)
 
