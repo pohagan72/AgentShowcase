@@ -1,0 +1,291 @@
+<!-- templates/partials/_benchmark_content.html
+     Data comes from main_routes.benchmark(). Keep this template
+     presentation-only; the numbers, model name, and quote text all live
+     in the route so a rerun only touches one file.  -->
+
+<style>
+    .bench-wrap { max-width: 900px; margin: 0 auto; padding: 0 1rem 3rem; }
+
+    .bench-hero { text-align: center; padding: 2rem 1rem 1rem; }
+    .bench-hero h1 {
+        font-size: 2rem; font-weight: 800; letter-spacing: -0.02em;
+        margin: 0 0 0.5rem; color: var(--text-primary);
+    }
+    .bench-hero p {
+        font-size: 1rem; color: var(--text-secondary);
+        max-width: 640px; margin: 0 auto; line-height: 1.5;
+    }
+    .bench-hero .meta {
+        margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .bench-section {
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+        padding: 1.75rem; margin: 1.5rem 0;
+    }
+    .bench-section h2 {
+        font-size: 1.15rem; font-weight: 700; margin: 0 0 0.75rem;
+        color: var(--text-primary); letter-spacing: -0.01em;
+    }
+    .bench-section p { color: var(--text-secondary); line-height: 1.6; margin: 0 0 0.75rem; }
+    .bench-section p:last-child { margin-bottom: 0; }
+
+    /* headline number card */
+    .headline-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+        margin: 1rem 0 0;
+    }
+    .headline-cell {
+        background: #f8fafc; border-radius: 10px; padding: 1rem 1.25rem;
+        border: 1px solid #e2e8f0;
+    }
+    .headline-cell .label { font-size: 0.75rem; text-transform: uppercase;
+        letter-spacing: 0.06em; color: var(--text-secondary); font-weight: 600; }
+    .headline-cell .value {
+        font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;
+        color: var(--text-primary); margin-top: 0.25rem;
+        font-variant-numeric: tabular-nums;
+    }
+    .headline-cell .sub {
+        font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem;
+    }
+    .headline-cell.delta { background: #f0fdf4; border-color: #bbf7d0; }
+    .headline-cell.delta .value { color: #15803d; }
+
+    /* results table */
+    .bench-table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 0;
+        font-variant-numeric: tabular-nums; }
+    .bench-table th, .bench-table td {
+        text-align: left; padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid #e2e8f0; font-size: 0.9rem;
+    }
+    .bench-table th {
+        font-weight: 600; color: var(--text-secondary);
+        text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.06em;
+    }
+    .bench-table td.num { text-align: right; }
+    .bench-table td.delta-pos { color: #15803d; font-weight: 600; }
+    .bench-table td.delta-neg { color: #b91c1c; font-weight: 600; }
+    .bench-table tr:last-child td { border-bottom: 0; }
+
+    /* example block */
+    .example {
+        background: #fafbfc; border-left: 3px solid #6366f1;
+        padding: 1rem 1.25rem; margin: 0.75rem 0; border-radius: 0 8px 8px 0;
+    }
+    .example.loss { border-left-color: #b45309; background: #fefce8; }
+    .example .en {
+        font-weight: 600; color: var(--text-primary); font-size: 0.95rem;
+        margin: 0 0 0.75rem;
+    }
+    .example .row { display: grid; grid-template-columns: 90px 1fr; gap: 0.5rem 1rem;
+        font-size: 0.9rem; line-height: 1.5; margin: 0.25rem 0; align-items: baseline; }
+    .example .row .label {
+        color: var(--text-secondary); font-size: 0.72rem;
+        font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+        padding-top: 2px;
+    }
+    .example .row .val { color: var(--text-primary); }
+    .example .row.ref .val { color: #059669; }
+    .example .row.sentence .val { color: var(--text-primary); }
+    .example .row.context .val { color: #4338ca; font-weight: 500; }
+    .example .scores {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.75rem; color: var(--text-secondary);
+        margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #e2e8f0;
+    }
+    .example .note {
+        margin: 0.75rem 0 0; color: var(--text-secondary); font-size: 0.88rem;
+        line-height: 1.55; font-style: italic;
+    }
+
+    .method-list { color: var(--text-secondary); font-size: 0.9rem;
+        margin: 0.25rem 0 0; padding-left: 1.25rem; line-height: 1.7; }
+    .method-list li { margin: 0.15rem 0; }
+    .method-list code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 0.85em;
+    }
+
+    .footer-links {
+        margin-top: 1.5rem; text-align: center; color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+    .footer-links a { color: var(--brand-primary); text-decoration: none; }
+    .footer-links a:hover { text-decoration: underline; }
+
+    @media (max-width: 640px) {
+        .headline-grid { grid-template-columns: 1fr; }
+        .example .row { grid-template-columns: 1fr; gap: 0.15rem; }
+        .example .row .label { padding-top: 0; }
+    }
+</style>
+
+<div class="bench-wrap">
+    <div class="bench-hero">
+        <h1>Does document-level context improve translation quality?</h1>
+        <p>We built a measurement harness to find out on our own production stack —
+           and the answer is yes, but not in the way surface metrics suggest.</p>
+        <div class="meta">
+            {{ results.corpus }} · {{ results.segments }} segments · {{ results.model }}
+        </div>
+    </div>
+
+    <div class="bench-section">
+        <h2>Headline</h2>
+        <p>Translating each sentence with the whole source document available as
+           context produces a small but statistically significant improvement in
+           <strong>COMET</strong>, a semantic quality metric aligned with human
+           judgment — even when surface metrics like BLEU barely move. The improvement
+           concentrates where it matters most: on the difficult segments that
+           sentence-in-isolation translation gets wrong.</p>
+        <div class="headline-grid">
+            <div class="headline-cell">
+                <div class="label">Sentence-level baseline</div>
+                <div class="value">{{ "%.4f"|format(results.sentence.comet) }}</div>
+                <div class="sub">COMET (Unbabel <code>wmt22-comet-da</code>)</div>
+            </div>
+            <div class="headline-cell delta">
+                <div class="label">With document context</div>
+                <div class="value">{{ "%.4f"|format(results.context.comet) }}</div>
+                <div class="sub">+{{ "%.4f"|format(results.comet_delta) }},
+                    95% CI [{{ "+%.4f"|format(results.comet_ci_low) }},
+                    {{ "+%.4f"|format(results.comet_ci_high) }}] — significant on n={{ results.segments }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bench-section">
+        <h2>Why the small number is the interesting number</h2>
+        <p>The mean COMET delta is small in aggregate because most sentences translate
+           well in isolation — Gemini is a strong translator. But the mean hides the
+           tail. On <strong>the worst 10% of sentence-level translations</strong>,
+           adding document context lifts COMET by <strong>+{{
+           "%.3f"|format(results.bottom_50_context_avg_comet - results.bottom_50_sentence_avg_comet) }}</strong>
+           ({{ "%.4f"|format(results.bottom_50_sentence_avg_comet) }} →
+           {{ "%.4f"|format(results.bottom_50_context_avg_comet) }}) — nearly ten times
+           the average effect. Cross-sentence information about pronouns, terminology,
+           and register resolves ambiguities that sentence-in-isolation translation
+           cannot. Context wins on {{ results.wins }} segments and loses on
+           {{ results.losses }} (at ±0.005 COMET); the largest wins reach +0.33.</p>
+        <table class="bench-table" style="margin-top:1rem">
+            <thead>
+                <tr><th>Metric</th><th class="num">Sentence</th><th class="num">Context</th><th class="num">Δ</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>COMET (semantic)</td>
+                    <td class="num">{{ "%.4f"|format(results.sentence.comet) }}</td>
+                    <td class="num">{{ "%.4f"|format(results.context.comet) }}</td>
+                    <td class="num delta-pos">+{{ "%.4f"|format(results.context.comet - results.sentence.comet) }}</td>
+                </tr>
+                <tr>
+                    <td>BLEU (surface)</td>
+                    <td class="num">{{ "%.2f"|format(results.sentence.bleu) }}</td>
+                    <td class="num num">{{ "%.2f"|format(results.context.bleu) }}</td>
+                    <td class="num delta-pos">+{{ "%.2f"|format(results.context.bleu - results.sentence.bleu) }}</td>
+                </tr>
+                <tr>
+                    <td>chrF (surface)</td>
+                    <td class="num">{{ "%.2f"|format(results.sentence.chrf) }}</td>
+                    <td class="num">{{ "%.2f"|format(results.context.chrf) }}</td>
+                    <td class="num delta-neg">{{ "%.2f"|format(results.context.chrf - results.sentence.chrf) }}</td>
+                </tr>
+                <tr>
+                    <td>Cost, this experiment</td>
+                    <td class="num">${{ "%.2f"|format(results.sentence.cost_usd) }}</td>
+                    <td class="num">${{ "%.2f"|format(results.context.cost_usd) }}</td>
+                    <td class="num delta-pos">
+                        −${{ "%.2f"|format(results.sentence.cost_usd - results.context.cost_usd) }}
+                        ({{ "%.1fx"|format(results.sentence.cost_usd / results.context.cost_usd) }} cheaper)
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <p style="margin-top:0.75rem;font-size:0.85rem">Note that context mode is also
+           substantially <strong>cheaper</strong> — Google Gemini's explicit context
+           caching bills the shared document once instead of once per chunk. The RFI-style
+           question is not just &ldquo;does it work better&rdquo; but &ldquo;does it cost
+           more to work better&rdquo;. Here the answer is: it costs about a third as much,
+           on the same corpus, on the same model.</p>
+    </div>
+
+    <div class="bench-section">
+        <h2>What actually changed — three real segments</h2>
+        <p>Every quote below is a real segment from the 500-run. The English text
+           and reference French are unchanged; only how the model saw the segment
+           (in isolation vs with the surrounding document) differs.</p>
+        {% for ex in results.wins_examples %}
+        <div class="example">
+            <p class="en">EN — {{ ex.en }}</p>
+            <div class="row ref">
+                <span class="label">Reference</span><span class="val">{{ ex.ref }}</span>
+            </div>
+            <div class="row sentence">
+                <span class="label">Sentence</span><span class="val">{{ ex.sentence }}</span>
+            </div>
+            <div class="row context">
+                <span class="label">Context</span><span class="val">{{ ex.context }}</span>
+            </div>
+            <div class="scores">
+                COMET sentence {{ "%.4f"|format(ex.sentence_comet) }} →
+                context {{ "%.4f"|format(ex.context_comet) }}
+                (Δ +{{ "%.4f"|format(ex.context_comet - ex.sentence_comet) }})
+            </div>
+            <p class="note">{{ ex.note | safe }}</p>
+        </div>
+        {% endfor %}
+
+        <h2 style="margin-top:1.5rem">Honest counterexample — context isn't uniformly better</h2>
+        {% set ex = results.losses_example %}
+        <div class="example loss">
+            <p class="en">EN — {{ ex.en }}</p>
+            <div class="row ref">
+                <span class="label">Reference</span><span class="val">{{ ex.ref }}</span>
+            </div>
+            <div class="row sentence">
+                <span class="label">Sentence</span><span class="val">{{ ex.sentence }}</span>
+            </div>
+            <div class="row context">
+                <span class="label">Context</span><span class="val">{{ ex.context }}</span>
+            </div>
+            <div class="scores">
+                COMET sentence {{ "%.4f"|format(ex.sentence_comet) }} →
+                context {{ "%.4f"|format(ex.context_comet) }}
+                (Δ {{ "%.4f"|format(ex.context_comet - ex.sentence_comet) }})
+            </div>
+            <p class="note">{{ ex.note | safe }}</p>
+        </div>
+    </div>
+
+    <div class="bench-section">
+        <h2>Methodology</h2>
+        <ul class="method-list">
+            <li><strong>Corpus:</strong> {{ results.corpus }}, deterministic sample of {{ results.segments }} segments (seed {{ results.seed }}); formal government register, close to real-world Canadian public-sector translation.</li>
+            <li><strong>Model:</strong> <code>{{ results.model }}</code>. Same model runs Synzo's public translation feature.</li>
+            <li><strong>Modes compared:</strong>
+                <em>Sentence</em> translates each segment independently, replicating
+                a traditional segment-by-segment CAT-tool pipeline.
+                <em>Context</em> translates the same segments in chunks with the
+                whole source document supplied as cached context.
+            </li>
+            <li><strong>Metrics:</strong> BLEU and chrF via <code>sacreBLEU</code>; COMET
+                via Unbabel <code>wmt22-comet-da</code> — the semantic metric
+                aligned with human judgment recommended in the machine-translation
+                research literature.</li>
+            <li><strong>Alignment:</strong> both modes emit exactly one output segment per
+                input, so all three metrics compare like with like.</li>
+            <li><strong>Cost:</strong> tracked per-request from each API response's
+                <code>usage_metadata</code>; priced at Google's published rates.</li>
+            <li><strong>Reproducibility:</strong> harness, corpus loader, and per-segment
+                score files are open source under Apache 2.0.</li>
+        </ul>
+    </div>
+
+    <p class="footer-links">
+        Harness on GitHub: <a href="{{ results.repo_url }}" target="_blank" rel="noopener">TranslationBench</a>
+        &nbsp;·&nbsp;
+        <a href="{{ results.raw_json_url }}" target="_blank" rel="noopener">Raw report.json</a>
+    </p>
+</div>
