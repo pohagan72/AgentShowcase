@@ -149,7 +149,13 @@ def process_multimedia_analyze_image_route():
         file_mimetype = file.mimetype
         base64_encoded_data = base64.b64encode(image_bytes).decode('utf-8')
         image_data_url = f"data:{file_mimetype};base64,{base64_encoded_data}"
-        model_name = current_app.config.get('GEMINI_MODEL_NAME', 'gemini-1.5-flash-latest')
+        model_name = current_app.config.get('GEMINI_MODEL_NAME')
+        if not model_name:
+            # Refuse loudly rather than fall back to a hardcoded model ID
+            # (the previous default `gemini-1.5-flash-latest` was retired by
+            # Google and would 404 silently). Config must set GEMINI_MODEL.
+            return render_template("multimedia/templates/_analytics_results_partial.html",
+                                   analysis_results={"error": "AI model is not configured."})
         gemini_model = genai.GenerativeModel(model_name)
         analysis_results = analyze_image_with_gemini(image_bytes, gemini_model)
         dominant_colors = extract_dominant_colors(image_bytes)
