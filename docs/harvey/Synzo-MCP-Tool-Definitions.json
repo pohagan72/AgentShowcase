@@ -1,0 +1,223 @@
+{
+  "captured_at": "2026-09-10T17:44:18.798195+00:00",
+  "endpoint": "https://www.synzo.ai/mcp",
+  "serverInfo": {
+    "name": "synzo",
+    "title": "Synzo",
+    "version": "0.1.0"
+  },
+  "protocolVersion": "2025-06-18",
+  "tools": [
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Upload a file for use by other Synzo tools"
+      },
+      "description": "Upload a file to Synzo and receive a short-lived HTTPS URL. Use this FIRST when you need to operate on a local file: call upload_file once with the file's base64 bytes, then pass the returned content_url to any of the other Synzo tools (summarize_document, translate_document, redact_pii, analyze_image, detect_faces). The URL expires in 1 hour. Decoded size must not exceed 10 MB.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "content_base64": {
+            "description": "Base64-encoded file bytes. Decoded size must not exceed 10 MB. The server stores the bytes in memory and returns a short-lived HTTPS URL you can pass to the other Synzo tools as `content_url`.",
+            "type": "string"
+          },
+          "filename": {
+            "description": "Original filename (with extension) used to set the response Content-Type and inform downstream tools.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "content_base64"
+        ],
+        "type": "object"
+      },
+      "name": "upload_file",
+      "title": "Upload a file for use by other Synzo tools"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Summarize a document"
+      },
+      "description": "Classify and summarize a PDF, DOCX, PPTX, or XLSX file. Returns the inferred document type and a structured Markdown summary. Pass `content_url` — an HTTPS URL the server will fetch from (max 10 MB). For local files, call upload_file first to get a URL.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "content_url": {
+            "description": "HTTPS URL the server will fetch the document from. Max 10 MB decoded. Use the upload_file tool to obtain a short-lived Synzo-hosted URL for a local file.",
+            "format": "uri",
+            "type": "string"
+          },
+          "filename": {
+            "description": "Name of the document with its extension (.pdf, .docx, .pptx, .xlsx).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "content_url"
+        ],
+        "type": "object"
+      },
+      "name": "summarize_document",
+      "title": "Summarize a document"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Translate a document"
+      },
+      "description": "Translate the text content of a DOCX, PPTX, or XLSX file into a target language. Returns the translated text as Markdown (no binary file round-trip). Pass `content_url` — an HTTPS URL the server will fetch from (max 10 MB). For local files, call upload_file first to get a URL.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "content_url": {
+            "description": "HTTPS URL the server will fetch the document from. Max 10 MB decoded. Use the upload_file tool to obtain a short-lived Synzo-hosted URL for a local file.",
+            "format": "uri",
+            "type": "string"
+          },
+          "filename": {
+            "description": "Name of the document with its extension (.docx, .pptx, .xlsx).",
+            "type": "string"
+          },
+          "target_language": {
+            "description": "Target language for the translation (e.g. 'Spanish', 'French', 'Japanese', 'Korean'). Plain English name of the language.",
+            "maxLength": 64,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "content_url",
+          "target_language"
+        ],
+        "type": "object"
+      },
+      "name": "translate_document",
+      "title": "Translate a document"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Redact PII from a document"
+      },
+      "description": "Detect and redact personally identifiable information (PII) in a DOCX or PPTX file using Microsoft Presidio. Returns a short-lived HTTPS URL (`result_url`) where the redacted document can be downloaded. PII characters are replaced with the block symbol in place so formatting is preserved. Pass `content_url` — an HTTPS URL the server will fetch from (max 10 MB). For local files, call upload_file first to get a URL.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "content_url": {
+            "description": "HTTPS URL the server will fetch the document from. Max 10 MB decoded. Use the upload_file tool to obtain a short-lived Synzo-hosted URL for a local file.",
+            "format": "uri",
+            "type": "string"
+          },
+          "filename": {
+            "description": "Name of the document with its extension (.docx or .pptx).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "content_url"
+        ],
+        "type": "object"
+      },
+      "name": "redact_pii",
+      "title": "Redact PII from a document"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Analyze an image"
+      },
+      "description": "Use Gemini vision to analyze an image and return a structured description, extracted text, safety flags (people / PII / graphic content), a list of detected objects, and a palette of the dominant colors. Supports JPG, PNG, WEBP, HEIC, HEIF up to 10 MB. Pass `content_url` — an HTTPS URL the server will fetch from. For local files, call upload_file first to get a URL.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "content_url": {
+            "description": "HTTPS URL the server will fetch the image from. Max 10 MB. Use the upload_file tool to obtain a short-lived Synzo-hosted URL for a local image.",
+            "format": "uri",
+            "type": "string"
+          },
+          "filename": {
+            "description": "Name of the image with its extension (.jpg, .jpeg, .png, .webp, .heic, .heif).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "content_url"
+        ],
+        "type": "object"
+      },
+      "name": "analyze_image",
+      "title": "Analyze an image"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Detect and obscure faces in an image"
+      },
+      "description": "Detect human faces in an image (MTCNN) and return a short-lived HTTPS URL (`result_url`) where the processed PNG can be downloaded — each face either blurred or covered with an opaque rectangle. Useful for anonymizing photos before sharing. Pass `content_url` — an HTTPS URL the server will fetch from (JPG/PNG/WEBP/HEIC/HEIF, max 10 MB). For local files, call upload_file first to get a URL.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "blur_strength": {
+            "default": 2,
+            "description": "When mode='blur': 1=light, 2=strong (default), 3=opaque (equivalent to mode='redact'). Ignored when mode='redact'.",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "type": "integer"
+          },
+          "content_url": {
+            "description": "HTTPS URL the server will fetch the image from. Max 10 MB. Use the upload_file tool to obtain a short-lived Synzo-hosted URL for a local image.",
+            "format": "uri",
+            "type": "string"
+          },
+          "filename": {
+            "description": "Name of the image with its extension (.jpg, .jpeg, .png, .webp, .heic, .heif).",
+            "type": "string"
+          },
+          "mode": {
+            "default": "blur",
+            "description": "How to obscure detected faces. 'blur' applies a Gaussian blur with padding; 'redact' draws a solid black rectangle. Defaults to 'blur'.",
+            "enum": [
+              "blur",
+              "redact"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "content_url"
+        ],
+        "type": "object"
+      },
+      "name": "detect_faces",
+      "title": "Detect and obscure faces in an image"
+    }
+  ]
+}
