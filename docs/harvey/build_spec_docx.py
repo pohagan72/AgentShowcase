@@ -123,7 +123,7 @@ def main():
     )
     add_para(doc, "Provider: Red Maple Research")
     add_para(doc, "Primary technical contact: Paul O'Hagan, Principal — paul@redmapleresearch.ca")
-    add_para(doc, "Document revision: 1.1")
+    add_para(doc, "Document revision: 1.2")
     add_para(doc, "Last updated: 5 October 2026")
     add_para(
         doc,
@@ -552,6 +552,36 @@ def main():
         "a later evaluation window, or an organization-scoped API key for scripted "
         "verification, contact paul@redmapleresearch.ca.",
     )
+    add_para(doc, "Live verification record", style="Heading 2")
+    add_para(
+        doc,
+        "A scripted end-to-end verification against the production endpoint "
+        "(https://www.synzo.ai/mcp) was executed on 2026-10-05 using a temporary "
+        "organization-scoped API key issued against Harvey Connector Evaluation. All "
+        "five tools returned HTTP 200 with isError: false; the generated redact_pii "
+        "output was downloaded and confirmed to no longer contain the synthetic email "
+        "address seeded in the input; the generated detect_faces output was downloaded "
+        "and confirmed to be a valid PNG. The temporary API key was revoked at the end "
+        "of the run. The evaluation organization quota recorded 9,995 of 10,000 calls "
+        "remaining for the current period following the verification.",
+    )
+    add_matrix_table(
+        doc,
+        ["Tool", "HTTP status", "isError", "Latency", "Additional check"],
+        [
+            ["summarize_document", "200", "false", "15.22 s", "structuredContent.summary present"],
+            ["translate_document", "200", "false", "6.98 s", "structuredContent.translated_text present"],
+            ["redact_pii", "200", "false", "0.41 s", "result_url downloaded; synthetic email absent in output"],
+            ["analyze_image", "200", "false", "8.06 s", "structuredContent.analysis present"],
+            ["detect_faces", "200", "false", "3.65 s", "result_url downloaded; PNG format confirmed"],
+        ],
+    )
+    add_para(
+        doc,
+        "The script that produced this record is "
+        "scripts/verify_harvey_evaluation.py in the Synzo repository. The run is "
+        "reproducible on request against the same evaluation organization.",
+    )
     add_para(doc, "Outstanding verification", style="Heading 2")
     add_para(
         doc,
@@ -562,7 +592,7 @@ def main():
     )
     add_bullet(doc, "WorkOS OAuth token lifetimes. The Synzo-application values (5-minute access token, 365-day session with 2-day inactivity timeout, 7-day invitations) were read from the WorkOS AuthKit dashboard on October 5, 2026 and are quoted in the Token Security table. The email verification / password-setup link lifetime is not surfaced in the dashboard and operates at the WorkOS AuthKit default; the exact value should be confirmed with WorkOS if a reviewer needs a hard number.")
     add_bullet(doc, "End-to-end Harvey OAuth verification. The authorization-server metadata advertises Authorization Code with PKCE S256, refresh tokens, device code, and Dynamic Client Registration. A completed end-to-end Harvey OAuth client registration and per-user authorization flow has not been exercised at the time of this revision.")
-    add_bullet(doc, "Live verification of the direct-upload (content_base64) contract. The September 10, 2026 verification record confirms six-tool execution — upload_file followed by five processing tools consuming the returned content_url — against the Harvey Connector Evaluation organization using a temporary API key. That record exercised the earlier URL-input catalog, not the revised contract. The revised contract removes upload_file and requires every processing tool to accept content_base64 directly; it has not yet been re-verified against the live deployment, and successful transfer of Harvey-side attachment bytes through the base64 argument remains the primary open acceptance item.")
+    add_bullet(doc, "Harvey-side attachment transfer. The revised contract requires every processing tool to accept content_base64 directly. Successful transfer of Harvey-side attachment bytes through the base64 argument has not been exercised and remains the primary open acceptance item for direct confirmation with Harvey.")
     add_bullet(doc, "Harvey Origin allowlist entry. Whether Harvey's MCP client sends an Origin header on requests to /mcp (and if so, what the exact value is for evaluation and production) has not been confirmed with Harvey. A Harvey backend-to-server call may send no Origin header, in which case no allowlist entry is required; a Harvey browser-direct call needs an exact Origin value added to Synzo's allowlist. This item will be resolved by direct confirmation with Harvey during onboarding, independent of any OAuth redirect-URI configuration.")
     add_bullet(doc, "Harvey-workspace to Synzo-organization restriction. The code base does not implement a mapping between a specific Harvey workspace identifier and a specific Synzo organization. Any Harvey user invited into a Synzo organization authenticates as a member of that organization in the normal way; organization membership is Synzo-side, not Harvey-side. A customer-admin control to restrict a Synzo organization to a particular Harvey workspace is not implemented.")
     add_bullet(doc, "Provider processing locations. Processing regions for Google Gemini, WorkOS AuthKit, and the Railway application and database are not pinned by Synzo application code (no region parameter is passed to the Gemini client; no WorkOS region is configured). The published Synzo privacy policy identifies US hosting; an exhaustive list of provider-side processing locations has not been independently verified.")
@@ -578,6 +608,7 @@ def main():
         [
             ["1.0", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Initial Synzo MCP Server Specification. Prepared against repository commit 1adc36e and the September 10, 2026 verification record. Supersedes the September 10 Synzo Harvey technical documentation as the integration contract."],
             ["1.1", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Direct-upload revision in response to Harvey's security review. Removed the upload_file tool and the URL-input path on every processing tool; each of the five remaining tools now accepts the document or image bytes directly as content_base64. Updated Tool Catalog, every Reference entry, Operational Limits (removed URL fetch deadline and redirect cap, clarified the decoded-file scope), and Data Handling (processing-flow table, isolation statement, retention)."],
+            ["1.2", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Added the Live verification record subsection in Appendix B. All five tools were exercised end-to-end against the production endpoint on 2026-10-05 using a temporary API key issued against the Harvey Connector Evaluation organization; the temporary key was revoked at the end of the run. Removed the matching Outstanding verification bullet now that the live record is in place."],
         ],
     )
 
