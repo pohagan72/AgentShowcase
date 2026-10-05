@@ -501,16 +501,16 @@ def _fetch_authkit_metadata() -> dict:
 
 @bp.route("/u/<token>", methods=["GET"])
 def serve_blob(token: str):
-    """Serve a blob uploaded via the `upload_file` MCP tool.
+    """Serve a short-lived output blob produced by an MCP tool.
 
-    Anyone with the token can fetch — the token IS the auth (256-bit entropy
-    from secrets.token_urlsafe(32), 1h TTL). This mirrors the S3-presigned-URL
-    pattern. Used by:
-      1. The other MCP tools fetching the user's uploaded file via content_url.
-         (Same-origin self-fetch; SSRF guard in url_fetcher allows www.synzo.ai
-         because it's a public IP.)
-      2. Reviewers / chat clients downloading binary outputs from redact_pii
-         and detect_faces, which stash their results in the blob store too.
+    Only used for OUTPUT delivery now: redact_pii and detect_faces stash
+    their processed bytes in the blob store and return the `/u/<token>`
+    URL as `result_url`. Inputs are supplied directly as base64 in the
+    tool arguments — the server never fetches input content from any URL.
+
+    Anyone with the token can fetch — the token IS the auth (256-bit
+    entropy from secrets.token_urlsafe(32), 1h TTL). This mirrors the
+    S3-presigned-URL pattern.
     """
     store = get_default_store()
     entry = store.get(token)

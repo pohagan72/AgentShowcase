@@ -86,46 +86,23 @@ def _reset_blob_store():
 
 
 @pytest.fixture
-def url_for_bytes(monkeypatch):
-    """Return a helper that stashes bytes in the blob store and returns a
-    synzo.test URL the MCP tools can pass through _load_payload.
+def b64_bytes():
+    """Return a helper that base64-encodes raw bytes for a tool call.
 
-    Also monkeypatches url_fetcher.fetch_url_bytes so the tool handlers see
-    the stashed bytes instead of trying a real network fetch. This lets the
-    1000+ lines of test_mcp_server.py keep their existing intent — supply
-    bytes to a tool handler — while exercising the URL-only code path in
-    _load_payload.
+    The MCP processing tools now take `content_base64` directly (no URL
+    fetch), so tests supply bytes by base64-encoding them inline. This
+    helper exists to keep call sites readable: `b64_bytes(raw)` instead of
+    `base64.b64encode(raw).decode("ascii")` scattered through every test.
     """
-    import url_fetcher
-    from blob_store import get_default_store
+    import base64 as _b64
 
-    TEST_URL_PREFIX = "https://synzo.test/u/"
+    def _encode(raw: bytes, **_ignored) -> str:
+        # Ignores legacy kwargs (filename=, content_type=) from before the
+        # URL-input path was removed; the filename lives in its own key on
+        # the tool arguments dict now.
+        return _b64.b64encode(raw).decode("ascii")
 
-    def _make(raw: bytes, filename: str = "x.bin", content_type: str = "application/octet-stream") -> str:
-        entry = get_default_store().put(
-            filename=filename, content_type=content_type, data=raw
-        )
-        return f"{TEST_URL_PREFIX}{entry.token}"
-
-    def _fake_fetch(url: str, *, max_bytes: int):
-        if not url.startswith(TEST_URL_PREFIX):
-            raise url_fetcher.UrlFetchError(
-                f"Test fetcher only accepts {TEST_URL_PREFIX} URLs (got {url})"
-            )
-        token = url[len(TEST_URL_PREFIX):]
-        entry = get_default_store().get(token)
-        if entry is None:
-            raise url_fetcher.UrlFetchError("Test URL expired or unknown")
-        if len(entry.data) > max_bytes:
-            raise url_fetcher.UrlFetchError(
-                f"Test blob {len(entry.data)} > max_bytes {max_bytes}"
-            )
-        return entry.data, entry.content_type
-
-    import mcp_tools
-    monkeypatch.setattr(mcp_tools, "fetch_url_bytes", _fake_fetch)
-
-    return _make
+    return _encode
 
 
 @pytest.fixture

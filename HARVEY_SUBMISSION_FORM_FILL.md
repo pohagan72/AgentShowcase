@@ -36,23 +36,22 @@ Teams can use these capabilities to prepare summaries for matter review, underst
 
 ## Tool coverage for Harvey's review
 
-The public documentation lists all six tools currently advertised by the live server. Include all six in the requested integration scope, including the upload helper.
+The public documentation lists the five tools currently advertised by the live server. Every processing tool receives its document or image bytes directly in the request as `content_base64`; the server does not fetch input content from caller-supplied URLs. A previous revision also advertised an `upload_file` helper that returned a short-lived HTTPS URL for subsequent processing calls; that tool and the URL-input path were removed in response to Harvey's security review.
 
 | Exact tool name | What it does |
 |---|---|
-| `upload_file` | Accepts a filename and base64 file bytes, up to 10 MB decoded; returns a temporary HTTPS `content_url` for use by other tools. The advertised expiry is one hour. |
-| `summarize_document` | Accepts a filename and HTTPS `content_url` for a PDF, DOCX, PPTX, or XLSX file; returns an inferred document type and a structured Markdown summary. |
-| `translate_document` | Accepts a filename, HTTPS `content_url`, and `target_language` for a DOCX, PPTX, or XLSX file; returns translated text as Markdown. |
-| `redact_pii` | Accepts a filename and HTTPS `content_url` for a DOCX or PPTX file; detects PII using Microsoft Presidio and returns a temporary `result_url` for a redacted copy in the original file format. |
-| `analyze_image` | Accepts a filename and HTTPS `content_url` for a JPG/JPEG, PNG, WEBP, HEIC, or HEIF image; uses Gemini vision to return a description, extracted text, safety flags, detected objects, and dominant colors. |
-| `detect_faces` | Accepts a filename and HTTPS `content_url` for a supported image, with optional `mode` (`blur` or `redact`) and `blur_strength` (1, 2, or 3); returns a temporary `result_url` for a PNG with detected faces blurred or obscured. |
+| `summarize_document` | Accepts a filename and `content_base64` for a PDF, DOCX, PPTX, or XLSX file (max 10 MB decoded); returns an inferred document type and a structured Markdown summary. |
+| `translate_document` | Accepts a filename, `content_base64`, and `target_language` for a DOCX, PPTX, or XLSX file (max 10 MB decoded); returns translated text as Markdown. |
+| `redact_pii` | Accepts a filename and `content_base64` for a DOCX or PPTX file (max 10 MB decoded); detects PII using Microsoft Presidio and returns a temporary `result_url` for a redacted copy in the original file format. |
+| `analyze_image` | Accepts a filename and `content_base64` for a JPG/JPEG, PNG, WEBP, HEIC, or HEIF image (max 10 MB decoded); uses Gemini vision to return a description, extracted text, safety flags, detected objects, and dominant colors. |
+| `detect_faces` | Accepts a filename and `content_base64` for a supported image (max 10 MB decoded), with optional `mode` (`blur` or `redact`) and `blur_strength` (1, 2, or 3); returns a temporary `result_url` for a PNG with detected faces blurred or obscured. |
 
-All five processing tools advertise a 10 MB input limit. Tool calls require authentication; anonymous tool discovery is available.
+Tool calls require authentication; anonymous tool discovery is available.
 
 ## Verification and integration notes
 
 - The organization website, Synzo homepage, public docs, privacy page, and security page returned HTTP 200 during preparation.
-- An anonymous POST to `https://www.synzo.ai/mcp` using `tools/list` returned the six tools above; each exact tool name also appears on the live documentation page.
+- An anonymous POST to `https://www.synzo.ai/mcp` using `tools/list` is expected to return the five tools above once the direct-upload revision is deployed; each exact tool name also appears on the live documentation page. Re-verify against the live endpoint after deploy.
 - This check verifies reachability and advertised capabilities. It does not establish successful authenticated execution from Harvey.
 - The implementation supports API-key and OAuth authentication. Harvey-specific authentication and client compatibility remain to be validated during onboarding.
 - The current source has an explicit browser Origin allowlist in `mcp_routes.py`; it does not include Harvey origins. If Harvey sends an Origin header, the appropriate origin will need to be configured as part of onboarding.
@@ -99,7 +98,7 @@ Select **read & write** from the supplied choices (`read only`, `write only`, `r
 ### All tools (comma-separated, ready to paste)
 
 ```text
-[upload_file] (Upload a file for use by other Synzo tools), [summarize_document] (Summarize a document), [translate_document] (Translate a document), [redact_pii] (Redact PII from a document), [analyze_image] (Analyze an image), [detect_faces] (Detect and obscure faces in an image)
+[summarize_document] (Summarize a document), [translate_document] (Translate a document), [redact_pii] (Redact PII from a document), [analyze_image] (Analyze an image), [detect_faces] (Detect and obscure faces in an image)
 ```
 
 These machine-readable names and human-readable titles were checked against the live `tools/list` response.
@@ -112,7 +111,7 @@ These machine-readable names and human-readable titles were checked against the 
 | Delete or edit user files or information in my platform or other external services | Leave unchecked | The exposed tools create new processed copies. They do not overwrite or delete existing source files or records. Automatic expiry of temporary files is internal lifecycle management. |
 | Create new user files or information in my platform or other external services | Select | Uploads create temporary stored files; redaction and face-obscuring tools create new downloadable documents/images. |
 | Send messages or emails on behalf of others | Leave unchecked | None of the six MCP tools sends messages or emails. |
-| Create or modify public URLs/sharing links | Select | `upload_file`, `redact_pii`, and `detect_faces` create temporary HTTPS links. Anyone holding the URL can download the file until expiry; a separate login is not required. |
+| Create or modify public URLs/sharing links | Select | `redact_pii` and `detect_faces` return temporary HTTPS `result_url` links for the generated output. Anyone holding the URL can download the file until expiry; a separate login is not required. Input documents and images are received as `content_base64` and are never put behind a URL. |
 | Connect to external services (including your platform) that can independently create, edit, ... | Recommend selecting based on the wording available | The label supplied remains truncated. Synzo is itself an external platform that creates processed files and sharing links and calls Google Gemini for content generation. This is a disclosure recommendation, not a claim that Synzo autonomously takes actions in unrelated systems. |
 
 ## Fourth form page - operations, security, and authentication
@@ -145,9 +144,11 @@ Provisioned on September 10, 2026 after explicit authorization. All five identit
 
 WorkOS returned `email_verification_required` for each account's password-authentication check. Password-setup requests were accepted for all five accounts. WorkOS rejects organization invitations for users who are already active members, so the password-reset/setup flow was used instead. Mailbox delivery was not independently verified. Reviewers can visit https://www.synzo.ai/auth/login and use Forgot password to request a fresh setup link if needed. Do not claim that the reviewers have completed email verification or end-to-end OAuth testing.
 
-All six tools passed authenticated live checks using a temporary API key belonging only to the evaluation organization. Redacted DOCX and processed PNG downloads were validated; the synthetic email address was absent from the redacted document. The temporary key was revoked after testing. These checks establish organization-level tool access, not completed per-user OAuth sign-in.
+**Live tool verification — historical (September 10, 2026, URL-input catalog).** All six tools then advertised (`upload_file` plus the five processing tools consuming the returned `content_url`) passed authenticated live checks using a temporary API key belonging only to the evaluation organization. Redacted DOCX and processed PNG downloads were validated; the synthetic email address was absent from the redacted document. The temporary key was revoked after testing. These checks establish organization-level tool access against the earlier catalog, not completed per-user OAuth sign-in.
 
-Current accurate attestation: "[email] has been provisioned as an active member of Synzo's dedicated Harvey evaluation organization. Evaluation quota is available and all six tools have passed organization-level authenticated checks. The user must complete email verification/password setup before end-to-end OAuth access can be confirmed."
+**Live tool verification — current (five-tool, direct-upload contract).** The revised contract removes `upload_file` and requires every processing tool to accept `content_base64` directly in response to Harvey's security review. A live re-verification of this contract against the production endpoint has not been completed at the time of this submission revision; successful transfer of Harvey-side attachment bytes through the base64 argument remains the primary open acceptance item. Scripted re-verification is wired up (`scripts/verify_harvey_evaluation.py`) and will be run against the deployment that ships the revised contract.
+
+Current accurate attestation: "[email] has been provisioned as an active member of Synzo's dedicated Harvey evaluation organization. Evaluation quota is available; the live catalog was last verified end-to-end against the earlier URL-input contract (September 10, 2026). Re-verification against the revised direct-upload contract will be run on the deployment that ships that revision. The user must complete email verification/password setup before end-to-end OAuth access can be confirmed."
 
 See [HARVEY_EVALUATION_PROVISIONING.md](HARVEY_EVALUATION_PROVISIONING.md) for the provisioning and verification record.
 

@@ -1,12 +1,16 @@
 # blob_store.py
-# In-memory short-lived blob store backing the `upload_file` MCP tool.
+# In-memory short-lived blob store for OUTPUT delivery.
 #
 # Why this exists:
-# Chat clients (claude.ai, Claude Desktop) must construct tool-call arguments
-# as LLM output tokens. Inlining a multi-MB base64 payload into every tool
-# call (analyze_image, summarize_document, ...) is slow and visibly stalls the
-# chat UI. The `upload_file` tool lets the chat client pay the base64 cost
-# ONCE per file; subsequent tool calls reference the file by URL.
+# redact_pii and detect_faces produce binary results that are too large to
+# inline in the JSON-RPC response envelope. They stash the processed bytes
+# here and return a short-lived HTTPS URL (`result_url`) that the client
+# fetches via the /u/<token> route in mcp_routes.py.
+#
+# INPUTS are NOT stored here any more. Processing tools receive the file
+# bytes directly as `content_base64` in their arguments; the server never
+# fetches input content from a URL. (The old upload_file tool was removed
+# as part of Harvey's security review.)
 #
 # Design:
 # - Tokens are 256-bit url-safe strings (secrets.token_urlsafe(32)).

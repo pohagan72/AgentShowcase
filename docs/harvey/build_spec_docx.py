@@ -123,7 +123,7 @@ def main():
     )
     add_para(doc, "Provider: Red Maple Research")
     add_para(doc, "Primary technical contact: Paul O'Hagan, Principal — paul@redmapleresearch.ca")
-    add_para(doc, "Document revision: 1.0")
+    add_para(doc, "Document revision: 1.1")
     add_para(doc, "Last updated: 5 October 2026")
     add_para(
         doc,
@@ -143,7 +143,7 @@ def main():
     add_para(
         doc,
         "This document is written for engineers integrating Synzo as an MCP connector. "
-        "It specifies the exact wire behavior, the authentication model, the six tools "
+        "It specifies the exact wire behavior, the authentication model, the five tools "
         "the server publishes, and the limits and controls that apply to tool execution. "
         "Where a fact depends on a provider configuration (WorkOS AuthKit) or on a "
         "deployment-time setting, that dependency is called out instead of being quoted "
@@ -152,7 +152,7 @@ def main():
     add_para(doc, "Readers of this document should expect:")
     add_bullet(doc, "MCP protocol version and transport semantics the server actually implements.")
     add_bullet(doc, "Authentication model, including the two credential types the server accepts.")
-    add_bullet(doc, "A complete catalog of the six tools, with typed arguments and typed results.")
+    add_bullet(doc, "A complete catalog of the five tools, with typed arguments and typed results.")
     add_bullet(doc, "The organization-level controls that gate tool execution — Synzo does not use per-tool OAuth scopes.")
     add_bullet(doc, "Operational limits, error codes, and data-handling boundaries.")
     add_para(
@@ -216,7 +216,7 @@ def main():
     )
     add_para(doc, "Connection sequence:")
     add_bullet(doc, "Client POSTs initialize to https://www.synzo.ai/mcp. The server responds with its protocol version, serverInfo, and capabilities. No credential is required.")
-    add_bullet(doc, "Client calls tools/list and receives the six tool descriptors. No credential is required.")
+    add_bullet(doc, "Client calls tools/list and receives the five tool descriptors. No credential is required.")
     add_bullet(doc, "Client calls tools/call. If the request is unauthenticated or the token is invalid, the server returns HTTP 401 with a WWW-Authenticate header pointing to its OAuth protected-resource metadata (JSON-RPC error -32001).")
     add_bullet(doc, "Client completes an OAuth 2.0 authorization-code flow with PKCE S256, or presents an organization-scoped API key, and retries the call.")
     add_para(doc, "OAuth discovery chain:")
@@ -334,7 +334,7 @@ def main():
         doc,
         ["Feature", "Supported", "Notes"],
         [
-            ["Tools", "Yes", "Six tools are published; see Tool Catalog."],
+            ["Tools", "Yes", "Five tools are published; see Tool Catalog."],
             ["Tool input schemas", "Yes", "Published in tools/list descriptors; see also Synzo-MCP-Tool-Definitions.json."],
             ["Tool output schemas", "No", "No tool publishes an outputSchema. Return shapes are documented in the Reference section."],
             ["Structured content on results", "Yes", "Successful calls return isError: false, structuredContent with the payload, and a text content block containing the same payload serialized as indented JSON."],
@@ -354,19 +354,27 @@ def main():
     add_para(
         doc,
         "This section lists every tool a properly authenticated MCP client can call. All "
-        "six tools are visible to every authenticated client; Synzo does not use scope-based "
-        "catalog filtering. Each tool is described in detail in the Reference section.",
+        "five tools are visible to every authenticated client; Synzo does not use scope-"
+        "based catalog filtering. Each tool is described in detail in the Reference "
+        "section.",
+    )
+    add_para(
+        doc,
+        "Every tool receives its document or image bytes directly from the client as a "
+        "base64-encoded field (content_base64) in the tool arguments. The server does not "
+        "fetch input content from caller-supplied URLs. A previous revision exposed an "
+        "upload_file helper that returned a short-lived HTTPS URL for subsequent "
+        "processing calls; that tool and the URL-input path have been removed.",
     )
     add_matrix_table(
         doc,
         ["Tool", "Purpose", "Supported input", "Result form", "Access"],
         [
-            ["upload_file", "Stage caller-supplied bytes and receive a Synzo HTTPS URL.", "Base64 content and filename.", "Structured JSON with content_url and expiry.", "Any authenticated organization principal."],
-            ["summarize_document", "Classify a document and produce a Markdown summary.", "HTTPS URL to a PDF, DOCX, PPTX, or XLSX file.", "Structured JSON with classification and summary.", "Any authenticated organization principal."],
-            ["translate_document", "Translate extracted document text into a target language.", "HTTPS URL to a DOCX, PPTX, or XLSX file plus target_language.", "Structured JSON with translated_text (Markdown).", "Any authenticated organization principal."],
-            ["redact_pii", "Produce a redacted copy of a document in its original format.", "HTTPS URL to a DOCX or PPTX file.", "Structured JSON with a result_url to the redacted copy.", "Any authenticated organization principal."],
-            ["analyze_image", "Describe an image and flag potentially sensitive content.", "HTTPS URL to a JPG, JPEG, PNG, WEBP, HEIC, or HEIF image.", "Structured JSON with description, OCR text, detected objects, safety flags, and a dominant-color palette.", "Any authenticated organization principal."],
-            ["detect_faces", "Blur or redact faces in an image and return a PNG.", "HTTPS URL to a JPG, JPEG, PNG, WEBP, HEIC, or HEIF image.", "Structured JSON with a result_url to the obscured PNG.", "Any authenticated organization principal."],
+            ["summarize_document", "Classify a document and produce a Markdown summary.", "Base64 bytes (content_base64) of a PDF, DOCX, PPTX, or XLSX file.", "Structured JSON with classification and summary.", "Any authenticated organization principal."],
+            ["translate_document", "Translate extracted document text into a target language.", "Base64 bytes (content_base64) of a DOCX, PPTX, or XLSX file plus target_language.", "Structured JSON with translated_text (Markdown).", "Any authenticated organization principal."],
+            ["redact_pii", "Produce a redacted copy of a document in its original format.", "Base64 bytes (content_base64) of a DOCX or PPTX file.", "Structured JSON with a result_url to the redacted copy.", "Any authenticated organization principal."],
+            ["analyze_image", "Describe an image and flag potentially sensitive content.", "Base64 bytes (content_base64) of a JPG, JPEG, PNG, WEBP, HEIC, or HEIF image.", "Structured JSON with description, OCR text, detected objects, safety flags, and a dominant-color palette.", "Any authenticated organization principal."],
+            ["detect_faces", "Blur or redact faces in an image and return a PNG.", "Base64 bytes (content_base64) of a JPG, JPEG, PNG, WEBP, HEIC, or HEIF image.", "Structured JSON with a result_url to the obscured PNG.", "Any authenticated organization principal."],
         ],
     )
 
@@ -386,10 +394,9 @@ def main():
     )
     add_bullet(doc, "Authorization: a valid organization-scoped principal (OAuth JWT with a provisioned organization claim, or an organization-scoped API key). There is no additional per-tool scope and no catalog filtering by scope.")
     add_bullet(doc, "Success envelope: result.isError is false; result.structuredContent is the per-tool payload described below; result.content is a one-element array of type text whose text is the same payload serialized as indented JSON.")
-    add_bullet(doc, "Errors: input-validation performed inside a tool handler (unknown enum values, oversized decoded uploads, non-HTTPS content URLs, URL-fetch timeouts, provider refusals) returns a result with isError: true and an explanatory text block. Protocol, authentication, organization-quota, organization-rate-limit, per-call unit-limit, and overall execution-deadline failures use JSON-RPC error envelopes with the codes documented in Appendix A. HTTP errors may contain JSON-RPC error envelopes: HTTP 400 (-32700 or -32600), 401 (-32001), 404 (-32601), and 413 (-32600) carry a JSON-RPC error body. HTTP 405 and the IP-level HTTP 429 response use ordinary JSON error objects, not JSON-RPC envelopes. Organization-level rate limiting returns JSON-RPC -32003 inside an HTTP 200 response. Clients should read both the HTTP status and the response body rather than treating them as mutually exclusive.")
-    add_bullet(doc, "Side effects: every successful call consumes organization quota and counts toward the organization's rate limits. upload_file, redact_pii, and detect_faces create a temporary file whose URL is included in the result; see the Data Handling appendix for retention.")
+    add_bullet(doc, "Errors: input-validation performed inside a tool handler (unknown enum values, missing or malformed base64, oversized decoded payloads, provider refusals) returns a result with isError: true and an explanatory text block. Passing the legacy content_url argument is rejected as a tool error with the same shape. Protocol, authentication, organization-quota, organization-rate-limit, per-call unit-limit, and overall execution-deadline failures use JSON-RPC error envelopes with the codes documented in Appendix A. HTTP errors may contain JSON-RPC error envelopes: HTTP 400 (-32700 or -32600), 401 (-32001), 404 (-32601), and 413 (-32600) carry a JSON-RPC error body. HTTP 405 and the IP-level HTTP 429 response use ordinary JSON error objects, not JSON-RPC envelopes. Organization-level rate limiting returns JSON-RPC -32003 inside an HTTP 200 response. Clients should read both the HTTP status and the response body rather than treating them as mutually exclusive.")
+    add_bullet(doc, "Side effects: every successful call consumes organization quota and counts toward the organization's rate limits. redact_pii and detect_faces create a temporary file for the generated binary result and include its one-hour URL in the response; see the Data Handling appendix for retention. Document and image inputs are never staged under a URL — the server receives and processes the bytes in a single call.")
 
-    _write_upload_file(doc, add_para, add_bullet, add_code, add_tool_arg_table, add_tool_result_table)
     _write_summarize(doc, add_para, add_bullet, add_code, add_tool_arg_table, add_tool_result_table)
     _write_translate(doc, add_para, add_bullet, add_code, add_tool_arg_table, add_tool_result_table)
     _write_redact(doc, add_para, add_bullet, add_code, add_tool_arg_table, add_tool_result_table)
@@ -411,13 +418,11 @@ def main():
             ["Per-IP request rate", "30 requests/minute and 200 requests/hour", "All requests to /mcp, including initialize and tools/list."],
             ["Per-organization tool call rate", "Free 10/min; Starter 60/min; Pro 300/min", "Shared across all users and all tools in the organization."],
             ["Per-organization monthly tool call quota", "Free 50; Starter 10,000; Pro 100,000", "Calendar-month plan quota. The Harvey evaluation allocation is described in the Data Handling appendix."],
-            ["Decoded file size cap", "10,485,760 bytes (10 MB)", "Applies to upload_file bytes and to every content_url fetch. Rejected before processing."],
-            ["Request body in the 25–50 MB range", "Rejected with HTTP 400 + JSON-RPC -32700", "Flask's MAX_CONTENT_LENGTH is 25 MB, but parsing above that limit raises an exception that the /mcp route catches as an invalid-JSON error. A reviewer-verified 26 MiB body returns HTTP 400 with a JSON-RPC envelope and code -32700 (\"Invalid JSON\"), not a bare transport error."],
+            ["Decoded file size cap", "10,485,760 bytes (10 MB)", "Applies to the decoded content_base64 payload on every processing tool. Rejected before processing."],
+            ["Request body in the 25–50 MB range", "Rejected with HTTP 400 + JSON-RPC -32700", "Flask's MAX_CONTENT_LENGTH is 25 MB, but parsing above that limit raises an exception that the /mcp route catches as an invalid-JSON error. A reviewer-verified 26 MiB body returns HTTP 400 with a JSON-RPC envelope and code -32700 (\"Invalid JSON\"), not a bare transport error. A 10 MB file encoded as base64 expands to roughly 13.3 MB on the wire plus a small JSON envelope and fits inside the 25 MB admission limit."],
             ["Request body above 50 MB", "Rejected with HTTP 413 + JSON-RPC -32600", "The /mcp route checks request.content_length against a 50 MB hard cap before parsing. A reviewer-verified 51 MiB body returns HTTP 413 with a JSON-RPC envelope and code -32600 (\"Request body too large\")."],
             ["Tool execution deadline", "60 seconds", "Caller-facing deadline. A timed-out worker may continue running until its external operation (for example a Gemini call) returns."],
-            ["URL fetch deadline", "30 seconds", "Overall deadline across all redirects for a content_url fetch."],
-            ["Redirect cap", "3 hops", "Each redirect is revalidated as HTTPS to a public destination."],
-            ["Temporary file lifetime", "1 hour", "Nominal expiry for uploaded files and binary results. Cleanup is lazy (performed on next access and during subsequent uploads); a process restart may remove files sooner."],
+            ["Temporary generated-file lifetime", "1 hour", "Nominal expiry for binary results produced by redact_pii and detect_faces. Cleanup is lazy (performed on next access and during subsequent writes); a process restart may remove files sooner. Input documents and images are processed transiently in memory and are not staged in the blob store. The 60-second tool execution deadline returns a response to the caller but does not interrupt the worker thread; a timed-out worker (for example, waiting on a Gemini response) may continue processing and holding the decoded input bytes until its external operation completes."],
         ],
     )
     add_para(
@@ -437,7 +442,7 @@ def main():
             ["-32002", "Organization monthly quota exhausted.", "200 with JSON-RPC error body."],
             ["-32003", "Organization rate limit exceeded.", "200 with JSON-RPC error body. (The IP-level HTTP 429 enforced at the transport layer is separate and returns an ordinary JSON error object, not a JSON-RPC envelope.)"],
             ["-32004", "Request exceeds the plan's per-call unit limit.", "200 with JSON-RPC error body."],
-            ["-32005", "Overall tool execution deadline (60 seconds) exceeded.", "200 with JSON-RPC error body. URL-fetch timeouts are returned as tool errors (isError: true), not under this code."],
+            ["-32005", "Overall tool execution deadline (60 seconds) exceeded.", "200 with JSON-RPC error body."],
             ["-32600", "Invalid JSON-RPC request structure (non-dict body, missing or wrong jsonrpc field, missing method).", "400."],
             ["-32601", "Unknown JSON-RPC method; also unknown tool name on tools/call.", "404 for an unknown method. An unknown tool name on tools/call returns the error inside a 200 response."],
             ["-32602", "Request-unit estimation failed. Returned by the dispatcher with the message \"Could not size request\" when a tool's units_fn raises. Handler-level invalid-parameter cases are surfaced as tool errors (isError: true), not under this code.", "200 with JSON-RPC error body."],
@@ -463,23 +468,25 @@ def main():
     add_para(
         doc,
         "A typical tool call fans out to a small, documented set of components. Document "
-        "and image summarization/translation/analysis invoke Google Gemini on the inferred "
-        "extracted text or the fetched image bytes. PII redaction and face obscuring run "
-        "locally inside the Synzo process using Microsoft Presidio with spaCy and "
-        "MTCNN/OpenCV respectively; those tools do not call a third-party AI API.",
+        "and image summarization/translation/analysis invoke Google Gemini on the "
+        "extracted text or on the decoded image bytes. PII redaction and face obscuring "
+        "run locally inside the Synzo process using Microsoft Presidio with spaCy and "
+        "MTCNN/OpenCV respectively; those tools do not call a third-party AI API. The "
+        "server never fetches input content from a caller-supplied URL — every tool "
+        "receives its document or image bytes directly in the request body.",
     )
     add_matrix_table(
         doc,
         ["Component", "Role", "Data received"],
         [
-            ["MCP client (Harvey)", "Issues JSON-RPC calls over HTTPS to /mcp.", "Tool arguments: filenames, content URLs, target language, mode, blur strength."],
-            ["Synzo on Railway", "Terminates HTTPS, authenticates the principal, dispatches tools, meters usage.", "Request bodies, decoded upload bytes (in process memory), fetched document/image bytes."],
+            ["MCP client (Harvey)", "Issues JSON-RPC calls over HTTPS to /mcp.", "Tool arguments: filenames, base64-encoded document or image bytes, target language, mode, blur strength."],
+            ["Synzo on Railway", "Terminates HTTPS, authenticates the principal, dispatches tools, meters usage.", "Request bodies containing the inline base64 payload; the decoded bytes live in process memory for the duration of the call."],
             ["Google Gemini", "Backs summarize_document, translate_document, and analyze_image.", "Extracted document text (summarize/translate) or image bytes (analyze_image)."],
             ["Presidio + spaCy (in-process)", "Backs redact_pii.", "Extracted document text."],
-            ["MTCNN + OpenCV (in-process)", "Backs detect_faces.", "Fetched image bytes."],
+            ["MTCNN + OpenCV (in-process)", "Backs detect_faces.", "Decoded image bytes."],
             ["WorkOS AuthKit", "Identity, OAuth authorization, organization membership, password and verification flows.", "User email, authentication factors, organization membership state."],
             ["PostgreSQL (Railway managed)", "Account, membership, API-key, quota, and usage-event metadata.", "Account rows, SHA-256 API-key hashes, per-call usage records (organization, tool, units, status, timestamps)."],
-            ["In-process blob store", "Temporary upload bytes and generated binary results.", "Decoded upload bytes and generated PNG/DOCX/PPTX results."],
+            ["In-process blob store", "Generated binary results only (redact_pii, detect_faces).", "Generated PNG and DOCX/PPTX result bytes. Input documents and images are never stored here."],
         ],
     )
     add_para(doc, "Isolation and the bearer-URL exception", style="Heading 2")
@@ -493,21 +500,29 @@ def main():
     )
     add_para(
         doc,
-        "Temporary file URLs returned by upload_file, redact_pii, and detect_faces embed a "
-        "high-entropy unguessable token. Anyone holding the URL can download the file "
-        "until its one-hour expiry: there is no per-organization ownership check on the "
-        "blob store, and the URL is the capability. Clients must therefore treat these "
-        "URLs as access credentials and avoid logging or forwarding them.",
+        "Temporary file URLs returned by redact_pii and detect_faces embed a high-entropy "
+        "unguessable token. Anyone holding the URL can download the file until its one-"
+        "hour expiry: there is no per-organization ownership check on the blob store, and "
+        "the URL is the capability. Clients must therefore treat these URLs as access "
+        "credentials and avoid logging or forwarding them. These URLs are only ever "
+        "returned for generated binary outputs — input documents and images are received "
+        "directly as base64 and never put into the blob store.",
     )
     add_para(doc, "Retention", style="Heading 2")
     add_para(
         doc,
-        "Uploaded bytes and generated binaries live in process memory and are swept on "
-        "subsequent uploads or on access past expiry; a process restart may evict them "
-        "sooner. The one-hour value is a nominal expiry, not a guaranteed deletion deadline. "
-        "Usage events are stored in PostgreSQL with the published 90-day retention target "
-        "stated in the Synzo privacy policy; automated enforcement of that period is not "
-        "demonstrated in the current implementation and remains a pending operational item.",
+        "Generated binaries live in process memory and are swept on subsequent writes or "
+        "on access past expiry; a process restart may evict them sooner. The one-hour "
+        "value is a nominal expiry, not a guaranteed deletion deadline. Input documents "
+        "and images are processed transiently in memory and are not staged in the blob "
+        "store. The server's 60-second tool execution deadline returns a response to the "
+        "caller but does not forcibly terminate the worker thread: a timed-out worker "
+        "(for example, one still waiting for a Gemini response) may continue processing "
+        "the decoded input bytes until its external operation completes. Usage events "
+        "are stored in PostgreSQL with the published 90-day retention target stated in "
+        "the Synzo privacy policy; automated enforcement of that period is not "
+        "demonstrated in the current implementation and remains a pending operational "
+        "item.",
     )
     add_para(
         doc,
@@ -546,7 +561,8 @@ def main():
         "document.",
     )
     add_bullet(doc, "WorkOS OAuth token lifetimes. The Synzo-application values (5-minute access token, 365-day session with 2-day inactivity timeout, 7-day invitations) were read from the WorkOS AuthKit dashboard on October 5, 2026 and are quoted in the Token Security table. The email verification / password-setup link lifetime is not surfaced in the dashboard and operates at the WorkOS AuthKit default; the exact value should be confirmed with WorkOS if a reviewer needs a hard number.")
-    add_bullet(doc, "End-to-end Harvey OAuth verification. The authorization-server metadata advertises Authorization Code with PKCE S256, refresh tokens, device code, and Dynamic Client Registration, and the September 10, 2026 record confirms six-tool execution against the Harvey Connector Evaluation organization using a temporary API key. A completed end-to-end Harvey OAuth client registration and per-user authorization flow has not been exercised at the time of this revision.")
+    add_bullet(doc, "End-to-end Harvey OAuth verification. The authorization-server metadata advertises Authorization Code with PKCE S256, refresh tokens, device code, and Dynamic Client Registration. A completed end-to-end Harvey OAuth client registration and per-user authorization flow has not been exercised at the time of this revision.")
+    add_bullet(doc, "Live verification of the direct-upload (content_base64) contract. The September 10, 2026 verification record confirms six-tool execution — upload_file followed by five processing tools consuming the returned content_url — against the Harvey Connector Evaluation organization using a temporary API key. That record exercised the earlier URL-input catalog, not the revised contract. The revised contract removes upload_file and requires every processing tool to accept content_base64 directly; it has not yet been re-verified against the live deployment, and successful transfer of Harvey-side attachment bytes through the base64 argument remains the primary open acceptance item.")
     add_bullet(doc, "Harvey Origin allowlist entry. Whether Harvey's MCP client sends an Origin header on requests to /mcp (and if so, what the exact value is for evaluation and production) has not been confirmed with Harvey. A Harvey backend-to-server call may send no Origin header, in which case no allowlist entry is required; a Harvey browser-direct call needs an exact Origin value added to Synzo's allowlist. This item will be resolved by direct confirmation with Harvey during onboarding, independent of any OAuth redirect-URI configuration.")
     add_bullet(doc, "Harvey-workspace to Synzo-organization restriction. The code base does not implement a mapping between a specific Harvey workspace identifier and a specific Synzo organization. Any Harvey user invited into a Synzo organization authenticates as a member of that organization in the normal way; organization membership is Synzo-side, not Harvey-side. A customer-admin control to restrict a Synzo organization to a particular Harvey workspace is not implemented.")
     add_bullet(doc, "Provider processing locations. Processing regions for Google Gemini, WorkOS AuthKit, and the Railway application and database are not pinned by Synzo application code (no region parameter is passed to the Gemini client; no WorkOS region is configured). The published Synzo privacy policy identifies US hosting; an exhaustive list of provider-side processing locations has not been independently verified.")
@@ -561,6 +577,7 @@ def main():
         ["Revision", "Date", "Author", "Notes"],
         [
             ["1.0", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Initial Synzo MCP Server Specification. Prepared against repository commit 1adc36e and the September 10, 2026 verification record. Supersedes the September 10 Synzo Harvey technical documentation as the integration contract."],
+            ["1.1", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Direct-upload revision in response to Harvey's security review. Removed the upload_file tool and the URL-input path on every processing tool; each of the five remaining tools now accepts the document or image bytes directly as content_base64. Updated Tool Catalog, every Reference entry, Operational Limits (removed URL fetch deadline and redirect cap, clarified the decoded-file scope), and Data Handling (processing-flow table, isolation statement, retention)."],
         ],
     )
 
@@ -571,103 +588,18 @@ def main():
 
 # ---------------------- Per-tool reference writers ----------------------
 
-def _write_upload_file(doc, add_para, add_bullet, add_code, add_arg_table, add_result_table):
-    add_para(doc, "upload_file", style="Heading 1")
-    add_para(doc, "Stage caller-supplied bytes and receive a temporary Synzo HTTPS URL for use by the other tools.")
-    add_para(doc, "Full Description", style="Heading 2")
-    add_para(
-        doc,
-        "The upload_file tool decodes a base64 payload and stores the resulting bytes in "
-        "Synzo's in-process blob store. It returns a one-hour HTTPS URL that other Synzo "
-        "tools can accept as a content_url, together with the inferred content type and "
-        "the decoded byte count. upload_file does not itself call Google Gemini or any "
-        "other external service; downstream tools independently enforce their own supported "
-        "file-signature checks.",
-    )
-    add_para(
-        doc,
-        "The maximum decoded size is 10,485,760 bytes. upload_file estimates the "
-        "request's unit cost from the base64 payload length and checks it against the "
-        "organization plan's per-call unit limit before executing; a plan with a small "
-        "per-call cap can reject an upload below the absolute 10 MB size cap. Successful "
-        "execution then decrements the organization's monthly quota (one count per "
-        "successful call). The returned URL is a bearer capability: anyone holding it "
-        "can download the file until expiry.",
-    )
-    add_para(doc, "Scopes", style="Heading 2")
-    add_para(doc, "Any valid organization-scoped principal. No additional scope is required.")
-    add_para(doc, "Call Arguments", style="Heading 2")
-    add_arg_table(doc, [
-        ["filename", "string", "Required.", "Original filename, including extension. Used to infer content type."],
-        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760.", "Base64-encoded file bytes. The server rejects decoded payloads larger than 10 MB."],
-    ])
-    add_para(doc, "Return Results", style="Heading 2")
-    add_para(doc, "On success, result.structuredContent contains:")
-    add_result_table(doc, [
-        ["filename", "string", "Always present.", "Echoed from the input."],
-        ["content_url", "string (HTTPS URL)", "Always present.", "Bearer-access URL valid for one hour."],
-        ["expires_at", "string (RFC 3339 UTC)", "Always present.", "Nominal expiry timestamp."],
-        ["size_bytes", "integer", "Always present.", "Decoded byte count."],
-        ["content_type", "string", "Always present.", "MIME type inferred from the filename extension."],
-    ])
-    add_para(doc, "Example request:")
-    add_code(doc,
-        '{\n'
-        '  "jsonrpc": "2.0",\n'
-        '  "id": 1,\n'
-        '  "method": "tools/call",\n'
-        '  "params": {\n'
-        '    "name": "upload_file",\n'
-        '    "arguments": {\n'
-        '      "filename": "sample.pdf",\n'
-        '      "content_base64": "<base64>"\n'
-        '    }\n'
-        '  }\n'
-        '}'
-    )
-    add_para(doc, "Example response:")
-    add_code(doc,
-        '{\n'
-        '  "jsonrpc": "2.0",\n'
-        '  "id": 1,\n'
-        '  "result": {\n'
-        '    "isError": false,\n'
-        '    "structuredContent": {\n'
-        '      "filename": "sample.pdf",\n'
-        '      "content_url": "https://www.synzo.ai/u/<token>",\n'
-        '      "expires_at": "2026-10-05T18:12:00Z",\n'
-        '      "size_bytes": 184231,\n'
-        '      "content_type": "application/pdf"\n'
-        '    },\n'
-        '    "content": [{"type": "text", "text": "<same payload serialized as JSON>"}]\n'
-        '  }\n'
-        '}'
-    )
-    add_para(
-        doc,
-        "Representative failure: a decoded payload above 10,485,760 bytes returns a "
-        "tool-level error (result.isError: true) with an explanatory text block, provided "
-        "the request first passes the upstream admission checks (HTTP body size, "
-        "authentication, organization quota, rate limits, and per-call unit limits). An "
-        "HTTP body in the 25–50 MB range is rejected with HTTP 400 and JSON-RPC -32700, "
-        "because Flask's parsing exception above MAX_CONTENT_LENGTH is caught by the /mcp "
-        "route and reported as an invalid-JSON error. An HTTP body above 50 MB is "
-        "rejected with HTTP 413 and JSON-RPC -32600 by the route's explicit size guard. "
-        "See Appendix A.",
-    )
-
-
 def _write_summarize(doc, add_para, add_bullet, add_code, add_arg_table, add_result_table):
     add_para(doc, "summarize_document", style="Heading 1")
     add_para(doc, "Classify a document and produce a Markdown summary.")
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "summarize_document fetches the document at content_url over HTTPS, extracts its "
-        "text, and sends the text to Google Gemini. Gemini returns both an inferred document "
-        "classification and a Markdown summary. Supported file formats are PDF, DOCX, PPTX, "
-        "and XLSX. The tool does not generate a downloadable binary and does not modify the "
-        "source file.",
+        "summarize_document receives the document bytes directly as content_base64, "
+        "extracts the text, and sends the text to Google Gemini. Gemini returns both an "
+        "inferred document classification and a Markdown summary. Supported file formats "
+        "are PDF, DOCX, PPTX, and XLSX. The tool does not generate a downloadable binary "
+        "and does not modify the source file. The server does not fetch content from "
+        "caller-supplied URLs.",
     )
     add_para(
         doc,
@@ -682,7 +614,7 @@ def _write_summarize(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "PDF, DOCX, PPTX, or XLSX filename. Used to confirm the supported extension and signature."],
-        ["content_url", "string (HTTPS URL)", "Required. Fetched file ≤ 10 MB.", "Location of the document. Must be reachable by Synzo without the caller's authentication headers."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded document bytes. Must be supplied inline; the server does not fetch input content from any URL."],
     ])
     add_para(doc, "Return Results", style="Heading 2")
     add_result_table(doc, [
@@ -694,13 +626,13 @@ def _write_summarize(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 2,\n'
+        '  "id": 1,\n'
         '  "method": "tools/call",\n'
         '  "params": {\n'
         '    "name": "summarize_document",\n'
         '    "arguments": {\n'
         '      "filename": "summarize-sample.pdf",\n'
-        '      "content_url": "https://www.synzo.ai/static/reviewer-samples/summarize-sample.pdf"\n'
+        '      "content_base64": "<base64 of the document bytes>"\n'
         '    }\n'
         '  }\n'
         '}'
@@ -709,7 +641,7 @@ def _write_summarize(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 2,\n'
+        '  "id": 1,\n'
         '  "result": {\n'
         '    "isError": false,\n'
         '    "structuredContent": {\n'
@@ -723,11 +655,12 @@ def _write_summarize(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     )
     add_para(
         doc,
-        "Representative failure: a content_url to a non-HTTPS host returns a tool error "
-        "(isError: true) explaining the HTTPS requirement. A URL-fetch timeout (the "
-        "30-second fetch deadline hit) also returns a tool error (isError: true), not a "
-        "JSON-RPC error. The JSON-RPC -32005 code is reserved for the overall tool "
-        "execution deadline (60 seconds) only.",
+        "Representative failure: a malformed content_base64 value returns a tool error "
+        "(isError: true) explaining the decode failure. Supplying the legacy content_url "
+        "argument returns a tool error naming the field and directing the caller to use "
+        "content_base64. A decoded payload larger than 10 MB is likewise rejected as a "
+        "tool error. The JSON-RPC -32005 code is reserved for the overall tool execution "
+        "deadline (60 seconds) only.",
     )
 
 
@@ -737,11 +670,12 @@ def _write_translate(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "translate_document fetches the document at content_url, extracts its text, and "
-        "sends the text to Google Gemini with the requested target_language. The tool "
-        "returns the translation as Markdown text; it does not produce a translated Office "
-        "file. Supported input formats are DOCX, PPTX, and XLSX. PDF is not supported by "
-        "this tool.",
+        "translate_document receives the document bytes directly as content_base64, "
+        "extracts the text, and sends the text to Google Gemini with the requested "
+        "target_language. The tool returns the translation as Markdown text; it does not "
+        "produce a translated Office file. Supported input formats are DOCX, PPTX, and "
+        "XLSX. PDF is not supported by this tool. The server does not fetch content from "
+        "caller-supplied URLs.",
     )
     add_para(
         doc,
@@ -756,7 +690,7 @@ def _write_translate(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "DOCX, PPTX, or XLSX filename. Used to confirm the supported extension and signature."],
-        ["content_url", "string (HTTPS URL)", "Required. Fetched file ≤ 10 MB.", "Location of the document. Must be reachable by Synzo without the caller's authentication headers."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded document bytes. Must be supplied inline; the server does not fetch input content from any URL."],
         ["target_language", "string", "Required. Advertised length 2–64.", "English language name for the destination language."],
     ])
     add_para(doc, "Return Results", style="Heading 2")
@@ -769,13 +703,13 @@ def _write_translate(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 3,\n'
+        '  "id": 2,\n'
         '  "method": "tools/call",\n'
         '  "params": {\n'
         '    "name": "translate_document",\n'
         '    "arguments": {\n'
         '      "filename": "translate-sample.docx",\n'
-        '      "content_url": "https://www.synzo.ai/static/reviewer-samples/translate-sample.docx",\n'
+        '      "content_base64": "<base64 of the document bytes>",\n'
         '      "target_language": "French"\n'
         '    }\n'
         '  }\n'
@@ -785,7 +719,7 @@ def _write_translate(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 3,\n'
+        '  "id": 2,\n'
         '  "result": {\n'
         '    "isError": false,\n'
         '    "structuredContent": {\n'
@@ -811,12 +745,14 @@ def _write_redact(doc, add_para, add_bullet, add_code, add_arg_table, add_result
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "redact_pii fetches the document at content_url and runs Microsoft Presidio with "
-        "spaCy inside the Synzo process to locate personally identifiable text. Detected "
-        "characters are replaced with block symbols. The output is a new copy of the "
-        "document in its original format (DOCX or PPTX), stored in the in-process blob "
-        "store with a one-hour expiry URL. The source file is not modified. redact_pii "
-        "does not send document content to Google Gemini or to any Microsoft service.",
+        "redact_pii receives the document bytes directly as content_base64 and runs "
+        "Microsoft Presidio with spaCy inside the Synzo process to locate personally "
+        "identifiable text. Detected characters are replaced with block symbols. The "
+        "output is a new copy of the document in its original format (DOCX or PPTX), "
+        "stored in the in-process blob store with a one-hour expiry URL. The source file "
+        "is not modified. redact_pii does not send document content to Google Gemini or "
+        "to any Microsoft service, and the server does not fetch content from caller-"
+        "supplied URLs.",
     )
     add_para(
         doc,
@@ -831,7 +767,7 @@ def _write_redact(doc, add_para, add_bullet, add_code, add_arg_table, add_result
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "DOCX or PPTX filename. Used to confirm the supported extension and signature."],
-        ["content_url", "string (HTTPS URL)", "Required. Fetched file ≤ 10 MB.", "Location of the document. Must be reachable by Synzo without the caller's authentication headers."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded document bytes. Must be supplied inline; the server does not fetch input content from any URL."],
     ])
     add_para(doc, "Return Results", style="Heading 2")
     add_result_table(doc, [
@@ -839,20 +775,20 @@ def _write_redact(doc, add_para, add_bullet, add_code, add_arg_table, add_result
         ["result_url", "string (HTTPS URL)", "Always present on success.", "Bearer-access URL to the redacted copy, valid for one hour."],
         ["expires_at", "string (RFC 3339 UTC)", "Always present on success.", "Nominal expiry timestamp."],
         ["mimetype", "string", "Always present on success.", "MIME type of the redacted copy (matches the input format)."],
-        ["original_size_bytes", "integer", "Always present on success.", "Size of the fetched source document."],
+        ["original_size_bytes", "integer", "Always present on success.", "Size of the decoded source document."],
         ["redacted_size_bytes", "integer", "Always present on success.", "Size of the generated redacted copy."],
     ])
     add_para(doc, "Example request:")
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 4,\n'
+        '  "id": 3,\n'
         '  "method": "tools/call",\n'
         '  "params": {\n'
         '    "name": "redact_pii",\n'
         '    "arguments": {\n'
         '      "filename": "redact-sample.docx",\n'
-        '      "content_url": "https://www.synzo.ai/static/reviewer-samples/redact-sample.docx"\n'
+        '      "content_base64": "<base64 of the document bytes>"\n'
         '    }\n'
         '  }\n'
         '}'
@@ -861,7 +797,7 @@ def _write_redact(doc, add_para, add_bullet, add_code, add_arg_table, add_result
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 4,\n'
+        '  "id": 3,\n'
         '  "result": {\n'
         '    "isError": false,\n'
         '    "structuredContent": {\n'
@@ -890,11 +826,12 @@ def _write_analyze_image(doc, add_para, add_bullet, add_code, add_arg_table, add
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "analyze_image fetches the image at content_url and sends the bytes to Google "
-        "Gemini vision. It returns a structured JSON object with a short description, a "
-        "longer rich description, OCR-extracted text, detected objects, and three safety "
-        "flags. In parallel, Synzo computes a dominant-color palette from the image "
-        "locally. The source image is not modified and no binary result is generated.",
+        "analyze_image receives the image bytes directly as content_base64 and sends the "
+        "bytes to Google Gemini vision. It returns a structured JSON object with a short "
+        "description, a longer rich description, OCR-extracted text, detected objects, "
+        "and three safety flags. In parallel, Synzo computes a dominant-color palette "
+        "from the image locally. The source image is not modified, no binary result is "
+        "generated, and the server does not fetch content from caller-supplied URLs.",
     )
     add_para(
         doc,
@@ -911,7 +848,7 @@ def _write_analyze_image(doc, add_para, add_bullet, add_code, add_arg_table, add
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "JPG, JPEG, PNG, WEBP, HEIC, or HEIF filename."],
-        ["content_url", "string (HTTPS URL)", "Required. Fetched file ≤ 10 MB.", "Location of the image. Must be reachable by Synzo without the caller's authentication headers."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded image bytes. Must be supplied inline; the server does not fetch input content from any URL."],
     ])
     add_para(doc, "Return Results", style="Heading 2")
     add_result_table(doc, [
@@ -931,13 +868,13 @@ def _write_analyze_image(doc, add_para, add_bullet, add_code, add_arg_table, add
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 5,\n'
+        '  "id": 4,\n'
         '  "method": "tools/call",\n'
         '  "params": {\n'
         '    "name": "analyze_image",\n'
         '    "arguments": {\n'
         '      "filename": "analyze-sample.jpg",\n'
-        '      "content_url": "https://www.synzo.ai/static/reviewer-samples/analyze-sample.jpg"\n'
+        '      "content_base64": "<base64 of the image bytes>"\n'
         '    }\n'
         '  }\n'
         '}'
@@ -946,7 +883,7 @@ def _write_analyze_image(doc, add_para, add_bullet, add_code, add_arg_table, add
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 5,\n'
+        '  "id": 4,\n'
         '  "result": {\n'
         '    "isError": false,\n'
         '    "structuredContent": {\n'
@@ -982,11 +919,12 @@ def _write_detect_faces(doc, add_para, add_bullet, add_code, add_arg_table, add_
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "detect_faces fetches the image at content_url, locates faces using MTCNN with "
-        "OpenCV running inside the Synzo process, and generates a PNG in which detected "
-        "faces are either blurred or covered with opaque rectangles. The source image is "
-        "not modified. No face-recognition is performed: detected faces are not matched to "
-        "named individuals and no identity attributes are returned.",
+        "detect_faces receives the image bytes directly as content_base64, locates faces "
+        "using MTCNN with OpenCV running inside the Synzo process, and generates a PNG "
+        "in which detected faces are either blurred or covered with opaque rectangles. "
+        "The source image is not modified, and the server does not fetch content from "
+        "caller-supplied URLs. No face-recognition is performed: detected faces are not "
+        "matched to named individuals and no identity attributes are returned.",
     )
     add_para(
         doc,
@@ -1001,7 +939,7 @@ def _write_detect_faces(doc, add_para, add_bullet, add_code, add_arg_table, add_
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "JPG, JPEG, PNG, WEBP, HEIC, or HEIF filename."],
-        ["content_url", "string (HTTPS URL)", "Required. Fetched file ≤ 10 MB.", "Location of the image."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded image bytes. Must be supplied inline; the server does not fetch input content from any URL."],
         ["mode", "string", "Optional. Enum: blur, redact. Default blur.", "blur applies a Gaussian blur to detected faces; redact overlays opaque rectangles."],
         ["blur_strength", "integer", "Optional. Enum: 1, 2, 3. Default 2.", "1 = light blur; 2 = strong blur; 3 = opaque fill. Ignored when mode is redact."],
     ])
@@ -1017,13 +955,13 @@ def _write_detect_faces(doc, add_para, add_bullet, add_code, add_arg_table, add_
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 6,\n'
+        '  "id": 5,\n'
         '  "method": "tools/call",\n'
         '  "params": {\n'
         '    "name": "detect_faces",\n'
         '    "arguments": {\n'
         '      "filename": "detect-faces-sample.jpg",\n'
-        '      "content_url": "https://www.synzo.ai/static/reviewer-samples/detect-faces-sample.jpg",\n'
+        '      "content_base64": "<base64 of the image bytes>",\n'
         '      "mode": "redact"\n'
         '    }\n'
         '  }\n'
@@ -1033,7 +971,7 @@ def _write_detect_faces(doc, add_para, add_bullet, add_code, add_arg_table, add_
     add_code(doc,
         '{\n'
         '  "jsonrpc": "2.0",\n'
-        '  "id": 6,\n'
+        '  "id": 5,\n'
         '  "result": {\n'
         '    "isError": false,\n'
         '    "structuredContent": {\n'

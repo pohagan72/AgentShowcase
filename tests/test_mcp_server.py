@@ -203,7 +203,7 @@ def test_tools_list_advertises_summarize_document_with_schema_and_annotations(cl
     assert "description" in tool and tool["description"]
     schema = tool["inputSchema"]
     assert schema["type"] == "object"
-    assert set(schema["required"]) == {"filename", "content_url"}
+    assert set(schema["required"]) == {"filename", "content_base64"}
     ann = tool["annotations"]
     assert ann["destructiveHint"] is False
     assert ann["idempotentHint"] is True
@@ -228,7 +228,7 @@ def test_tools_call_without_auth_returns_401_with_www_authenticate(client, fake_
         "name": "summarize_document",
         "arguments": {
             "filename": "x.pdf",
-            "content_url": "https://synzo.test/u/never-fetched",
+            "content_base64": "QUE=",  # auth rejection fires before handler
         },
     })
     # HTTP 401 — the spec-required transport-level signal.
@@ -260,7 +260,7 @@ def test_tools_call_without_auth_exposes_www_authenticate_via_cors(client, fake_
             "name": "summarize_document",
             "arguments": {
                 "filename": "x.pdf",
-                "content_url": "https://synzo.test/u/never-fetched",
+                "content_base64": "QUE=",  # auth rejection fires before handler
             },
         },
         headers={"Origin": "https://claude.ai"},
@@ -287,7 +287,7 @@ def test_tools_call_unknown_tool_returns_method_not_found(client, app, fake_gemi
 
 
 def test_tools_call_summarize_document_returns_structured_content_and_meters(
-    client, app, fake_gemini, url_for_bytes
+    client, app, fake_gemini, b64_bytes
 ):
     """End-to-end MCP slice: API key -> Principal -> run_metered_tool ->
     summarize handler -> structuredContent + usage_events row."""
@@ -296,7 +296,7 @@ def test_tools_call_summarize_document_returns_structured_content_and_meters(
     raw_pdf = b"%PDF-1.4 fake content"
     args = {
         "filename": "test.pdf",
-        "content_url": url_for_bytes(raw_pdf, filename="test.pdf"),
+        "content_base64": b64_bytes(raw_pdf),
     }
 
     resp = _rpc(
@@ -324,16 +324,14 @@ def test_tools_call_summarize_document_returns_structured_content_and_meters(
         assert events[0].auth_method == "api_key"
 
 
-def test_tools_call_fetch_failure_returns_isError_not_jsonrpc_error(
-    client, app, fake_gemini, url_for_bytes
+def test_tools_call_payload_failure_returns_isError_not_jsonrpc_error(
+    client, app, fake_gemini
 ):
-    """A ToolError (URL fetch failure) surfaces through isError=true so the
+    """A ToolError (bad base64 payload) surfaces through isError=true so the
     model can recover. The call STILL goes through the metering pipeline:
     quota is decremented, then the tool handler raises ToolError, then
-    run_metered_tool refunds and meters as 'refunded'.
-    Pre-URL replacement of base64-decode failures; same metering contract.
-    """
-    org = _seed_org(app, name="mcp_bad_url")
+    run_metered_tool refunds and meters as 'refunded'."""
+    org = _seed_org(app, name="mcp_bad_payload")
     resp = _rpc(
         client,
         "tools/call",
@@ -341,9 +339,7 @@ def test_tools_call_fetch_failure_returns_isError_not_jsonrpc_error(
             "name": "summarize_document",
             "arguments": {
                 "filename": "x.pdf",
-                # Token doesn't exist in the per-test blob store -> fetcher
-                # raises UrlFetchError -> wrapped as ToolError.
-                "content_url": "https://synzo.test/u/no-such-token",
+                "content_base64": "!!!not base64!!!",
             },
         },
         headers=org["auth_header"],
@@ -351,17 +347,15 @@ def test_tools_call_fetch_failure_returns_isError_not_jsonrpc_error(
     body = resp.get_json()
     assert "error" not in body
     assert body["result"]["isError"] is True
-    assert "fetch" in body["result"]["content"][0]["text"].lower()
+    assert "base64" in body["result"]["content"][0]["text"].lower()
 
     with app.app_context():
         events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
-        # quota_exhausted/etc. pre-handler checks pass; handler raises ToolError;
-        # refund-on-exception path runs; row recorded as 'refunded'.
         statuses = sorted(e.status for e in events)
         assert "refunded" in statuses
 
 
-def test_tools_call_unsupported_extension_returns_isError(client, app, fake_gemini, url_for_bytes):
+def test_tools_call_unsupported_extension_returns_isError(client, app, fake_gemini, b64_bytes):
     org = _seed_org(app, name="mcp_bad_ext")
     resp = _rpc(
         client,
@@ -370,7 +364,7 @@ def test_tools_call_unsupported_extension_returns_isError(client, app, fake_gemi
             "name": "summarize_document",
             "arguments": {
                 "filename": "secrets.exe",
-                "content_url": url_for_bytes(b"x", filename="secrets.exe"),
+                "content_base64": b64_bytes(b"x"),
             },
         },
         headers=org["auth_header"],
@@ -383,7 +377,7 @@ def test_tools_call_unsupported_extension_returns_isError(client, app, fake_gemi
 # --- tools/call: tenancy invariant --------------------------------------------
 
 
-def test_mcp_tools_call_records_usage_against_caller_org_only(client, app, fake_gemini, url_for_bytes):
+def test_mcp_tools_call_records_usage_against_caller_org_only(client, app, fake_gemini, b64_bytes):
     """The non-negotiable from Phase 1.5 (s3.4): every metered call lands in
     the caller's org's usage_events, never the other org's. If this test
     ever flips, multi-tenancy is broken at the MCP layer."""
@@ -397,7 +391,7 @@ def test_mcp_tools_call_records_usage_against_caller_org_only(client, app, fake_
             "name": "summarize_document",
             "arguments": {
                 "filename": "a.pdf",
-                "content_url": url_for_bytes(b"%PDF-1.4 a", filename="a.pdf"),
+                "content_base64": b64_bytes(b"%PDF-1.4 a"),
             },
         },
         headers=a["auth_header"],
@@ -638,7 +632,7 @@ def fake_translate(monkeypatch, app):
 
 
 def test_tools_call_translate_document_returns_translated_text(
-    client, app, fake_translate, url_for_bytes
+    client, app, fake_translate, b64_bytes
 ):
     org = _seed_org(app, name="mcp_translate_ok")
     resp = _rpc(
@@ -648,7 +642,7 @@ def test_tools_call_translate_document_returns_translated_text(
             "name": "translate_document",
             "arguments": {
                 "filename": "memo.docx",
-                "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
+                "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
                 "target_language": "Spanish",
             },
         },
@@ -671,7 +665,7 @@ def test_tools_call_translate_document_returns_translated_text(
 
 
 def test_translate_document_blocked_by_safety_filter_returns_isError(
-    client, app, monkeypatch, url_for_bytes
+    client, app, monkeypatch, b64_bytes
 ):
     """If translate_text_util returns 'blocked', the tool surfaces it as a
     ToolError so the model can react, with the quota refunded."""
@@ -696,7 +690,7 @@ def test_translate_document_blocked_by_safety_filter_returns_isError(
             "name": "translate_document",
             "arguments": {
                 "filename": "memo.docx",
-                "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
+                "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
                 "target_language": "French",
             },
         },
@@ -713,7 +707,7 @@ def test_translate_document_blocked_by_safety_filter_returns_isError(
 
 
 def test_translate_document_unsupported_extension_returns_isError(
-    client, app, fake_translate, url_for_bytes
+    client, app, fake_translate, b64_bytes
 ):
     """PDFs aren't a supported source for translate (the HTMX route only does
     docx/pptx/xlsx). Make sure we don't accidentally accept them."""
@@ -725,7 +719,7 @@ def test_translate_document_unsupported_extension_returns_isError(
             "name": "translate_document",
             "arguments": {
                 "filename": "doc.pdf",
-                "content_url": url_for_bytes(b"%PDF-1.4", filename="doc.pdf"),
+                "content_base64": b64_bytes(b"%PDF-1.4"),
                 "target_language": "Spanish",
             },
         },
@@ -737,7 +731,7 @@ def test_translate_document_unsupported_extension_returns_isError(
 
 
 def test_translate_document_missing_target_language_returns_isError(
-    client, app, fake_translate, url_for_bytes
+    client, app, fake_translate, b64_bytes
 ):
     """target_language is required; an empty value (after .strip()) raises
     ToolError so the model sees a recoverable failure with the quota refunded.
@@ -751,7 +745,7 @@ def test_translate_document_missing_target_language_returns_isError(
             "name": "translate_document",
             "arguments": {
                 "filename": "memo.docx",
-                "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
+                "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
                 "target_language": "   ",
             },
         },
@@ -763,7 +757,7 @@ def test_translate_document_missing_target_language_returns_isError(
 
 
 def test_translate_document_when_gemini_not_configured_refunds_quota(
-    client, app, monkeypatch, url_for_bytes
+    client, app, monkeypatch, b64_bytes
 ):
     """If GEMINI_CONFIGURED is False the handler raises RuntimeError before
     any work happens; the MCP layer must refund the quota and surface
@@ -778,7 +772,7 @@ def test_translate_document_when_gemini_not_configured_refunds_quota(
             "name": "translate_document",
             "arguments": {
                 "filename": "memo.docx",
-                "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
+                "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
                 "target_language": "Spanish",
             },
         },
@@ -795,7 +789,7 @@ def test_translate_document_when_gemini_not_configured_refunds_quota(
 
 
 def test_translate_document_when_gemini_returns_failure_refunds_quota(
-    client, app, monkeypatch, url_for_bytes
+    client, app, monkeypatch, b64_bytes
 ):
     """translate_text_util can return ('error', ..., msg) for non-blocked
     failures (Gemini outage, parse error, etc.). The handler raises RuntimeError
@@ -825,7 +819,7 @@ def test_translate_document_when_gemini_returns_failure_refunds_quota(
             "name": "translate_document",
             "arguments": {
                 "filename": "memo.docx",
-                "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
+                "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
                 "target_language": "Spanish",
             },
         },
@@ -867,7 +861,7 @@ def fake_redact(monkeypatch, app):
 
 
 def test_tools_call_redact_pii_returns_result_url_for_redacted_document(
-    client, app, fake_redact, url_for_bytes
+    client, app, fake_redact, b64_bytes
 ):
     org = _seed_org(app, name="mcp_redact_ok")
     resp = _rpc(
@@ -877,7 +871,7 @@ def test_tools_call_redact_pii_returns_result_url_for_redacted_document(
             "name": "redact_pii",
             "arguments": {
                 "filename": "contract.docx",
-                "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="contract.docx"),
+                "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="contract.docx"),
             },
         },
         headers=org["auth_header"],
@@ -897,7 +891,7 @@ def test_tools_call_redact_pii_returns_result_url_for_redacted_document(
     assert "expires_at" in sc
 
 
-def test_redact_pii_pptx_uses_pptx_pipeline(client, app, fake_redact, url_for_bytes):
+def test_redact_pii_pptx_uses_pptx_pipeline(client, app, fake_redact, b64_bytes):
     org = _seed_org(app, name="mcp_redact_pptx")
     resp = _rpc(
         client,
@@ -906,7 +900,7 @@ def test_redact_pii_pptx_uses_pptx_pipeline(client, app, fake_redact, url_for_by
             "name": "redact_pii",
             "arguments": {
                 "filename": "deck.pptx",
-                "content_url": url_for_bytes(_minimal_ooxml_bytes("pptx"), filename="deck.pptx"),
+                "content_base64": b64_bytes(_minimal_ooxml_bytes("pptx"), filename="deck.pptx"),
             },
         },
         headers=org["auth_header"],
@@ -916,7 +910,7 @@ def test_redact_pii_pptx_uses_pptx_pipeline(client, app, fake_redact, url_for_by
     assert "presentationml" in sc["mimetype"]
 
 
-def test_redact_pii_unsupported_extension_returns_isError(client, app, fake_redact, url_for_bytes):
+def test_redact_pii_unsupported_extension_returns_isError(client, app, fake_redact, b64_bytes):
     org = _seed_org(app, name="mcp_redact_bad_ext")
     resp = _rpc(
         client,
@@ -925,7 +919,7 @@ def test_redact_pii_unsupported_extension_returns_isError(client, app, fake_reda
             "name": "redact_pii",
             "arguments": {
                 "filename": "doc.pdf",
-                "content_url": url_for_bytes(b"%PDF", filename="doc.pdf"),
+                "content_base64": b64_bytes(b"%PDF"),
             },
         },
         headers=org["auth_header"],
@@ -935,7 +929,7 @@ def test_redact_pii_unsupported_extension_returns_isError(client, app, fake_reda
     assert "unsupported" in body["result"]["content"][0]["text"].lower()
 
 
-def test_redact_pii_when_presidio_unavailable_refunds_quota(client, app, monkeypatch, url_for_bytes):
+def test_redact_pii_when_presidio_unavailable_refunds_quota(client, app, monkeypatch, b64_bytes):
     """If Presidio isn't configured the handler raises RuntimeError; the MCP
     layer should refund the quota and surface isError=true to the model."""
     app.config["PRESIDIO_ANALYZER_AVAILABLE"] = False
@@ -949,7 +943,7 @@ def test_redact_pii_when_presidio_unavailable_refunds_quota(client, app, monkeyp
             "name": "redact_pii",
             "arguments": {
                 "filename": "doc.docx",
-                "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="doc.docx"),
+                "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="doc.docx"),
             },
         },
         headers=org["auth_header"],
@@ -963,7 +957,7 @@ def test_redact_pii_when_presidio_unavailable_refunds_quota(client, app, monkeyp
         assert "refunded" in statuses
 
 
-def test_redact_pii_when_redactor_returns_none_refunds_quota(client, app, monkeypatch, url_for_bytes):
+def test_redact_pii_when_redactor_returns_none_refunds_quota(client, app, monkeypatch, b64_bytes):
     """If redact_word_document_pii returns None (corrupted docx, internal
     parse failure), the handler raises RuntimeError and the MCP layer refunds
     the quota. This is the path a malformed-but-magic-byte-valid file hits."""
@@ -981,7 +975,7 @@ def test_redact_pii_when_redactor_returns_none_refunds_quota(client, app, monkey
             "name": "redact_pii",
             "arguments": {
                 "filename": "broken.docx",
-                "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="broken.docx"),
+                "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="broken.docx"),
             },
         },
         headers=org["auth_header"],
@@ -996,7 +990,7 @@ def test_redact_pii_when_redactor_returns_none_refunds_quota(client, app, monkey
         assert "refunded" in statuses
 
 
-def test_redact_pii_response_carries_real_byte_sizes(client, app, fake_redact, url_for_bytes):
+def test_redact_pii_response_carries_real_byte_sizes(client, app, fake_redact, b64_bytes):
     """Sanity-pin the byte-size fields in the response. original_size_bytes
     must match the fetched input length; redacted_size_bytes must match the
     stub redactor's output. These fields are part of the documented response
@@ -1010,7 +1004,7 @@ def test_redact_pii_response_carries_real_byte_sizes(client, app, fake_redact, u
             "name": "redact_pii",
             "arguments": {
                 "filename": "memo.docx",
-                "content_url": url_for_bytes(raw, filename="memo.docx"),
+                "content_base64": b64_bytes(raw),
             },
         },
         headers=org["auth_header"],
@@ -1062,7 +1056,7 @@ def fake_analyze_image(monkeypatch, app):
 
 
 def test_tools_call_analyze_image_returns_structured_analysis(
-    client, app, fake_analyze_image, url_for_bytes
+    client, app, fake_analyze_image, b64_bytes
 ):
     org = _seed_org(app, name="mcp_analyze_ok")
     resp = _rpc(
@@ -1072,7 +1066,7 @@ def test_tools_call_analyze_image_returns_structured_analysis(
             "name": "analyze_image",
             "arguments": {
                 "filename": "photo.jpg",
-                "content_url": url_for_bytes(b"\xff\xd8\xff\xe0 fake", filename="photo.jpg"),
+                "content_base64": b64_bytes(b"\xff\xd8\xff\xe0 fake"),
             },
         },
         headers=org["auth_header"],
@@ -1086,7 +1080,7 @@ def test_tools_call_analyze_image_returns_structured_analysis(
 
 
 def test_analyze_image_unsupported_extension_returns_isError(
-    client, app, fake_analyze_image, url_for_bytes
+    client, app, fake_analyze_image, b64_bytes
 ):
     org = _seed_org(app, name="mcp_analyze_bad_ext")
     resp = _rpc(
@@ -1096,7 +1090,7 @@ def test_analyze_image_unsupported_extension_returns_isError(
             "name": "analyze_image",
             "arguments": {
                 "filename": "doc.pdf",
-                "content_url": url_for_bytes(b"%PDF", filename="doc.pdf"),
+                "content_base64": b64_bytes(b"%PDF"),
             },
         },
         headers=org["auth_header"],
@@ -1107,7 +1101,7 @@ def test_analyze_image_unsupported_extension_returns_isError(
 
 
 def test_analyze_image_when_model_returns_error_dict_returns_isError(
-    client, app, monkeypatch, url_for_bytes
+    client, app, monkeypatch, b64_bytes
 ):
     """analytics_utils encodes some failures as {"error": "..."}. The MCP
     handler should surface those as isError=true (not a JSON-RPC error)."""
@@ -1132,7 +1126,7 @@ def test_analyze_image_when_model_returns_error_dict_returns_isError(
             "name": "analyze_image",
             "arguments": {
                 "filename": "photo.png",
-                "content_url": url_for_bytes(b"\x89PNG fake", filename="photo.png"),
+                "content_base64": b64_bytes(b"\x89PNG fake"),
             },
         },
         headers=org["auth_header"],
@@ -1142,7 +1136,7 @@ def test_analyze_image_when_model_returns_error_dict_returns_isError(
     assert "invalid format" in body["result"]["content"][0]["text"].lower()
 
 
-def test_analyze_image_when_gemini_not_configured_refunds_quota(client, app, url_for_bytes):
+def test_analyze_image_when_gemini_not_configured_refunds_quota(client, app, b64_bytes):
     """GEMINI_CONFIGURED=False on the analyze path: RuntimeError -> refund."""
     app.config["GEMINI_CONFIGURED"] = False
     org = _seed_org(app, name="mcp_analyze_no_gemini")
@@ -1153,7 +1147,7 @@ def test_analyze_image_when_gemini_not_configured_refunds_quota(client, app, url
             "name": "analyze_image",
             "arguments": {
                 "filename": "photo.jpg",
-                "content_url": url_for_bytes(b"\xff\xd8\xff\xe0", filename="photo.jpg"),
+                "content_base64": b64_bytes(b"\xff\xd8\xff\xe0"),
             },
         },
         headers=org["auth_header"],
@@ -1168,7 +1162,7 @@ def test_analyze_image_when_gemini_not_configured_refunds_quota(client, app, url
         assert "refunded" in statuses
 
 
-def test_analyze_image_when_gemini_returns_none_refunds_quota(client, app, monkeypatch, url_for_bytes):
+def test_analyze_image_when_gemini_returns_none_refunds_quota(client, app, monkeypatch, b64_bytes):
     """analyze_image_with_gemini returns None when the SDK call yields no
     parseable response. Handler raises RuntimeError; layer refunds. This is
     distinct from the error-dict path (which is a ToolError); None is the
@@ -1194,7 +1188,7 @@ def test_analyze_image_when_gemini_returns_none_refunds_quota(client, app, monke
             "name": "analyze_image",
             "arguments": {
                 "filename": "photo.jpg",
-                "content_url": url_for_bytes(b"\xff\xd8\xff\xe0", filename="photo.jpg"),
+                "content_base64": b64_bytes(b"\xff\xd8\xff\xe0"),
             },
         },
         headers=org["auth_header"],
@@ -1227,7 +1221,7 @@ def fake_detect_faces(monkeypatch, app):
 
 
 def test_tools_call_detect_faces_default_blur_returns_png(
-    client, app, fake_detect_faces, url_for_bytes
+    client, app, fake_detect_faces, b64_bytes
 ):
     org = _seed_org(app, name="mcp_faces_ok")
     resp = _rpc(
@@ -1237,7 +1231,7 @@ def test_tools_call_detect_faces_default_blur_returns_png(
             "name": "detect_faces",
             "arguments": {
                 "filename": "group.jpg",
-                "content_url": url_for_bytes(b"\xff\xd8\xff\xe0", filename="group.jpg"),
+                "content_base64": b64_bytes(b"\xff\xd8\xff\xe0"),
             },
         },
         headers=org["auth_header"],
@@ -1253,7 +1247,7 @@ def test_tools_call_detect_faces_default_blur_returns_png(
     assert b"FAKE-PNG-151" in out
 
 
-def test_detect_faces_redact_mode_uses_opaque_rect(client, app, fake_detect_faces, url_for_bytes):
+def test_detect_faces_redact_mode_uses_opaque_rect(client, app, fake_detect_faces, b64_bytes):
     org = _seed_org(app, name="mcp_faces_redact")
     resp = _rpc(
         client,
@@ -1262,7 +1256,7 @@ def test_detect_faces_redact_mode_uses_opaque_rect(client, app, fake_detect_face
             "name": "detect_faces",
             "arguments": {
                 "filename": "group.jpg",
-                "content_url": url_for_bytes(b"\xff\xd8\xff", filename="group.jpg"),
+                "content_base64": b64_bytes(b"\xff\xd8\xff"),
                 "mode": "redact",
             },
         },
@@ -1276,7 +1270,7 @@ def test_detect_faces_redact_mode_uses_opaque_rect(client, app, fake_detect_face
     assert b"FAKE-PNG--1" in out
 
 
-def test_detect_faces_invalid_mode_returns_isError(client, app, fake_detect_faces, url_for_bytes):
+def test_detect_faces_invalid_mode_returns_isError(client, app, fake_detect_faces, b64_bytes):
     org = _seed_org(app, name="mcp_faces_bad_mode")
     resp = _rpc(
         client,
@@ -1285,7 +1279,7 @@ def test_detect_faces_invalid_mode_returns_isError(client, app, fake_detect_face
             "name": "detect_faces",
             "arguments": {
                 "filename": "x.jpg",
-                "content_url": url_for_bytes(b"\xff\xd8\xff", filename="x.jpg"),
+                "content_base64": b64_bytes(b"\xff\xd8\xff"),
                 "mode": "annihilate",
             },
         },
@@ -1297,7 +1291,7 @@ def test_detect_faces_invalid_mode_returns_isError(client, app, fake_detect_face
 
 
 def test_detect_faces_invalid_blur_strength_returns_isError(
-    client, app, fake_detect_faces, url_for_bytes
+    client, app, fake_detect_faces, b64_bytes
 ):
     org = _seed_org(app, name="mcp_faces_bad_strength")
     resp = _rpc(
@@ -1307,7 +1301,7 @@ def test_detect_faces_invalid_blur_strength_returns_isError(
             "name": "detect_faces",
             "arguments": {
                 "filename": "x.jpg",
-                "content_url": url_for_bytes(b"\xff\xd8\xff", filename="x.jpg"),
+                "content_base64": b64_bytes(b"\xff\xd8\xff"),
                 "blur_strength": 9,
             },
         },
@@ -1318,7 +1312,7 @@ def test_detect_faces_invalid_blur_strength_returns_isError(
 
 
 def test_detect_faces_unsupported_extension_returns_isError(
-    client, app, fake_detect_faces, url_for_bytes
+    client, app, fake_detect_faces, b64_bytes
 ):
     """detect_faces only accepts the image extension set; a .pdf must be
     rejected with isError=true before the MTCNN pipeline is touched."""
@@ -1330,7 +1324,7 @@ def test_detect_faces_unsupported_extension_returns_isError(
             "name": "detect_faces",
             "arguments": {
                 "filename": "doc.pdf",
-                "content_url": url_for_bytes(b"%PDF", filename="doc.pdf"),
+                "content_base64": b64_bytes(b"%PDF"),
             },
         },
         headers=org["auth_header"],
@@ -1341,7 +1335,7 @@ def test_detect_faces_unsupported_extension_returns_isError(
 
 
 def test_detect_faces_when_blur_pipeline_returns_none_refunds_quota(
-    client, app, monkeypatch, url_for_bytes
+    client, app, monkeypatch, b64_bytes
 ):
     """blur_image_opencv returns None if the OpenCV pipeline can't decode or
     process the image (corrupt bytes, unsupported codec quirk). Handler raises
@@ -1364,7 +1358,7 @@ def test_detect_faces_when_blur_pipeline_returns_none_refunds_quota(
             "name": "detect_faces",
             "arguments": {
                 "filename": "broken.jpg",
-                "content_url": url_for_bytes(b"\xff\xd8\xff\xe0", filename="broken.jpg"),
+                "content_base64": b64_bytes(b"\xff\xd8\xff\xe0"),
             },
         },
         headers=org["auth_header"],
@@ -1379,7 +1373,7 @@ def test_detect_faces_when_blur_pipeline_returns_none_refunds_quota(
         assert "refunded" in statuses
 
 
-def test_detect_faces_blur_strength_1_maps_to_light_blur(client, app, fake_detect_faces, url_for_bytes):
+def test_detect_faces_blur_strength_1_maps_to_light_blur(client, app, fake_detect_faces, b64_bytes):
     """blur_strength=1 -> blur_size=35 (light). Pins the strength map at the
     MCP layer so a future change to _BLUR_STRENGTH_MAP doesn't silently change
     reviewer-visible behavior."""
@@ -1391,7 +1385,7 @@ def test_detect_faces_blur_strength_1_maps_to_light_blur(client, app, fake_detec
             "name": "detect_faces",
             "arguments": {
                 "filename": "group.jpg",
-                "content_url": url_for_bytes(b"\xff\xd8\xff\xe0", filename="group.jpg"),
+                "content_base64": b64_bytes(b"\xff\xd8\xff\xe0"),
                 "blur_strength": 1,
             },
         },
@@ -1406,7 +1400,7 @@ def test_detect_faces_blur_strength_1_maps_to_light_blur(client, app, fake_detec
 
 
 def test_mcp_new_tools_record_usage_against_caller_org_only(
-    client, app, fake_translate, fake_redact, fake_analyze_image, fake_detect_faces, url_for_bytes
+    client, app, fake_translate, fake_redact, fake_analyze_image, fake_detect_faces, b64_bytes
 ):
     """The Phase 1.5 non-negotiable extends to every new tool: a call from
     Org A must never write a usage_events row against Org B. This test runs
@@ -1417,20 +1411,20 @@ def test_mcp_new_tools_record_usage_against_caller_org_only(
     calls = [
         ("translate_document", {
             "filename": "memo.docx",
-            "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
+            "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
             "target_language": "Spanish",
         }),
         ("redact_pii", {
             "filename": "memo.docx",
-            "content_url": url_for_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
+            "content_base64": b64_bytes(_minimal_ooxml_bytes("docx"), filename="memo.docx"),
         }),
         ("analyze_image", {
             "filename": "p.jpg",
-            "content_url": url_for_bytes(b"\xff\xd8\xff", filename="p.jpg"),
+            "content_base64": b64_bytes(b"\xff\xd8\xff"),
         }),
         ("detect_faces", {
             "filename": "p.jpg",
-            "content_url": url_for_bytes(b"\xff\xd8\xff", filename="p.jpg"),
+            "content_base64": b64_bytes(b"\xff\xd8\xff"),
         }),
     ]
 
@@ -1484,7 +1478,7 @@ def _stub_oauth_for(monkeypatch, *, principals_by_token):
 
 
 def test_tools_call_with_oauth_bearer_meters_against_resolved_org(
-    client, app, fake_gemini, monkeypatch, url_for_bytes
+    client, app, fake_gemini, monkeypatch, b64_bytes
 ):
     """Bearer token that is NOT an API key (no sk_ prefix) routes to
     _resolve_oauth. The returned Principal threads through run_metered_tool
@@ -1503,7 +1497,7 @@ def test_tools_call_with_oauth_bearer_meters_against_resolved_org(
             "name": "summarize_document",
             "arguments": {
                 "filename": "doc.pdf",
-                "content_url": url_for_bytes(b"%PDF-1.4 oauth", filename="doc.pdf"),
+                "content_base64": b64_bytes(b"%PDF-1.4 oauth"),
             },
         },
         headers={"Authorization": f"Bearer {token}"},
@@ -1547,7 +1541,7 @@ def test_tools_call_with_invalid_oauth_bearer_returns_401_and_does_not_meter(
             "arguments": {
                 "filename": "x.pdf",
                 # Auth rejection happens before _load_payload fetches anything.
-                "content_url": "https://synzo.test/u/never-fetched",
+                "content_base64": "QUE=",  # auth rejection fires before handler
             },
         },
         headers={"Authorization": "Bearer expired.or.bad.jwt"},
@@ -1569,7 +1563,7 @@ def test_tools_call_with_invalid_oauth_bearer_returns_401_and_does_not_meter(
 
 
 def test_mcp_oauth_path_records_usage_against_caller_org_only(
-    client, app, fake_gemini, monkeypatch, url_for_bytes
+    client, app, fake_gemini, monkeypatch, b64_bytes
 ):
     """Tenancy invariant (§3.4) for the OAuth path. The existing cross-tenant
     test uses API keys only; this one proves the same isolation holds when
@@ -1596,7 +1590,7 @@ def test_mcp_oauth_path_records_usage_against_caller_org_only(
             "name": "summarize_document",
             "arguments": {
                 "filename": "a.pdf",
-                "content_url": url_for_bytes(b"%PDF-1.4 a-only", filename="a.pdf"),
+                "content_base64": b64_bytes(b"%PDF-1.4 a-only"),
             },
         },
         headers={"Authorization": f"Bearer {token_a}"},
@@ -1653,29 +1647,19 @@ def test_post_body_above_50mb_returns_413_without_parsing(client, monkeypatch):
     assert "too large" in parsed["error"]["message"].lower()
 
 
-def test_tools_call_fetched_content_above_10mb_returns_isError(
-    client, app, fake_gemini, url_for_bytes, monkeypatch
+def test_tools_call_decoded_content_above_10mb_returns_isError(
+    client, app, fake_gemini, b64_bytes
 ):
-    """[mcp_tools.py] Per-tool 10MB fetched-content cap. The test URL fetcher
-    refuses to return more than max_bytes; the wrapped ToolError surfaces as
-    isError=true (model-recoverable), not a JSON-RPC envelope error, so the
-    model sees the failure reason.
+    """[mcp_tools.py] Per-tool 10 MB decoded-payload cap. A base64 blob whose
+    decoded size exceeds MAX_DOC_BYTES is rejected via ToolError (so the
+    model can see the reason) and the quota is refunded.
 
-    Pre-URL replacement: the same cap was enforced on the decoded base64;
-    same metering contract (quota refunded via ToolError -> isError=true).
-
-    Bump the test blob store's per-blob cap so we can stash > MAX_DOC_BYTES
-    bytes; the production max_bytes guard in the fetcher is what we want to
-    pin here, not the blob store cap.
+    Uses the pro plan to avoid tripping any per-plan limit before the
+    size check runs — the production 10 MB cap in _load_payload is what we
+    want to pin here.
     """
-    import blob_store
-    monkeypatch.setattr(blob_store, "BLOB_STORE_MAX_SINGLE_BYTES", 20 * 1024 * 1024)
-    monkeypatch.setattr(blob_store, "BLOB_STORE_MAX_TOTAL_BYTES", 50 * 1024 * 1024)
-    blob_store.reset_default_store()
+    org = _seed_org(app, name="mcp_size_cap", plan="pro")
 
-    org = _seed_org(app, name="mcp_fetch_cap", plan="pro")
-
-    # Stash a 10MB+1 byte payload; the fetcher's max_bytes guard will reject.
     raw = b"%PDF-1.4 " + b"x" * (10 * 1024 * 1024)
     resp = _rpc(
         client,
@@ -1684,7 +1668,7 @@ def test_tools_call_fetched_content_above_10mb_returns_isError(
             "name": "summarize_document",
             "arguments": {
                 "filename": "huge.pdf",
-                "content_url": url_for_bytes(raw, filename="huge.pdf"),
+                "content_base64": b64_bytes(raw),
             },
         },
         headers=org["auth_header"],
@@ -1692,11 +1676,9 @@ def test_tools_call_fetched_content_above_10mb_returns_isError(
     assert resp.status_code == 200, resp.get_json()
     body = resp.get_json()
     assert body["result"]["isError"] is True
-    # The error message bubbles up from the fetcher's "exceeds cap" check.
     text = body["result"]["content"][0]["text"].lower()
-    assert "max_bytes" in text or "exceeds" in text or "cap" in text, text
+    assert "exceed" in text or "bytes" in text, text
 
-    # Refund-on-ToolError ran — usage row recorded as 'refunded'.
     with app.app_context():
         events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
         statuses = sorted(e.status for e in events)
@@ -1762,7 +1744,7 @@ def test_jsonrpc_error_response_echoes_request_id(client):
             "arguments": {
                 "filename": "x.pdf",
                 # Auth fails before _load_payload runs.
-                "content_url": "https://synzo.test/u/never-fetched",
+                "content_base64": "QUE=",  # auth rejection fires before handler
             },
         },
         request_id="abc-123",  # string id, not int
@@ -1777,7 +1759,7 @@ def test_jsonrpc_error_response_echoes_request_id(client):
 
 
 def test_tools_call_handler_raises_generic_exception_returns_isError_and_refunds(
-    client, app, monkeypatch, url_for_bytes
+    client, app, monkeypatch, b64_bytes
 ):
     """[mcp_routes.py:234-239] If a tool handler raises a NON-ToolError
     Exception, the layer must:
@@ -1813,7 +1795,7 @@ def test_tools_call_handler_raises_generic_exception_returns_isError_and_refunds
             "arguments": {
                 "filename": "ok.pdf",
                 # boom_handler ignores arguments; URL doesn't get fetched.
-                "content_url": "https://synzo.test/u/never-fetched",
+                "content_base64": "QUE=",  # auth rejection fires before handler
             },
         },
         headers=org["auth_header"],
@@ -1840,99 +1822,24 @@ def test_tools_call_handler_raises_generic_exception_returns_isError_and_refunds
         assert last.error_code == "handler_error"
 
 
-# --- upload_file tool + blob serve route ---------------------------------------
+# --- Input-URL rejection and output blob-serve route --------------------------
 
 
-def test_upload_file_returns_content_url_and_meters(client, app):
-    """The single base64-input tool. Stashes bytes in the blob store and
-    returns a URL the chat client can pass to downstream tools. Quota is
-    consumed because uploads use server memory + bandwidth."""
-    org = _seed_org(app, name="mcp_upload_ok")
-    raw = b"%PDF-1.4 sample upload"
+def test_summarize_document_rejects_content_url(client, app, fake_gemini, b64_bytes):
+    """content_url is no longer a valid argument — supplying it (even with
+    valid content_base64 alongside) must fail loudly. This is the control
+    that enforces Harvey's "no caller-directed URL downloads" requirement
+    at the handler, not just in the advertised schema."""
+    org = _seed_org(app, name="mcp_url_rejected")
     resp = _rpc(
         client,
         "tools/call",
         {
-            "name": "upload_file",
+            "name": "summarize_document",
             "arguments": {
                 "filename": "doc.pdf",
-                "content_base64": base64.b64encode(raw).decode(),
-            },
-        },
-        headers=org["auth_header"],
-    )
-    assert resp.status_code == 200
-    body = resp.get_json()
-    assert "error" not in body, body
-    sc = body["result"]["structuredContent"]
-    assert sc["filename"] == "doc.pdf"
-    assert sc["size_bytes"] == len(raw)
-    assert sc["content_type"] == "application/pdf"
-    assert sc["content_url"].endswith(sc["content_url"].rsplit("/", 1)[-1])
-    assert "expires_at" in sc
-
-    # Quota was consumed.
-    with app.app_context():
-        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
-        assert len(events) == 1
-        assert events[0].tool == "upload_file"
-        assert events[0].status == "ok"
-
-
-def test_upload_file_then_summarize_chain_works_via_blob_store(
-    client, app, fake_gemini
-):
-    """The whole point of upload_file: the URL it returns can drive a
-    subsequent summarize_document call without re-uploading the bytes."""
-    org = _seed_org(app, name="mcp_upload_chain")
-    raw = b"%PDF-1.4 sample"
-
-    up = _rpc(
-        client,
-        "tools/call",
-        {
-            "name": "upload_file",
-            "arguments": {
-                "filename": "doc.pdf",
-                "content_base64": base64.b64encode(raw).decode(),
-            },
-        },
-        headers=org["auth_header"],
-    )
-    url = up.get_json()["result"]["structuredContent"]["content_url"]
-    token = url.rsplit("/", 1)[-1]
-
-    # The blob is reachable directly from the in-process store.
-    from blob_store import get_default_store
-    assert get_default_store().get(token) is not None
-
-    # Pull bytes via the HTTP serve route too.
-    serve_resp = client.get(f"/u/{token}")
-    assert serve_resp.status_code == 200
-    assert serve_resp.data == raw
-    assert serve_resp.headers["Content-Type"] == "application/pdf"
-    assert serve_resp.headers["Cache-Control"] == "private, no-store"
-    assert 'filename="doc.pdf"' in serve_resp.headers["Content-Disposition"]
-
-
-def test_upload_file_rejects_oversize_payload(client, app):
-    """Uploads larger than MAX_DOC_BYTES (10 MB) are rejected as ToolError
-    so the model can see what went wrong; quota is refunded.
-
-    Uses a pro-plan org so the units check (which scales with base64 length)
-    doesn't 413 before the handler runs — the 10MB cap is what we want to
-    pin here.
-    """
-    org = _seed_org(app, name="mcp_upload_too_big", plan="pro")
-    raw = b"x" * (10 * 1024 * 1024 + 1)
-    resp = _rpc(
-        client,
-        "tools/call",
-        {
-            "name": "upload_file",
-            "arguments": {
-                "filename": "huge.pdf",
-                "content_base64": base64.b64encode(raw).decode(),
+                "content_url": "https://example.com/evil.pdf",
+                "content_base64": b64_bytes(b"%PDF-1.4 would-have-worked"),
             },
         },
         headers=org["auth_header"],
@@ -1940,22 +1847,34 @@ def test_upload_file_rejects_oversize_payload(client, app):
     body = resp.get_json()
     assert body["result"]["isError"] is True
     text = body["result"]["content"][0]["text"].lower()
-    assert "exceed" in text or "bytes" in text
-
-    with app.app_context():
-        events = db.session.query(UsageEvent).filter_by(org_id=org["org_id"]).all()
-        statuses = sorted(e.status for e in events)
-        assert "refunded" in statuses
+    assert "content_url" in text
 
 
-def test_upload_file_rejects_invalid_base64(client, app):
-    """Malformed base64 raises ToolError so the model can recover."""
-    org = _seed_org(app, name="mcp_upload_bad_b64")
+def test_processing_tool_missing_content_base64_returns_isError(client, app, fake_gemini):
+    """Omitting content_base64 raises a ToolError, not a server-side crash."""
+    org = _seed_org(app, name="mcp_missing_b64")
     resp = _rpc(
         client,
         "tools/call",
         {
-            "name": "upload_file",
+            "name": "summarize_document",
+            "arguments": {"filename": "doc.pdf"},
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "content_base64" in body["result"]["content"][0]["text"]
+
+
+def test_processing_tool_rejects_invalid_base64(client, app, fake_gemini):
+    """Malformed base64 raises ToolError so the model can recover."""
+    org = _seed_org(app, name="mcp_bad_b64")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
             "arguments": {
                 "filename": "x.pdf",
                 "content_base64": "!!!not base64!!!",
@@ -1968,30 +1887,33 @@ def test_upload_file_rejects_invalid_base64(client, app):
     assert "base64" in body["result"]["content"][0]["text"].lower()
 
 
+def test_upload_file_tool_is_not_advertised(client):
+    """upload_file was removed from the catalog along with the URL input path.
+    Clients that still try to call it must get a method-not-found, not a
+    silent fallback."""
+    resp = _rpc(client, "tools/list")
+    names = {t["name"] for t in resp.get_json()["result"]["tools"]}
+    assert "upload_file" not in names
+
+
 def test_blob_serve_route_returns_404_for_unknown_token(client):
     """Unknown / expired tokens should be indistinguishable from never-existed."""
     resp = client.get("/u/does-not-exist-token")
     assert resp.status_code == 404
 
 
-def test_blob_serve_route_returns_404_after_drop(client, app):
-    """Drop the entry mid-flight; second fetch returns 404."""
+def test_blob_serve_route_returns_404_after_drop(client):
+    """Drop the entry mid-flight; second fetch returns 404.
+
+    Seeds the blob store directly (the /u/<token> route is now only used for
+    OUTPUT delivery from redact_pii / detect_faces; there's no MCP tool that
+    puts input bytes into the store any more)."""
     from blob_store import get_default_store
-    org = _seed_org(app, name="mcp_blob_drop")
-    raw = b"hello"
-    resp = _rpc(
-        client,
-        "tools/call",
-        {
-            "name": "upload_file",
-            "arguments": {
-                "filename": "doc.pdf",
-                "content_base64": base64.b64encode(raw).decode(),
-            },
-        },
-        headers=org["auth_header"],
+    store = get_default_store()
+    entry = store.put(
+        filename="out.bin", content_type="application/octet-stream", data=b"hello"
     )
-    token = resp.get_json()["result"]["structuredContent"]["content_url"].rsplit("/", 1)[-1]
+    token = entry.token
     assert client.get(f"/u/{token}").status_code == 200
-    get_default_store().drop(token)
+    store.drop(token)
     assert client.get(f"/u/{token}").status_code == 404

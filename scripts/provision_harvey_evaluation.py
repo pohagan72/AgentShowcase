@@ -187,25 +187,38 @@ def main():
             emit(email=email, authentication=entry["authentication_status"],
                  http_status=response.status_code)
 
-        if entry.get("access_token") and not entry.get("mcp_upload_verified"):
+        if entry.get("access_token") and not entry.get("mcp_tool_call_verified"):
+            # OAuth-path smoke: a minimal authenticated tools/call that proves
+            # the user's bearer resolves to a Principal with quota. We hit
+            # redact_pii with a tiny valid .docx — it's local-only work
+            # (Microsoft Presidio, no Gemini), so the per-user cost is one
+            # quota unit and no outbound AI calls.
+            # upload_file used to serve this role; it was removed with the
+            # URL-input path, so processing tools now take base64 directly.
+            import io as _io
+            from docx import Document as _Document
+            buf = _io.BytesIO()
+            doc = _Document()
+            doc.add_paragraph("Harvey evaluation OAuth smoke test.")
+            doc.save(buf)
             result = requests.post(BASE_URL + "/mcp", headers={
                 "Authorization": "Bearer " + entry["access_token"],
                 "Accept": "application/json, text/event-stream",
             }, json={"jsonrpc": "2.0", "id": index, "method": "tools/call", "params": {
-                "name": "upload_file", "arguments": {
-                    "filename": f"harvey-evaluation-{index}.txt",
-                    "content_base64": base64.b64encode(b"Synthetic Harvey connector evaluation file.").decode(),
+                "name": "redact_pii", "arguments": {
+                    "filename": f"harvey-evaluation-{index}.docx",
+                    "content_base64": base64.b64encode(buf.getvalue()).decode(),
                 },
             }}, timeout=75)
             payload = result.json()
-            success = bool(payload.get("result", {}).get("structuredContent", {}).get("content_url"))
-            entry["mcp_upload_verified"] = success
-            entry["mcp_upload_http_status"] = result.status_code
+            success = bool(payload.get("result", {}).get("structuredContent", {}).get("result_url"))
+            entry["mcp_tool_call_verified"] = success
+            entry["mcp_tool_call_http_status"] = result.status_code
             if not success:
-                entry["mcp_upload_error"] = payload.get("error", {}).get("code")
+                entry["mcp_tool_call_error"] = payload.get("error", {}).get("code")
             save(state)
-            emit(email=email, oauth_mcp_upload_verified=success, http_status=result.status_code,
-                 error_code=entry.get("mcp_upload_error"))
+            emit(email=email, oauth_mcp_tool_call_verified=success, http_status=result.status_code,
+                 error_code=entry.get("mcp_tool_call_error"))
 
         if args.send_invitations and not entry.get("invitation_id") and not entry.get("password_reset_id"):
             invitations = list(client.user_management.list_invitations(

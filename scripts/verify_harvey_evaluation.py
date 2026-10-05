@@ -1,7 +1,10 @@
-"""Verify six live tools with a temporary key for the dedicated evaluation org.
+"""Verify the five live tools with a temporary key for the dedicated evaluation org.
 
 This validates organization-level service access, not unverified users' OAuth
 sign-ins. Uses synthetic documents and the existing public reviewer images.
+Every processing tool is called directly with content_base64; the earlier
+upload_file helper and the URL-input path were removed with the direct-upload
+revision.
 """
 from __future__ import annotations
 
@@ -91,30 +94,31 @@ def main():
         doc.add_paragraph("Synthetic contact: Jane Doe, jane.doe@example.com, telephone 416-555-0100.")
         buffer = io.BytesIO()
         doc.save(buffer)
-        upload = call("upload_file", {"filename": "harvey-synthetic-evaluation.docx",
-            "content_base64": base64.b64encode(buffer.getvalue()).decode()}, ["content_url"])
-        if upload:
-            arguments = {"filename": "harvey-synthetic-evaluation.docx", "content_url": upload["content_url"]}
-            call("summarize_document", arguments, ["summary"])
-            call("translate_document", {**arguments, "target_language": "French"}, ["translated_text"])
-            redacted = call("redact_pii", arguments, ["result_url"])
-            if redacted:
-                output = http.get(redacted["result_url"], timeout=30)
-                output.raise_for_status()
-                processed = Document(io.BytesIO(output.content))
-                text = "\n".join(p.text for p in processed.paragraphs)
-                results[-1]["download_verified"] = True
-                results[-1]["synthetic_email_removed"] = "jane.doe@example.com" not in text
-                results[-1]["success"] = results[-1]["success"] and results[-1]["synthetic_email_removed"]
-                emit(tool="redact_pii", download_verified=True,
-                     synthetic_email_removed=results[-1]["synthetic_email_removed"])
-        else:
-            for name in ("summarize_document", "translate_document", "redact_pii"):
-                results.append({"tool": name, "success": False, "reason": "upload_failed"})
+        docx_b64 = base64.b64encode(buffer.getvalue()).decode()
+        docx_args = {"filename": "harvey-synthetic-evaluation.docx", "content_base64": docx_b64}
+        call("summarize_document", docx_args, ["summary"])
+        call("translate_document", {**docx_args, "target_language": "French"}, ["translated_text"])
+        redacted = call("redact_pii", docx_args, ["result_url"])
+        if redacted:
+            output = http.get(redacted["result_url"], timeout=30)
+            output.raise_for_status()
+            processed = Document(io.BytesIO(output.content))
+            text = "\n".join(p.text for p in processed.paragraphs)
+            results[-1]["download_verified"] = True
+            results[-1]["synthetic_email_removed"] = "jane.doe@example.com" not in text
+            results[-1]["success"] = results[-1]["success"] and results[-1]["synthetic_email_removed"]
+            emit(tool="redact_pii", download_verified=True,
+                 synthetic_email_removed=results[-1]["synthetic_email_removed"])
+        # Load the reviewer-sample images from disk and base64 them, since the
+        # processing tools no longer fetch content from URLs. The files live
+        # under static/reviewer-samples/ in the repo.
+        reviewer_samples = ROOT / "static" / "reviewer-samples"
+        analyze_bytes = (reviewer_samples / "analyze-sample.jpg").read_bytes()
         call("analyze_image", {"filename": "analyze-sample.jpg",
-            "content_url": BASE_URL + "/static/reviewer-samples/analyze-sample.jpg"}, ["analysis"])
+            "content_base64": base64.b64encode(analyze_bytes).decode()}, ["analysis"])
+        faces_bytes = (reviewer_samples / "detect-faces-sample.jpg").read_bytes()
         faces = call("detect_faces", {"filename": "detect-faces-sample.jpg", "mode": "redact",
-            "content_url": BASE_URL + "/static/reviewer-samples/detect-faces-sample.jpg"}, ["result_url"])
+            "content_base64": base64.b64encode(faces_bytes).decode()}, ["result_url"])
         if faces:
             output = http.get(faces["result_url"], timeout=30)
             output.raise_for_status()
@@ -135,10 +139,10 @@ def main():
         state["service_verification"] = {"started_at": started.isoformat(),
             "completed_at": datetime.now(timezone.utc).isoformat(), "results": results,
             "temporary_api_key_revoked": True, "calls_remaining": remaining,
-            "all_six_tools_passed": len(results) == 6 and all(r["success"] for r in results)}
+            "all_five_tools_passed": len(results) == 5 and all(r["success"] for r in results)}
         save(state)
         emit(temporary_api_key_revoked=True, calls_remaining=remaining,
-             all_six_tools_passed=state["service_verification"]["all_six_tools_passed"])
+             all_five_tools_passed=state["service_verification"]["all_five_tools_passed"])
 
 
 if __name__ == "__main__":

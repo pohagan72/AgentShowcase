@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import io
 import json
 import logging
@@ -30,7 +31,6 @@ from werkzeug.datastructures import FileStorage
 
 from auth import Principal
 from blob_store import BlobStoreFull, BlobTooLarge, get_default_store
-from url_fetcher import UrlFetchError, fetch_url_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -77,17 +77,16 @@ class ToolError(Exception):
 def _load_payload(args: dict, *, max_bytes: int) -> tuple[str, bytes, str]:
     """Pull (filename, raw_bytes, extension) out of a tool's arguments dict.
 
-    Every binary-input tool takes `filename` + `content_url`. The URL is fetched
-    via the SSRF-guarded fetcher (url_fetcher.fetch_url_bytes); the bytes must
-    not exceed `max_bytes` decoded.
+    Every binary-input tool takes `filename` + `content_base64`. The server
+    decodes the base64 directly; it does NOT fetch content from any caller-
+    supplied URL. Decoded size must not exceed `max_bytes`.
 
-    Why URL-only (no inline base64): chat clients must construct tool-call
-    arguments as LLM output tokens, and inlining a multi-MB base64 string into
-    every tool call stalls the chat UI for minutes. The `upload_file` tool
-    handles the one-time base64 upload; downstream tools reference the file
-    by URL and get instant tool-call invocation.
+    `content_url` is rejected outright — even when accompanied by valid
+    base64 — so no legacy caller can keep the old behavior alive by sending
+    both fields. This is the fix for the agent-can-download-arbitrary-URLs
+    exposure Harvey's security review flagged.
 
-    Raises ToolError on argument problems / fetch failures; the caller does
+    Raises ToolError on argument problems / decode failures; the caller does
     the extension-set check itself because allowed extensions vary per tool.
     """
     filename = (args.get("filename") or "").strip()
@@ -96,39 +95,40 @@ def _load_payload(args: dict, *, max_bytes: int) -> tuple[str, bytes, str]:
 
     _, ext = os.path.splitext(filename.lower())
 
-    url = args.get("content_url")
-    if not isinstance(url, str) or not url:
-        raise ToolError("Missing 'content_url'")
+    if "content_url" in args:
+        # Explicit rejection, not silent fallback: a client that still ships
+        # content_url must fail loudly so it gets updated, not keep working
+        # off whatever other field happens to be present.
+        raise ToolError(
+            "'content_url' is no longer supported. Pass the file bytes "
+            "directly as 'content_base64' instead."
+        )
+
+    encoded = args.get("content_base64")
+    if not isinstance(encoded, str) or not encoded:
+        raise ToolError("Missing 'content_base64'")
 
     try:
-        raw, _content_type = fetch_url_bytes(url, max_bytes=max_bytes)
-    except UrlFetchError as e:
-        raise ToolError(f"Could not fetch content_url: {e}") from e
+        raw = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise ToolError(f"content_base64 is not valid base64: {e}") from e
 
     if len(raw) > max_bytes:
-        # Defense in depth: fetch_url_bytes already enforces this.
-        raise ToolError(f"Fetched content exceeds {max_bytes} bytes")
+        raise ToolError(f"Decoded content exceeds {max_bytes} bytes")
 
     return filename, raw, ext
 
 
-def _units_from_url(args: dict) -> int:
-    """Fixed nominal unit count for URL-input tools.
+def _units_from_payload(args: dict) -> int:
+    """Fixed nominal unit count for processing tools.
 
-    We charge 1 unit on the URL path because we don't know the content size
-    until after the fetch. The per-call quota guard runs again at the
-    handler boundary (decoded-size cap) so oversized fetches are still
-    rejected — they just don't 413 in pre-flight. Acceptable tradeoff for
-    the chat-client UX win.
+    One call = one unit, regardless of file size. We deliberately do NOT
+    bill by base64 length: that would recreate the old upload_file size-
+    derived limits that effectively capped Free users around 1 MiB and
+    Starter around 5 MiB, well below the 10 MiB file cap we advertise.
+    The hard 10 MiB decoded-size cap still runs in _load_payload.
     """
     return 1
-
-
-def _units_from_base64(args: dict, *, divisor_bytes: int = 50 * 1024) -> int:
-    """Estimate units for the `upload_file` tool by base64 length."""
-    encoded = args.get("content_base64") or ""
-    approx_bytes = (len(encoded) * 3) // 4
-    return max(1, approx_bytes // divisor_bytes)
 
 
 # Maps the user-facing extension (lowercased, with dot) to the set of detection
@@ -185,17 +185,16 @@ _SUMMARIZE_INPUT_SCHEMA = {
             "type": "string",
             "description": "Name of the document with its extension (.pdf, .docx, .pptx, .xlsx).",
         },
-        "content_url": {
+        "content_base64": {
             "type": "string",
-            "format": "uri",
             "description": (
-                "HTTPS URL the server will fetch the document from. Max 10 MB "
-                "decoded. Use the upload_file tool to obtain a short-lived "
-                "Synzo-hosted URL for a local file."
+                "Base64-encoded document bytes. Decoded size must not exceed "
+                "10 MB. The host must supply the attachment bytes directly; "
+                "the server does not fetch content from external URLs."
             ),
         },
     },
-    "required": ["filename", "content_url"],
+    "required": ["filename", "content_base64"],
     "additionalProperties": False,
 }
 
@@ -266,13 +265,12 @@ _TRANSLATE_INPUT_SCHEMA = {
             "type": "string",
             "description": "Name of the document with its extension (.docx, .pptx, .xlsx).",
         },
-        "content_url": {
+        "content_base64": {
             "type": "string",
-            "format": "uri",
             "description": (
-                "HTTPS URL the server will fetch the document from. Max 10 MB "
-                "decoded. Use the upload_file tool to obtain a short-lived "
-                "Synzo-hosted URL for a local file."
+                "Base64-encoded document bytes. Decoded size must not exceed "
+                "10 MB. The host must supply the attachment bytes directly; "
+                "the server does not fetch content from external URLs."
             ),
         },
         "target_language": {
@@ -285,7 +283,7 @@ _TRANSLATE_INPUT_SCHEMA = {
             "maxLength": 64,
         },
     },
-    "required": ["filename", "content_url", "target_language"],
+    "required": ["filename", "content_base64", "target_language"],
     "additionalProperties": False,
 }
 
@@ -353,17 +351,16 @@ _REDACT_INPUT_SCHEMA = {
             "type": "string",
             "description": "Name of the document with its extension (.docx or .pptx).",
         },
-        "content_url": {
+        "content_base64": {
             "type": "string",
-            "format": "uri",
             "description": (
-                "HTTPS URL the server will fetch the document from. Max 10 MB "
-                "decoded. Use the upload_file tool to obtain a short-lived "
-                "Synzo-hosted URL for a local file."
+                "Base64-encoded document bytes. Decoded size must not exceed "
+                "10 MB. The host must supply the attachment bytes directly; "
+                "the server does not fetch content from external URLs."
             ),
         },
     },
-    "required": ["filename", "content_url"],
+    "required": ["filename", "content_base64"],
     "additionalProperties": False,
 }
 
@@ -429,17 +426,16 @@ _ANALYZE_IMAGE_INPUT_SCHEMA = {
             "type": "string",
             "description": "Name of the image with its extension (.jpg, .jpeg, .png, .webp, .heic, .heif).",
         },
-        "content_url": {
+        "content_base64": {
             "type": "string",
-            "format": "uri",
             "description": (
-                "HTTPS URL the server will fetch the image from. Max 10 MB. "
-                "Use the upload_file tool to obtain a short-lived Synzo-hosted "
-                "URL for a local image."
+                "Base64-encoded image bytes. Decoded size must not exceed "
+                "10 MB. The host must supply the attachment bytes directly; "
+                "the server does not fetch content from external URLs."
             ),
         },
     },
-    "required": ["filename", "content_url"],
+    "required": ["filename", "content_base64"],
     "additionalProperties": False,
 }
 
@@ -506,13 +502,12 @@ _DETECT_FACES_INPUT_SCHEMA = {
             "type": "string",
             "description": "Name of the image with its extension (.jpg, .jpeg, .png, .webp, .heic, .heif).",
         },
-        "content_url": {
+        "content_base64": {
             "type": "string",
-            "format": "uri",
             "description": (
-                "HTTPS URL the server will fetch the image from. Max 10 MB. "
-                "Use the upload_file tool to obtain a short-lived Synzo-hosted "
-                "URL for a local image."
+                "Base64-encoded image bytes. Decoded size must not exceed "
+                "10 MB. The host must supply the attachment bytes directly; "
+                "the server does not fetch content from external URLs."
             ),
         },
         "mode": {
@@ -534,7 +529,7 @@ _DETECT_FACES_INPUT_SCHEMA = {
             ),
         },
     },
-    "required": ["filename", "content_url"],
+    "required": ["filename", "content_base64"],
     "additionalProperties": False,
 }
 
@@ -594,35 +589,14 @@ def _detect_faces(principal: Principal, args: dict) -> dict:
     }
 
 
-# --- upload_file ---------------------------------------------------------------
+# --- Output blob helpers -------------------------------------------------------
 #
-# The one tool that still takes base64 — by design. Chat clients call this
-# ONCE per file; downstream tools (summarize/translate/redact/analyze/detect)
-# reference the file by URL. That single base64-laden call is unavoidable for
-# a chat-client workflow because the client doesn't have a "give me a URL for
-# this attachment" affordance. After this call, every subsequent tool call is
-# instant — they just pass the URL string.
-
-
-_UPLOAD_FILE_INPUT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "filename": {
-            "type": "string",
-            "description": "Original filename (with extension) used to set the response Content-Type and inform downstream tools.",
-        },
-        "content_base64": {
-            "type": "string",
-            "description": (
-                "Base64-encoded file bytes. Decoded size must not exceed 10 MB. "
-                "The server stores the bytes in memory and returns a short-lived "
-                "HTTPS URL you can pass to the other Synzo tools as `content_url`."
-            ),
-        },
-    },
-    "required": ["filename", "content_base64"],
-    "additionalProperties": False,
-}
+# redact_pii and detect_faces produce binary output too big to inline in the
+# JSON-RPC response. They stash the bytes in the blob store and return a
+# short-lived HTTPS URL (served by /u/<token> in mcp_routes.py). The blob
+# store is NOT used for inputs any more — Harvey's security review required
+# that inputs come directly as bytes, so _load_payload decodes base64 and
+# never consults the store.
 
 
 def _public_base_url() -> str:
@@ -643,29 +617,13 @@ def _public_base_url() -> str:
         return "http://localhost:5001"
 
 
-def _content_type_for_extension(ext: str) -> str:
-    """Map the supported extensions to canonical content types."""
-    ext = ext.lower()
-    return {
-        ".pdf": "application/pdf",
-        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".webp": "image/webp",
-        ".heic": "image/heic",
-        ".heif": "image/heif",
-    }.get(ext, "application/octet-stream")
-
-
 def _stash_output_bytes(*, data: bytes, filename: str, content_type: str) -> tuple[str, str]:
     """Park `data` in the blob store and return (url, expires_at_iso).
 
     Used by tools that produce binary output (redact_pii, detect_faces) so
-    they can return a URL instead of a multi-MB base64 string. Same TTL +
-    cap behavior as upload_file uploads.
+    they can return a URL instead of a multi-MB base64 string. The entries
+    expire after BLOB_STORE_TTL_SECONDS (default 1h); the token is 256-bit
+    entropy and is the only authentication on the download link.
     """
     store = get_default_store()
     try:
@@ -680,88 +638,19 @@ def _stash_output_bytes(*, data: bytes, filename: str, content_type: str) -> tup
     return url, expires_iso
 
 
-def _upload_file(principal: Principal, args: dict) -> dict:
-    """Park an uploaded file in the blob store; return a fetchable URL.
-
-    The principal is the calling org. We don't bind the blob to the org —
-    the URL is the token, and the token is the auth. This matches the
-    S3-presigned-URL pattern (anyone with the URL can fetch). The blob
-    expires after BLOB_STORE_TTL_SECONDS (default 1h).
-    """
-    filename = (args.get("filename") or "").strip()
-    if not filename:
-        raise ToolError("Missing 'filename'")
-
-    _, ext = os.path.splitext(filename.lower())
-
-    encoded = args.get("content_base64")
-    if not isinstance(encoded, str) or not encoded:
-        raise ToolError("Missing 'content_base64'")
-
-    try:
-        raw = base64.b64decode(encoded, validate=True)
-    except Exception as e:
-        raise ToolError(f"content_base64 is not valid base64: {e}") from e
-
-    # Single source of truth for the cap: matches MAX_DOC_BYTES / MAX_IMAGE_BYTES.
-    if len(raw) > MAX_DOC_BYTES:
-        raise ToolError(f"Uploaded content exceeds {MAX_DOC_BYTES} bytes")
-
-    content_type = _content_type_for_extension(ext)
-    store = get_default_store()
-    try:
-        entry = store.put(filename=filename, content_type=content_type, data=raw)
-    except BlobTooLarge as e:
-        raise ToolError(str(e)) from e
-    except BlobStoreFull as e:
-        raise RuntimeError(f"Blob store is full: {e}") from e
-
-    url = f"{_public_base_url()}/u/{entry.token}"
-    expires_iso = datetime.fromtimestamp(entry.expires_at, tz=timezone.utc).isoformat()
-    return {
-        "filename": filename,
-        "content_url": url,
-        "expires_at": expires_iso,
-        "size_bytes": len(raw),
-        "content_type": content_type,
-    }
-
-
 # --- Registry ------------------------------------------------------------------
 
 
 TOOLS: dict[str, ToolSpec] = {
-    "upload_file": ToolSpec(
-        name="upload_file",
-        title="Upload a file for use by other Synzo tools",
-        description=(
-            "Upload a file to Synzo and receive a short-lived HTTPS URL. "
-            "Use this FIRST when you need to operate on a local file: call "
-            "upload_file once with the file's base64 bytes, then pass the "
-            "returned content_url to any of the other Synzo tools "
-            "(summarize_document, translate_document, redact_pii, "
-            "analyze_image, detect_faces). The URL expires in 1 hour. "
-            "Decoded size must not exceed 10 MB."
-        ),
-        input_schema=_UPLOAD_FILE_INPUT_SCHEMA,
-        annotations={
-            "title": "Upload a file for use by other Synzo tools",
-            "readOnlyHint": False,
-            "destructiveHint": False,
-            "idempotentHint": False,
-            "openWorldHint": False,
-        },
-        units_fn=lambda args: _units_from_base64(args),
-        handler=_upload_file,
-    ),
     "summarize_document": ToolSpec(
         name="summarize_document",
         title="Summarize a document",
         description=(
             "Classify and summarize a PDF, DOCX, PPTX, or XLSX file. "
-            "Returns the inferred document type and a structured Markdown summary. "
-            "Pass `content_url` — an HTTPS URL the server will fetch from "
-            "(max 10 MB). For local files, call upload_file first to get a URL."
+            "Returns the inferred document type and a structured Markdown "
+            "summary. Pass the file bytes directly as `content_base64` "
+            "(max 10 MB decoded). The server does not fetch content from "
+            "caller-supplied URLs."
         ),
         input_schema=_SUMMARIZE_INPUT_SCHEMA,
         # Tool annotations per MCP spec: a summarize call produces new content
@@ -775,7 +664,7 @@ TOOLS: dict[str, ToolSpec] = {
             "idempotentHint": True,
             "openWorldHint": False,
         },
-        units_fn=_units_from_url,
+        units_fn=_units_from_payload,
         handler=_summarize_document,
     ),
     "translate_document": ToolSpec(
@@ -784,9 +673,9 @@ TOOLS: dict[str, ToolSpec] = {
         description=(
             "Translate the text content of a DOCX, PPTX, or XLSX file into a "
             "target language. Returns the translated text as Markdown (no "
-            "binary file round-trip). Pass `content_url` — an HTTPS URL the "
-            "server will fetch from (max 10 MB). For local files, call "
-            "upload_file first to get a URL."
+            "binary file round-trip). Pass the file bytes directly as "
+            "`content_base64` (max 10 MB decoded). The server does not fetch "
+            "content from caller-supplied URLs."
         ),
         input_schema=_TRANSLATE_INPUT_SCHEMA,
         annotations={
@@ -796,7 +685,7 @@ TOOLS: dict[str, ToolSpec] = {
             "idempotentHint": True,
             "openWorldHint": False,
         },
-        units_fn=_units_from_url,
+        units_fn=_units_from_payload,
         handler=_translate_document,
     ),
     "redact_pii": ToolSpec(
@@ -807,9 +696,9 @@ TOOLS: dict[str, ToolSpec] = {
             "DOCX or PPTX file using Microsoft Presidio. Returns a short-lived "
             "HTTPS URL (`result_url`) where the redacted document can be "
             "downloaded. PII characters are replaced with the block symbol in "
-            "place so formatting is preserved. Pass `content_url` — an HTTPS "
-            "URL the server will fetch from (max 10 MB). For local files, call "
-            "upload_file first to get a URL."
+            "place so formatting is preserved. Pass the file bytes directly "
+            "as `content_base64` (max 10 MB decoded). The server does not "
+            "fetch content from caller-supplied URLs."
         ),
         input_schema=_REDACT_INPUT_SCHEMA,
         annotations={
@@ -819,7 +708,7 @@ TOOLS: dict[str, ToolSpec] = {
             "idempotentHint": True,
             "openWorldHint": False,
         },
-        units_fn=_units_from_url,
+        units_fn=_units_from_payload,
         handler=_redact_pii,
     ),
     "analyze_image": ToolSpec(
@@ -830,8 +719,8 @@ TOOLS: dict[str, ToolSpec] = {
             "description, extracted text, safety flags (people / PII / "
             "graphic content), a list of detected objects, and a palette of "
             "the dominant colors. Supports JPG, PNG, WEBP, HEIC, HEIF up to "
-            "10 MB. Pass `content_url` — an HTTPS URL the server will fetch "
-            "from. For local files, call upload_file first to get a URL."
+            "10 MB. Pass the image bytes directly as `content_base64`. The "
+            "server does not fetch content from caller-supplied URLs."
         ),
         input_schema=_ANALYZE_IMAGE_INPUT_SCHEMA,
         annotations={
@@ -841,7 +730,7 @@ TOOLS: dict[str, ToolSpec] = {
             "idempotentHint": True,
             "openWorldHint": False,
         },
-        units_fn=_units_from_url,
+        units_fn=_units_from_payload,
         handler=_analyze_image,
     ),
     "detect_faces": ToolSpec(
@@ -852,9 +741,9 @@ TOOLS: dict[str, ToolSpec] = {
             "HTTPS URL (`result_url`) where the processed PNG can be "
             "downloaded — each face either blurred or covered with an opaque "
             "rectangle. Useful for anonymizing photos before sharing. Pass "
-            "`content_url` — an HTTPS URL the server will fetch from "
-            "(JPG/PNG/WEBP/HEIC/HEIF, max 10 MB). For local files, call "
-            "upload_file first to get a URL."
+            "the image bytes directly as `content_base64` "
+            "(JPG/PNG/WEBP/HEIC/HEIF, max 10 MB decoded). The server does "
+            "not fetch content from caller-supplied URLs."
         ),
         input_schema=_DETECT_FACES_INPUT_SCHEMA,
         annotations={
@@ -864,7 +753,7 @@ TOOLS: dict[str, ToolSpec] = {
             "idempotentHint": True,
             "openWorldHint": False,
         },
-        units_fn=_units_from_url,
+        units_fn=_units_from_payload,
         handler=_detect_faces,
     ),
 }

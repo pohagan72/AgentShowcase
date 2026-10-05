@@ -4,9 +4,11 @@ Used to confirm the reviewer-bundle redact-sample.docx triggers Presidio's
 default English recognizers (PERSON, EMAIL_ADDRESS, PHONE_NUMBER, US_SSN,
 CREDIT_CARD, US_PASSPORT) end-to-end through the production endpoint.
 
-Reads SYNZO_API_KEY from .env. Two MCP calls:
-  1. upload_file -> returns a short-lived content_url for the docx.
-  2. redact_pii(content_url=...) -> returns result_url for the redacted docx.
+Reads SYNZO_API_KEY from .env. One MCP call:
+  redact_pii(filename=..., content_base64=...) -> returns result_url for
+  the redacted docx. (The old upload_file->redact_pii two-step was removed
+  when the URL-input path was deleted; processing tools now receive the
+  file bytes directly as base64.)
 Then fetches result_url, extracts paragraph text, and prints which seeded
 strings survived (any survivor is a bug in the seed format or a gap in
 Presidio's defaults).
@@ -77,31 +79,11 @@ def main(path: Path) -> int:
 
     raw = path.read_bytes()
     b64 = base64.b64encode(raw).decode("ascii")
-    print(f"Step 1: uploading {path.name} ({len(raw)} bytes) to {DEFAULT_BASE_URL}/mcp ...")
+    print(f"Calling redact_pii with {path.name} ({len(raw)} bytes) at {DEFAULT_BASE_URL}/mcp ...")
 
-    up_resp, up_elapsed = post_jsonrpc(
-        DEFAULT_BASE_URL, api_key, "tools/call",
-        {"name": "upload_file", "arguments": {"filename": path.name, "content_base64": b64}},
-    )
-    print(f"  upload_file response in {up_elapsed:.2f}s")
-    if "error" in up_resp:
-        print(f"upload_file JSON-RPC error: {up_resp['error']}", file=sys.stderr)
-        return 1
-    up_result = up_resp.get("result", {})
-    if up_result.get("isError"):
-        print(f"upload_file returned isError=true: {up_result.get('content')}", file=sys.stderr)
-        return 1
-    up_structured = up_result.get("structuredContent") or {}
-    content_url = up_structured.get("content_url")
-    if not content_url:
-        print(f"upload_file did not return content_url: {up_result}", file=sys.stderr)
-        return 1
-    print(f"  -> content_url: {content_url}")
-
-    print(f"Step 2: calling redact_pii with content_url ...")
     resp, elapsed = post_jsonrpc(
         DEFAULT_BASE_URL, api_key, "tools/call",
-        {"name": "redact_pii", "arguments": {"filename": path.name, "content_url": content_url}},
+        {"name": "redact_pii", "arguments": {"filename": path.name, "content_base64": b64}},
     )
     print(f"  Response in {elapsed:.2f}s")
     import json as _json
@@ -132,7 +114,7 @@ def main(path: Path) -> int:
         print(f"No result_url in result: {result}", file=sys.stderr)
         return 1
 
-    print(f"Step 3: fetching redacted file from {result_url} ...")
+    print(f"Fetching redacted file from {result_url} ...")
     import requests as _requests
     fetch_kwargs = {"timeout": 30, "verify": False}
     fetch_resp = _requests.get(result_url, **fetch_kwargs)
