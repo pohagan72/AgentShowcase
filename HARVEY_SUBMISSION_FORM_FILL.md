@@ -24,7 +24,7 @@ Synzo helps legal teams summarize and translate documents, analyze images, and r
 
 Synzo brings document and image intelligence to legal workflows, helping teams review materials, work across languages, and prepare copies for sharing. Its MCP connector provides tools to classify and summarize PDF and Office documents; translate text from Word, PowerPoint, and Excel files; detect and redact personally identifiable information in Word and PowerPoint files; analyze images for descriptions, visible text, objects, and potential sensitive content; and blur or obscure detected faces in photos.
 
-Teams can use these capabilities to prepare summaries for matter review, understand foreign-language materials, examine visual exhibits, and reduce exposure of personal information before sharing documents or images. Files can be supplied through HTTPS URLs or uploaded using the connector's file-upload tool. Summaries and translations return as Markdown, while redacted documents and processed images are available through temporary download links. Supported files can be up to 10 MB. Automated results should be reviewed before use or disclosure.
+Teams can use these capabilities to prepare summaries for matter review, understand foreign-language materials, examine visual exhibits, and reduce exposure of personal information before sharing documents or images. Each processing call carries the document or image bytes directly in the request as a base64-encoded argument; the connector does not fetch input content from caller-supplied URLs. Summaries and translations return as Markdown. Redacted documents and processed images are delivered through short-lived download URLs returned in the response. Supported files can be up to 10 MB (decoded). Automated results should be reviewed before use or disclosure.
 
 ## Required links
 
@@ -107,10 +107,10 @@ These machine-readable names and human-readable titles were checked against the 
 
 | Option | Selection | Reason |
 |---|---|---|
-| Retrieve user files or information from my platform or other external services | Select | Processing tools fetch files from supplied HTTPS URLs, including Synzo upload URLs. |
-| Delete or edit user files or information in my platform or other external services | Leave unchecked | The exposed tools create new processed copies. They do not overwrite or delete existing source files or records. Automatic expiry of temporary files is internal lifecycle management. |
-| Create new user files or information in my platform or other external services | Select | Uploads create temporary stored files; redaction and face-obscuring tools create new downloadable documents/images. |
-| Send messages or emails on behalf of others | Leave unchecked | None of the six MCP tools sends messages or emails. |
+| Retrieve user files or information from my platform or other external services | Leave unchecked | The connector does not fetch files from caller-supplied URLs or from any other external service. Every processing tool receives its document or image bytes directly from the client as a base64-encoded argument. |
+| Delete or edit user files or information in my platform or other external services | Leave unchecked | The exposed tools create new processed copies. They do not overwrite or delete existing source files or records. Automatic expiry of temporary generated-output files is internal lifecycle management. |
+| Create new user files or information in my platform or other external services | Select | The `redact_pii` and `detect_faces` tools create new downloadable documents/images (returned as a temporary `result_url`). |
+| Send messages or emails on behalf of others | Leave unchecked | None of the five MCP tools sends messages or emails. |
 | Create or modify public URLs/sharing links | Select | `redact_pii` and `detect_faces` return temporary HTTPS `result_url` links for the generated output. Anyone holding the URL can download the file until expiry; a separate login is not required. Input documents and images are received as `content_base64` and are never put behind a URL. |
 | Connect to external services (including your platform) that can independently create, edit, ... | Recommend selecting based on the wording available | The label supplied remains truncated. Synzo is itself an external platform that creates processed files and sharing links and calls Google Gemini for content generation. This is a disclosure recommendation, not a claim that Synzo autonomously takes actions in unrelated systems. |
 

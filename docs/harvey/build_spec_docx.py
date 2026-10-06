@@ -9,6 +9,7 @@ ACME-specific statement with verified Synzo facts.
 from pathlib import Path
 
 from docx import Document
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt
 
@@ -49,6 +50,40 @@ def add_code(doc, text):
     return p
 
 
+def add_toc(doc, heading_depth=3):
+    """Insert a Word TOC field spanning Heading 1 through Heading <heading_depth>.
+
+    The field body is empty until Word (or LibreOffice) is told to update
+    fields (F9 in Word, Tools -> Update -> Update All in LibreOffice). We
+    include a placeholder sentence so the reader knows to update the field
+    if it looks blank.
+    """
+    p = doc.add_paragraph()
+    run = p.add_run()
+    fldChar_begin = OxmlElement("w:fldChar")
+    fldChar_begin.set(qn("w:fldCharType"), "begin")
+    run._r.append(fldChar_begin)
+
+    instrText = OxmlElement("w:instrText")
+    instrText.set(qn("xml:space"), "preserve")
+    instrText.text = f'TOC \\o "1-{heading_depth}" \\h \\z \\u'
+    run._r.append(instrText)
+
+    fldChar_sep = OxmlElement("w:fldChar")
+    fldChar_sep.set(qn("w:fldCharType"), "separate")
+    run._r.append(fldChar_sep)
+
+    # Placeholder shown until the field is updated.
+    placeholder = OxmlElement("w:t")
+    placeholder.text = "Right-click and choose Update Field to populate the table of contents."
+    run._r.append(placeholder)
+
+    fldChar_end = OxmlElement("w:fldChar")
+    fldChar_end.set(qn("w:fldCharType"), "end")
+    run._r.append(fldChar_end)
+    return p
+
+
 def add_kv_table(doc, pairs, header=None):
     """Two-column key/value table."""
     rows = len(pairs) + (1 if header else 0)
@@ -64,12 +99,25 @@ def add_kv_table(doc, pairs, header=None):
             cell.text = ""
             run = cell.paragraphs[0].add_run(text)
             run.bold = True
+        _mark_header_row_repeat(table.rows[r])
         r += 1
     for k, v in pairs:
         table.rows[r].cells[0].text = k
         table.rows[r].cells[1].text = v
         r += 1
     return table
+
+
+def _mark_header_row_repeat(row):
+    """Tell Word to repeat this row as a header on each new page the table spans.
+
+    python-docx exposes this only via the underlying OOXML. Without it, long
+    tables that break across pages lose their column labels on continuation.
+    """
+    trPr = row._tr.get_or_add_trPr()
+    tblHeader = OxmlElement("w:tblHeader")
+    tblHeader.set(qn("w:val"), "true")
+    trPr.append(tblHeader)
 
 
 def add_matrix_table(doc, header, rows):
@@ -83,6 +131,7 @@ def add_matrix_table(doc, header, rows):
         cell.text = ""
         run = cell.paragraphs[0].add_run(text)
         run.bold = True
+    _mark_header_row_repeat(table.rows[0])
     for r, row in enumerate(rows, start=1):
         for c, text in enumerate(row):
             table.rows[r].cells[c].text = text
@@ -123,22 +172,33 @@ def main():
     )
     add_para(doc, "Provider: Red Maple Research")
     add_para(doc, "Primary technical contact: Paul O'Hagan, Principal — paul@redmapleresearch.ca")
-    add_para(doc, "Document revision: 1.2")
-    add_para(doc, "Last updated: 5 October 2026")
+    add_para(doc, "Document revision: 1.3")
+    add_para(doc, "Document last updated: 5 October 2026")
     add_para(
         doc,
-        "Repository reviewed: commit 1adc36e. Server version at review time: 0.1.0.",
+        "Implementation revision at this document's publication: Synzo commit 6af4183. "
+        "Server version returned by the live initialize response at that revision: 0.1.0. "
+        "The deployed revision serving https://www.synzo.ai/mcp follows the Synzo master "
+        "branch; the exact deployed commit on any given day should be read from the "
+        "live /mcp or from Railway's deployment log rather than inferred from this "
+        "document.",
     )
+    add_para(doc, "Live verification date: 5 October 2026. See Appendix B, \"Live verification record.\"")
+
+    # ----- TABLE OF CONTENTS -----
+    add_para(doc, "Contents", style="Heading 1")
+    add_toc(doc, heading_depth=3)
 
     # ----- INTRODUCTION -----
     add_para(doc, "Introduction", style="Heading 1")
     add_para(
         doc,
         "Synzo is a hosted Model Context Protocol (MCP) connector offered by Red Maple "
-        "Research. The connector lets an LLM-driven client stage caller-supplied "
-        "documents and images and then invoke a small catalog of processing tools: "
-        "document summarization, document translation, PII redaction, image analysis, "
-        "and face obscuring. Billing is organization-based through metered calls.",
+        "Research. The connector exposes a five-tool processing catalog: document "
+        "summarization, document translation, PII redaction, image analysis, and face "
+        "obscuring. Every tool accepts the document or image bytes directly in the "
+        "request as a base64-encoded argument; the server does not fetch input content "
+        "from caller-supplied URLs. Billing is organization-based through metered calls.",
     )
     add_para(
         doc,
@@ -221,14 +281,14 @@ def main():
     add_bullet(doc, "Client completes an OAuth 2.0 authorization-code flow with PKCE S256, or presents an organization-scoped API key, and retries the call.")
     add_para(doc, "OAuth discovery chain:")
     add_bullet(doc, "Protected-resource metadata: https://www.synzo.ai/.well-known/oauth-protected-resource. Its authorization_servers field lists Synzo's own public URL; the client is directed back to Synzo for the authorization-server document, not to WorkOS directly.")
-    add_bullet(doc, "Authorization-server metadata: https://www.synzo.ai/.well-known/oauth-authorization-server. This Synzo endpoint fetches the upstream WorkOS AuthKit metadata and augments it: the issuer is pinned to the WORKOS_ISSUER value configured on the deployment (so a WorkOS-side rename cannot break audience checks), registration_endpoint is injected as <WORKOS_ISSUER>/oauth2/register, and defaults are set for code_challenge_methods_supported, grant_types_supported, response_types_supported, scopes_supported, and token_endpoint_auth_methods_supported where WorkOS does not already supply them. The response is therefore an augmented view of the upstream WorkOS document, not a pure forward and not a document whose issuer is Synzo's own URL.")
+    add_bullet(doc, "Authorization-server metadata: https://www.synzo.ai/.well-known/oauth-authorization-server. Synzo fetches the upstream WorkOS AuthKit metadata, pins the issuer to Synzo's configured value, injects a registration_endpoint (so clients that need DCR can find it), and sets defaults for code_challenge_methods_supported, grant_types_supported, response_types_supported, scopes_supported, and token_endpoint_auth_methods_supported where WorkOS does not already supply them. The response is an augmented view of the upstream WorkOS document, not a pure forward.")
     add_para(
         doc,
-        "The upstream WorkOS AuthKit host is determined entirely by the deployment's "
-        "WORKOS_ISSUER environment variable (no fallback is compiled in). At the time of "
-        "this review the live endpoint advertises real-vine-49-staging.authkit.app as the "
-        "upstream host; whether that is the intended environment for Harvey submission "
-        "must be confirmed on the deployed service before go-live.",
+        "At the time of this document the live endpoint advertises a WorkOS AuthKit "
+        "staging host (real-vine-49-staging.authkit.app) as its upstream issuer. "
+        "Whether that is the intended environment for the Harvey evaluation window "
+        "must be confirmed before go-live by re-reading the live authorization-server "
+        "metadata.",
     )
     add_para(
         doc,
@@ -238,7 +298,7 @@ def main():
         "client_secret_basic. Advertising these methods in discovery does not establish "
         "that every advertised flow has been exercised end-to-end with Harvey; "
         "verification of the Harvey client registration is tracked as a pending "
-        "onboarding item (see \"Outstanding verification\" in Appendix B).",
+        "onboarding item (see \"Open items\" in Appendix B).",
     )
     add_para(
         doc,
@@ -265,10 +325,10 @@ def main():
     add_para(
         doc,
         "Synzo does not define per-tool authorization scopes and does not filter the "
-        "tool catalog by scope. Every one of the six tools uses the same authentication "
-        "and metering path. The identity scopes advertised by the authorization server "
-        "metadata are shown below; a client should request openid plus the identity "
-        "scopes it needs to establish the user's email and session.",
+        "tool catalog by scope. All five tools use the same authentication and metering "
+        "path. The identity scopes advertised by the authorization server metadata are "
+        "shown below; a client should request openid plus the identity scopes it needs "
+        "to establish the user's email and session.",
     )
     add_matrix_table(
         doc,
@@ -282,10 +342,10 @@ def main():
     )
     add_para(
         doc,
-        "The authorization-server metadata emits these scopes as a setdefault value: if "
-        "the deployed WorkOS AuthKit tenant advertises a different scopes_supported list "
-        "upstream, that list is served to clients. The authoritative source is a live "
-        "fetch of the authorization-server metadata URL at integration time.",
+        "The scope list above is a default. If the deployed WorkOS AuthKit tenant "
+        "advertises a different scopes_supported list upstream, that list is served to "
+        "clients. The authoritative source is a live fetch of the authorization-server "
+        "metadata URL at integration time.",
     )
     add_para(
         doc,
@@ -392,16 +452,182 @@ def main():
         "Every tool shares one authorization rule, one success envelope, and one error "
         "classification. Rather than repeat them per tool, they are stated once here:",
     )
-    add_bullet(doc, "Authorization: a valid organization-scoped principal (OAuth JWT with a provisioned organization claim, or an organization-scoped API key). There is no additional per-tool scope and no catalog filtering by scope.")
+    add_bullet(doc, "Authorization: a valid organization-scoped principal (OAuth JWT with a provisioned organization claim, or an organization-scoped API key). No per-tool scope; no catalog filtering by scope.")
     add_bullet(doc, "Success envelope: result.isError is false; result.structuredContent is the per-tool payload described below; result.content is a one-element array of type text whose text is the same payload serialized as indented JSON.")
-    add_bullet(doc, "Errors: input-validation performed inside a tool handler (unknown enum values, missing or malformed base64, oversized decoded payloads, provider refusals) returns a result with isError: true and an explanatory text block. Passing the legacy content_url argument is rejected as a tool error with the same shape. Protocol, authentication, organization-quota, organization-rate-limit, per-call unit-limit, and overall execution-deadline failures use JSON-RPC error envelopes with the codes documented in Appendix A. HTTP errors may contain JSON-RPC error envelopes: HTTP 400 (-32700 or -32600), 401 (-32001), 404 (-32601), and 413 (-32600) carry a JSON-RPC error body. HTTP 405 and the IP-level HTTP 429 response use ordinary JSON error objects, not JSON-RPC envelopes. Organization-level rate limiting returns JSON-RPC -32003 inside an HTTP 200 response. Clients should read both the HTTP status and the response body rather than treating them as mutually exclusive.")
-    add_bullet(doc, "Side effects: every successful call consumes organization quota and counts toward the organization's rate limits. redact_pii and detect_faces create a temporary file for the generated binary result and include its one-hour URL in the response; see the Data Handling appendix for retention. Document and image inputs are never staged under a URL — the server receives and processes the bytes in a single call.")
+    add_bullet(doc, "Side effects: every successful call consumes one unit of the organization's monthly quota. redact_pii and detect_faces return a result_url to a generated binary that lives in the server's blob store for one hour. See Appendix B for retention.")
+    add_para(
+        doc,
+        "Failures fall into two shapes. Input-validation performed inside a tool handler "
+        "(unknown enum, missing or malformed base64, oversized decoded payload, provider "
+        "refusal, legacy content_url argument) returns a result with isError: true and "
+        "an explanatory text block. All other failures return a JSON-RPC error envelope. "
+        "The mapping between HTTP status and envelope type:",
+    )
+    add_matrix_table(
+        doc,
+        ["HTTP status", "Body shape", "JSON-RPC code (if applicable)", "Notes"],
+        [
+            ["200", "JSON-RPC success OR error envelope", "-32002, -32003, -32004, -32005", "Successful calls, tool-level errors, organization quota/rate/unit/deadline errors."],
+            ["400", "JSON-RPC error envelope", "-32700, -32600", "Invalid JSON; invalid JSON-RPC structure; request body 25-50 MB."],
+            ["401", "JSON-RPC error envelope", "-32001", "Missing or invalid authentication. Carries WWW-Authenticate pointing at the protected-resource metadata URL."],
+            ["404", "JSON-RPC error envelope", "-32601", "Unknown JSON-RPC method."],
+            ["405", "Plain JSON error", "n/a", "Non-POST method against /mcp."],
+            ["413", "JSON-RPC error envelope", "-32600", "Request body > 50 MB."],
+            ["429", "Plain JSON error", "n/a", "IP-level rate limit. Honor Retry-After when present."],
+        ],
+    )
+    add_para(
+        doc,
+        "Clients should read both the HTTP status and the response body on every call: "
+        "a non-200 response usually also carries a JSON-RPC error envelope, and a 200 "
+        "response can carry either a successful result or an isError: true tool "
+        "failure.",
+    )
 
     _write_summarize(doc, add_para, add_bullet, add_code, add_tool_arg_table, add_tool_result_table)
     _write_translate(doc, add_para, add_bullet, add_code, add_tool_arg_table, add_tool_result_table)
     _write_redact(doc, add_para, add_bullet, add_code, add_tool_arg_table, add_tool_result_table)
     _write_analyze_image(doc, add_para, add_bullet, add_code, add_tool_arg_table, add_tool_result_table)
     _write_detect_faces(doc, add_para, add_bullet, add_code, add_tool_arg_table, add_tool_result_table)
+
+    # ----- CLIENT OPERATING GUIDANCE -----
+    add_para(doc, "Client Operating Guidance", style="Heading 1")
+    add_para(
+        doc,
+        "This section covers behavior a client needs to get right on the first "
+        "integration pass: encoding the base64 argument correctly, knowing which "
+        "errors should be retried and which should not, understanding what each call "
+        "costs, and knowing which negative cases the server actively enforces.",
+    )
+
+    add_para(doc, "Base64 representation", style="Heading 2")
+    add_para(
+        doc,
+        "The server validates content_base64 with Python's base64.b64decode(..., "
+        "validate=True) against the standard RFC 4648 alphabet.",
+    )
+    add_bullet(doc, "Alphabet: standard RFC 4648 alphabet (A-Z, a-z, 0-9, + and /). The URL-safe variant (- and _) is NOT accepted.")
+    add_bullet(doc, "Padding: '=' padding to a four-character boundary is required.")
+    add_bullet(doc, "Line breaks: not permitted inside the string. MIME-style line-wrapped base64 (newline every 76 characters) will be rejected.")
+    add_bullet(doc, "Data-URL prefixes: NOT accepted. A value beginning with 'data:application/pdf;base64,' or similar will be rejected. Strip the prefix before sending.")
+    add_bullet(doc, "Whitespace: any leading, trailing, or embedded whitespace causes rejection. Trim before encoding.")
+    add_bullet(doc, "Size: the decoded payload must not exceed 10,485,760 bytes. The encoded string itself is roughly 1.33x the decoded size.")
+    add_para(
+        doc,
+        "A valid encoding of a local file is: base64.b64encode(path.read_bytes())."
+        "decode('ascii') in Python, or the base64 CLI with -w0 to disable wrapping.",
+    )
+
+    add_para(doc, "First call: minimal executable example", style="Heading 2")
+    add_para(
+        doc,
+        "The example below reads a local PDF, encodes it, calls summarize_document, "
+        "and inspects both the HTTP status and the two possible failure shapes "
+        "(JSON-RPC error envelope and tool-level isError). Replace SYNZO_API_KEY and "
+        "the file path. The script is intended to be pasted into a Python 3.10+ "
+        "environment with requests installed.",
+    )
+    add_code(doc,
+        'import base64, json, os, sys\n'
+        'import requests\n'
+        '\n'
+        'API_KEY = os.environ["SYNZO_API_KEY"]              # sk_synzo_...\n'
+        'FILE_PATH = "sample.pdf"\n'
+        'URL = "https://www.synzo.ai/mcp"\n'
+        '\n'
+        'with open(FILE_PATH, "rb") as f:\n'
+        '    encoded = base64.b64encode(f.read()).decode("ascii")\n'
+        '\n'
+        'response = requests.post(\n'
+        '    URL,\n'
+        '    headers={\n'
+        '        "Content-Type": "application/json",\n'
+        '        "Accept": "application/json, text/event-stream",\n'
+        '        "MCP-Protocol-Version": "2025-06-18",\n'
+        '        "Authorization": f"Bearer {API_KEY}",\n'
+        '    },\n'
+        '    json={\n'
+        '        "jsonrpc": "2.0",\n'
+        '        "id": 1,\n'
+        '        "method": "tools/call",\n'
+        '        "params": {\n'
+        '            "name": "summarize_document",\n'
+        '            "arguments": {\n'
+        '                "filename": os.path.basename(FILE_PATH),\n'
+        '                "content_base64": encoded,\n'
+        '            },\n'
+        '        },\n'
+        '    },\n'
+        '    timeout=90,\n'
+        ')\n'
+        '\n'
+        'body = response.json()\n'
+        '\n'
+        'if "error" in body:                                 # JSON-RPC envelope error\n'
+        '    print(f"JSON-RPC error (HTTP {response.status_code}):", body["error"], file=sys.stderr)\n'
+        '    sys.exit(1)\n'
+        '\n'
+        'result = body["result"]\n'
+        'if result.get("isError"):                           # tool-level error\n'
+        '    message = result["content"][0]["text"]\n'
+        '    print("Tool error:", message, file=sys.stderr)\n'
+        '    sys.exit(2)\n'
+        '\n'
+        'summary = result["structuredContent"]["summary"]\n'
+        'print(summary)'
+    )
+
+    add_para(doc, "Retry and charging", style="Heading 2")
+    add_para(
+        doc,
+        "Each successful processing call consumes one call from the organization's "
+        "monthly quota. Handler failures and timeouts are refunded by the metering "
+        "pipeline and recorded as 'refunded' in the usage ledger. The matrix below "
+        "describes which failure modes a client should retry.",
+    )
+    add_matrix_table(
+        doc,
+        ["Failure", "Retry?", "Charging", "Notes"],
+        [
+            ["HTTP 5xx or network error before response", "Yes, with backoff", "Not charged", "The request never reached a handler. Retry with exponential backoff."],
+            ["HTTP 429 (IP rate limit)", "Yes, after Retry-After", "Not charged", "Honor the Retry-After header."],
+            ["JSON-RPC -32003 (organization rate limit, inside HTTP 200)", "Yes, after a short wait", "Not charged", "Shared across all users and tools in the organization. Back off and retry."],
+            ["JSON-RPC -32005 (tool execution deadline, 60 seconds)", "Yes, but see note", "Refunded", "The deadline returns a response but does NOT forcibly terminate the worker thread. A retry can succeed even while the original worker is still running against the external provider; the retry is a fresh call and will consume a quota unit if it succeeds."],
+            ["isError: true with 'blocked' or 'safety' in the message", "No", "Refunded", "Gemini safety filter refused the content. Retry with the same input will fail the same way."],
+            ["isError: true with 'base64', 'content_url', or 'exceed' in the message", "No", "Refunded", "Client-side input problem. Fix the argument before retrying."],
+            ["JSON-RPC -32002 (organization monthly quota exhausted)", "No, this period", "Not charged", "Resets at the start of the next calendar month, or contact support."],
+            ["JSON-RPC -32001 (authentication)", "No", "Not charged", "Rotate or renew the credential."],
+        ],
+    )
+    add_para(
+        doc,
+        "The server does not deduplicate requests by JSON-RPC id. A client that retries "
+        "a call after a deadline fire should treat two matching successful completions "
+        "as possible: either read the usage ledger to confirm, or structure the client "
+        "to be idempotent at the application layer (processing tools are naturally "
+        "idempotent in their outputs; only the metering double-count matters).",
+    )
+
+    add_para(doc, "Negative verification", style="Heading 2")
+    add_para(
+        doc,
+        "The following checks were exercised against the direct-upload contract to "
+        "confirm that the behaviors the previous revision rejected are, in fact, "
+        "rejected. Local checks are automated regression tests in the repository; "
+        "production checks were run against https://www.synzo.ai/mcp on 2026-10-05.",
+    )
+    add_matrix_table(
+        doc,
+        ["Rejected behavior", "Expected server response", "Where verified"],
+        [
+            ["Legacy content_url argument supplied alone", "Tool error (isError: true) naming the field and pointing to content_base64", "Local: tests/test_mcp_server.py::test_summarize_document_rejects_content_url. Production: /mcp preflight on 2026-10-05 confirmed upload_file is absent from the catalog, which forecloses the paired client workflow."],
+            ["content_url and content_base64 supplied together", "Tool error (isError: true); the server does NOT silently fall back to either field", "Local: same test above. The handler check runs before any base64 decode."],
+            ["upload_file tool advertised in tools/list", "Not present in the catalog", "Local: tests/test_mcp_server.py::test_upload_file_tool_is_not_advertised. Production: 2026-10-05 /mcp preflight returned exactly ['analyze_image', 'detect_faces', 'redact_pii', 'summarize_document', 'translate_document']."],
+            ["Malformed base64 (invalid characters, missing padding, line breaks)", "Tool error (isError: true) with 'base64' in the message; quota refunded", "Local: tests/test_mcp_server.py::test_processing_tool_rejects_invalid_base64."],
+            ["Decoded payload > 10 MB", "Tool error (isError: true) with 'exceed' in the message; quota refunded", "Local: tests/test_mcp_server.py::test_tools_call_decoded_content_above_10mb_returns_isError."],
+            ["Missing content_base64 field", "Tool error (isError: true) naming the required field", "Local: tests/test_mcp_server.py::test_processing_tool_missing_content_base64_returns_isError."],
+        ],
+    )
 
     # ----- APPENDIX A: OPERATIONAL LIMITS -----
     add_para(doc, "Appendix A: Operational Limits and Errors", style="Heading 1")
@@ -582,22 +808,28 @@ def main():
         "scripts/verify_harvey_evaluation.py in the Synzo repository. The run is "
         "reproducible on request against the same evaluation organization.",
     )
-    add_para(doc, "Outstanding verification", style="Heading 2")
+    add_para(doc, "Open items", style="Heading 2")
     add_para(
         doc,
-        "The following items are explicitly unverified in this submission package and "
-        "should be treated as open until confirmed with the relevant evidence. They are "
-        "listed here so a reviewer does not infer them from silence elsewhere in the "
-        "document.",
+        "The items below are not implied to be complete by any other section of this "
+        "document. They are grouped by what resolves them: integration tests still to "
+        "run between Synzo and Harvey, product capabilities that are not implemented "
+        "and will not change on their own, and provider-side or operational facts that "
+        "require independent confirmation outside the Synzo code base.",
     )
-    add_bullet(doc, "WorkOS OAuth token lifetimes. The Synzo-application values (5-minute access token, 365-day session with 2-day inactivity timeout, 7-day invitations) were read from the WorkOS AuthKit dashboard on October 5, 2026 and are quoted in the Token Security table. The email verification / password-setup link lifetime is not surfaced in the dashboard and operates at the WorkOS AuthKit default; the exact value should be confirmed with WorkOS if a reviewer needs a hard number.")
-    add_bullet(doc, "End-to-end Harvey OAuth verification. The authorization-server metadata advertises Authorization Code with PKCE S256, refresh tokens, device code, and Dynamic Client Registration. A completed end-to-end Harvey OAuth client registration and per-user authorization flow has not been exercised at the time of this revision.")
-    add_bullet(doc, "Harvey-side attachment transfer. The revised contract requires every processing tool to accept content_base64 directly. Successful transfer of Harvey-side attachment bytes through the base64 argument has not been exercised and remains the primary open acceptance item for direct confirmation with Harvey.")
-    add_bullet(doc, "Harvey Origin allowlist entry. Whether Harvey's MCP client sends an Origin header on requests to /mcp (and if so, what the exact value is for evaluation and production) has not been confirmed with Harvey. A Harvey backend-to-server call may send no Origin header, in which case no allowlist entry is required; a Harvey browser-direct call needs an exact Origin value added to Synzo's allowlist. This item will be resolved by direct confirmation with Harvey during onboarding, independent of any OAuth redirect-URI configuration.")
-    add_bullet(doc, "Harvey-workspace to Synzo-organization restriction. The code base does not implement a mapping between a specific Harvey workspace identifier and a specific Synzo organization. Any Harvey user invited into a Synzo organization authenticates as a member of that organization in the normal way; organization membership is Synzo-side, not Harvey-side. A customer-admin control to restrict a Synzo organization to a particular Harvey workspace is not implemented.")
-    add_bullet(doc, "Provider processing locations. Processing regions for Google Gemini, WorkOS AuthKit, and the Railway application and database are not pinned by Synzo application code (no region parameter is passed to the Gemini client; no WorkOS region is configured). The published Synzo privacy policy identifies US hosting; an exhaustive list of provider-side processing locations has not been independently verified.")
+    add_para(doc, "Integration checks still to perform", style="Heading 3")
+    add_bullet(doc, "End-to-end Harvey OAuth client registration and per-user authorization flow. The authorization-server metadata advertises PKCE S256, refresh tokens, device code, and Dynamic Client Registration, and the API-key path has been verified end-to-end (see Live verification record). The OAuth path has not been exercised with a real Harvey client.")
+    add_bullet(doc, "Harvey-side attachment transfer through the content_base64 argument. The processing tools accept base64 bytes inline, but whether Harvey's MCP client implementation can read an attachment and populate that argument programmatically has not been confirmed with Harvey.")
+    add_bullet(doc, "Harvey Origin allowlist entry. Whether Harvey's MCP client sends an Origin header on requests to /mcp (and if so, the exact value for evaluation and production) is not known. A Harvey backend-to-server call may send no Origin header, in which case no allowlist entry is required; a Harvey browser-direct call needs an exact Origin value added to Synzo's allowlist.")
+    add_bullet(doc, "Email verification / password-setup link lifetime. The Synzo-application access token (5 minutes), session (365 days with 2-day inactivity timeout), and invitation (7 days) values were read from the WorkOS AuthKit dashboard on 2026-10-05 and are quoted in Token Security. The password-setup link lifetime is not surfaced in the dashboard and operates at the WorkOS AuthKit default; the exact value should be confirmed with WorkOS if a hard number is required.")
+
+    add_para(doc, "Known product limitations", style="Heading 3")
+    add_bullet(doc, "No Harvey-workspace-to-Synzo-organization mapping. The code base does not implement a mapping between a specific Harvey workspace identifier and a specific Synzo organization. Any Harvey user invited into a Synzo organization authenticates as a member of that organization in the normal way. A customer-admin control to restrict a Synzo organization to a particular Harvey workspace is not implemented.")
+    add_bullet(doc, "No automated enforcement of the published 90-day usage-event retention target. The Synzo privacy policy states 90-day retention; the inspected implementation does not demonstrate an automated purge. Deployed cleanup remains an open operational item.")
+
+    add_para(doc, "Provider and operational facts awaiting confirmation", style="Heading 3")
+    add_bullet(doc, "Provider processing locations. Processing regions for Google Gemini, WorkOS AuthKit, and the Railway application and database are not pinned by Synzo application code. The Synzo privacy policy identifies US hosting; a complete list of provider-side processing locations has not been independently verified.")
     add_bullet(doc, "Provider retention and model-training treatment. Google Gemini content-handling terms, WorkOS data-retention terms, and Railway database retention terms as they apply to the Synzo deployment have not been independently confirmed in this package. Reviewers should obtain the relevant provider agreements rather than infer behavior from the Synzo code.")
-    add_bullet(doc, "90-day usage-event retention enforcement. The published Synzo privacy policy states a 90-day usage-event retention target. The inspected implementation does not demonstrate an automated purge enforcing that period; deployed cleanup is an open operational item.")
     add_bullet(doc, "Third-party assurance. This specification does not assert SOC 2 Type II, ISO 27001, a completed third-party penetration-test report, or a dedicated prompt-injection review. A May 2026 static-analysis, dependency, and container scan report is available on request and is not equivalent to any of the above. A published Data Processing Addendum and a dedicated Trust Center are not currently identified in the submission materials.")
 
     # ----- REVISION HISTORY -----
@@ -609,6 +841,7 @@ def main():
             ["1.0", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Initial Synzo MCP Server Specification. Prepared against repository commit 1adc36e and the September 10, 2026 verification record. Supersedes the September 10 Synzo Harvey technical documentation as the integration contract."],
             ["1.1", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Direct-upload revision in response to Harvey's security review. Removed the upload_file tool and the URL-input path on every processing tool; each of the five remaining tools now accepts the document or image bytes directly as content_base64. Updated Tool Catalog, every Reference entry, Operational Limits (removed URL fetch deadline and redirect cap, clarified the decoded-file scope), and Data Handling (processing-flow table, isolation statement, retention)."],
             ["1.2", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Added the Live verification record subsection in Appendix B. All five tools were exercised end-to-end against the production endpoint on 2026-10-05 using a temporary API key issued against the Harvey Connector Evaluation organization; the temporary key was revoked at the end of the run. Removed the matching Outstanding verification bullet now that the live record is in place."],
+            ["1.3", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Review-feedback pass. Added a Client Operating Guidance section covering a runnable first-call Python example, explicit base64 encoding rules, a retry-and-charging matrix, and a negative-verification table citing the local tests and the 2026-10-05 production preflight. Added a table of contents and marked table header rows as repeating for multi-page tables. Reorganized the former 'Outstanding verification' section into integration checks still to perform, known product limitations, and provider/operational facts awaiting confirmation. Corrected cover provenance (separated implementation revision, document revision, and verification date; dropped a stale commit hash). Corrected summarize_document's filename result field to reflect Werkzeug secure_filename sanitization. Replaced the long shared error-handling paragraph with a status/body/code matrix and a one-sentence usage note. Removed per-tool repetitions of 'the server does not fetch from URLs' now that the shared bullets and the Tool Catalog intro cover it. Relabeled the redact_pii 'representative failure' as a processing limitation (the call succeeds)."],
         ],
     )
 
@@ -625,12 +858,10 @@ def _write_summarize(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "summarize_document receives the document bytes directly as content_base64, "
-        "extracts the text, and sends the text to Google Gemini. Gemini returns both an "
-        "inferred document classification and a Markdown summary. Supported file formats "
-        "are PDF, DOCX, PPTX, and XLSX. The tool does not generate a downloadable binary "
-        "and does not modify the source file. The server does not fetch content from "
-        "caller-supplied URLs.",
+        "Extracts text from the decoded document bytes and sends the text to Google "
+        "Gemini. Gemini returns an inferred document classification and a Markdown "
+        "summary. Supported formats: PDF, DOCX, PPTX, XLSX. No downloadable binary is "
+        "generated.",
     )
     add_para(
         doc,
@@ -645,13 +876,13 @@ def _write_summarize(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "PDF, DOCX, PPTX, or XLSX filename. Used to confirm the supported extension and signature."],
-        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded document bytes. Must be supplied inline; the server does not fetch input content from any URL."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded document bytes. See 'Base64 representation' below for the exact rules."],
     ])
     add_para(doc, "Return Results", style="Heading 2")
     add_result_table(doc, [
         ["classification", "string | null", "May be null if the model does not return one.", "Inferred document type (e.g., Contract, Research Paper)."],
         ["summary", "string", "Always present on success.", "Markdown summary of the document."],
-        ["filename", "string", "Always present.", "Echoed from the input."],
+        ["filename", "string", "Always present.", "Input filename after Werkzeug secure_filename sanitization. Spaces, path separators, and non-ASCII characters are stripped or replaced; the extension is preserved. Not guaranteed to equal the input byte-for-byte."],
     ])
     add_para(doc, "Example request:")
     add_code(doc,
@@ -701,12 +932,10 @@ def _write_translate(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "translate_document receives the document bytes directly as content_base64, "
-        "extracts the text, and sends the text to Google Gemini with the requested "
-        "target_language. The tool returns the translation as Markdown text; it does not "
-        "produce a translated Office file. Supported input formats are DOCX, PPTX, and "
-        "XLSX. PDF is not supported by this tool. The server does not fetch content from "
-        "caller-supplied URLs.",
+        "Extracts text from the decoded document bytes and sends it to Google Gemini "
+        "with the requested target_language. Returns the translation as Markdown text; "
+        "does not produce a translated Office file. Supported formats: DOCX, PPTX, XLSX. "
+        "PDF is not supported.",
     )
     add_para(
         doc,
@@ -721,7 +950,7 @@ def _write_translate(doc, add_para, add_bullet, add_code, add_arg_table, add_res
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "DOCX, PPTX, or XLSX filename. Used to confirm the supported extension and signature."],
-        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded document bytes. Must be supplied inline; the server does not fetch input content from any URL."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded document bytes. See 'Base64 representation' below for the exact rules."],
         ["target_language", "string", "Required. Advertised length 2–64.", "English language name for the destination language."],
     ])
     add_para(doc, "Return Results", style="Heading 2")
@@ -776,14 +1005,12 @@ def _write_redact(doc, add_para, add_bullet, add_code, add_arg_table, add_result
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "redact_pii receives the document bytes directly as content_base64 and runs "
-        "Microsoft Presidio with spaCy inside the Synzo process to locate personally "
-        "identifiable text. Detected characters are replaced with block symbols. The "
-        "output is a new copy of the document in its original format (DOCX or PPTX), "
-        "stored in the in-process blob store with a one-hour expiry URL. The source file "
-        "is not modified. redact_pii does not send document content to Google Gemini or "
-        "to any Microsoft service, and the server does not fetch content from caller-"
-        "supplied URLs.",
+        "Runs Microsoft Presidio with spaCy inside the Synzo process to locate "
+        "personally identifiable text in the decoded document. Detected characters are "
+        "replaced with block symbols. Returns a short-lived HTTPS URL (result_url) to a "
+        "redacted copy of the document in its original format (DOCX or PPTX). The source "
+        "file is not modified. redact_pii does not send document content to Google "
+        "Gemini or to any Microsoft service.",
     )
     add_para(
         doc,
@@ -798,7 +1025,7 @@ def _write_redact(doc, add_para, add_bullet, add_code, add_arg_table, add_result
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "DOCX or PPTX filename. Used to confirm the supported extension and signature."],
-        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded document bytes. Must be supplied inline; the server does not fetch input content from any URL."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded document bytes. See 'Base64 representation' below for the exact rules."],
     ])
     add_para(doc, "Return Results", style="Heading 2")
     add_result_table(doc, [
@@ -845,9 +1072,10 @@ def _write_redact(doc, add_para, add_bullet, add_code, add_arg_table, add_result
     )
     add_para(
         doc,
-        "Representative failure: a PPTX whose content is entirely inside embedded images "
-        "returns a successful call whose redacted copy is visually unchanged; this is a "
-        "limitation of text-based detection and must be covered by human review.",
+        "Processing limitation (not a failure): a PPTX whose content is entirely inside "
+        "embedded images returns a successful call whose redacted copy is visually "
+        "unchanged. Text-based detection cannot see pixels. Human review remains "
+        "required before disclosure.",
     )
 
 
@@ -857,12 +1085,10 @@ def _write_analyze_image(doc, add_para, add_bullet, add_code, add_arg_table, add
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "analyze_image receives the image bytes directly as content_base64 and sends the "
-        "bytes to Google Gemini vision. It returns a structured JSON object with a short "
-        "description, a longer rich description, OCR-extracted text, detected objects, "
-        "and three safety flags. In parallel, Synzo computes a dominant-color palette "
-        "from the image locally. The source image is not modified, no binary result is "
-        "generated, and the server does not fetch content from caller-supplied URLs.",
+        "Sends the decoded image bytes to Google Gemini vision and returns a structured "
+        "JSON object with a short description, a longer rich description, OCR-extracted "
+        "text, detected objects, and three safety flags. Synzo computes a dominant-color "
+        "palette locally in parallel. No downloadable binary is generated.",
     )
     add_para(
         doc,
@@ -879,7 +1105,7 @@ def _write_analyze_image(doc, add_para, add_bullet, add_code, add_arg_table, add
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "JPG, JPEG, PNG, WEBP, HEIC, or HEIF filename."],
-        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded image bytes. Must be supplied inline; the server does not fetch input content from any URL."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded image bytes. See 'Base64 representation' below for the exact rules."],
     ])
     add_para(doc, "Return Results", style="Heading 2")
     add_result_table(doc, [
@@ -950,12 +1176,11 @@ def _write_detect_faces(doc, add_para, add_bullet, add_code, add_arg_table, add_
     add_para(doc, "Full Description", style="Heading 2")
     add_para(
         doc,
-        "detect_faces receives the image bytes directly as content_base64, locates faces "
-        "using MTCNN with OpenCV running inside the Synzo process, and generates a PNG "
-        "in which detected faces are either blurred or covered with opaque rectangles. "
-        "The source image is not modified, and the server does not fetch content from "
-        "caller-supplied URLs. No face-recognition is performed: detected faces are not "
-        "matched to named individuals and no identity attributes are returned.",
+        "Locates faces in the decoded image using MTCNN with OpenCV inside the Synzo "
+        "process and returns a PNG in which detected faces are either blurred or covered "
+        "with opaque rectangles. The source image is not modified. No face recognition "
+        "is performed: detected faces are not matched to named individuals and no "
+        "identity attributes are returned.",
     )
     add_para(
         doc,
@@ -970,7 +1195,7 @@ def _write_detect_faces(doc, add_para, add_bullet, add_code, add_arg_table, add_
     add_para(doc, "Call Arguments", style="Heading 2")
     add_arg_table(doc, [
         ["filename", "string", "Required.", "JPG, JPEG, PNG, WEBP, HEIC, or HEIF filename."],
-        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded image bytes. Must be supplied inline; the server does not fetch input content from any URL."],
+        ["content_base64", "string", "Required. Decoded bytes ≤ 10,485,760 (10 MB).", "Base64-encoded image bytes. See 'Base64 representation' below for the exact rules."],
         ["mode", "string", "Optional. Enum: blur, redact. Default blur.", "blur applies a Gaussian blur to detected faces; redact overlays opaque rectangles."],
         ["blur_strength", "integer", "Optional. Enum: 1, 2, 3. Default 2.", "1 = light blur; 2 = strong blur; 3 = opaque fill. Ignored when mode is redact."],
     ])
