@@ -1,9 +1,9 @@
 To: partnerships@harvey.ai; prodsec@harvey.ai; trust-team@harvey.ai
 
-Subject: Synzo connector resubmission - direct-upload contract (revision 1.3)
+Subject: Synzo connector resubmission - direct-upload contract (revision 1.4)
 
 Attachments:
-- Synzo-MCP-Server-Specification.docx (revision 1.3, 5 October 2026)
+- Synzo-MCP-Server-Specification.docx (revision 1.4, 5 October 2026)
 - Synzo-MCP-Tool-Definitions.json
 
 Hello Harvey team,

@@ -1887,6 +1887,80 @@ def test_processing_tool_rejects_invalid_base64(client, app, fake_gemini):
     assert "base64" in body["result"]["content"][0]["text"].lower()
 
 
+def test_processing_tool_rejects_base64_with_line_breaks(client, app, fake_gemini):
+    """MIME-style line-wrapped base64 (newline every 76 chars) is rejected.
+
+    Python's base64.b64decode(..., validate=True) rejects newlines; this test
+    documents that behavior so the specification's 'no line breaks' claim is
+    backed by a check against the actual handler."""
+    import base64 as _b64
+    org = _seed_org(app, name="mcp_b64_newlines")
+    # 200 bytes of payload base64-encodes to 268 chars, which forces the MIME
+    # wrapper to insert at least three newlines.
+    encoded = _b64.encodebytes(b"%PDF-1.4 " + b"x" * 200).decode("ascii")
+    assert "\n" in encoded
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {"filename": "x.pdf", "content_base64": encoded},
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "base64" in body["result"]["content"][0]["text"].lower()
+
+
+def test_processing_tool_rejects_base64_missing_padding(client, app, fake_gemini):
+    """Base64 that needs padding to reach a 4-character boundary and omits it
+    is rejected by strict decode. (A payload whose encoded length is already a
+    multiple of 4 does not need trailing '=' padding and is accepted; this
+    test specifically exercises the length-not-multiple-of-4 case.)"""
+    import base64 as _b64
+    org = _seed_org(app, name="mcp_b64_no_pad")
+    # 2 bytes encodes to "YWI=" (4 chars with 1 pad). Stripping the pad leaves
+    # "YWI" (3 chars) which is not a valid base64 length.
+    encoded = _b64.b64encode(b"ab").decode("ascii").rstrip("=")
+    assert len(encoded) == 3 and not encoded.endswith("=")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {"filename": "x.pdf", "content_base64": encoded},
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "base64" in body["result"]["content"][0]["text"].lower()
+
+
+def test_summarize_document_rejects_content_url_alone(client, app, fake_gemini):
+    """content_url supplied without content_base64 is rejected — this is the
+    'URL alone' case, separate from the mixed-arguments case. The handler
+    must reject on content_url before noticing the missing content_base64,
+    so the error message names content_url."""
+    org = _seed_org(app, name="mcp_url_alone")
+    resp = _rpc(
+        client,
+        "tools/call",
+        {
+            "name": "summarize_document",
+            "arguments": {
+                "filename": "doc.pdf",
+                "content_url": "https://example.com/evil.pdf",
+            },
+        },
+        headers=org["auth_header"],
+    )
+    body = resp.get_json()
+    assert body["result"]["isError"] is True
+    assert "content_url" in body["result"]["content"][0]["text"]
+
+
 def test_upload_file_tool_is_not_advertised(client):
     """upload_file was removed from the catalog along with the URL input path.
     Clients that still try to call it must get a method-not-found, not a

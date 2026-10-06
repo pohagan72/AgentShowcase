@@ -172,16 +172,17 @@ def main():
     )
     add_para(doc, "Provider: Red Maple Research")
     add_para(doc, "Primary technical contact: Paul O'Hagan, Principal — paul@redmapleresearch.ca")
-    add_para(doc, "Document revision: 1.3")
+    add_para(doc, "Document revision: 1.4")
     add_para(doc, "Document last updated: 5 October 2026")
     add_para(
         doc,
-        "Implementation revision at this document's publication: Synzo commit 6af4183. "
-        "Server version returned by the live initialize response at that revision: 0.1.0. "
-        "The deployed revision serving https://www.synzo.ai/mcp follows the Synzo master "
-        "branch; the exact deployed commit on any given day should be read from the "
-        "live /mcp or from Railway's deployment log rather than inferred from this "
-        "document.",
+        "Implementation revision at this document's publication: Synzo commit 6af4183 on "
+        "the master branch. The live /mcp endpoint advertises the server version "
+        "(serverInfo.version, currently 0.1.0) in its initialize response, which "
+        "identifies the published connector release, not the deployed Git commit. The "
+        "deployed commit at any point in time is recorded in the Railway deployment log; "
+        "contact paul@redmapleresearch.ca if a reviewer needs confirmation that a "
+        "specific commit is in production.",
     )
     add_para(doc, "Live verification date: 5 October 2026. See Appendix B, \"Live verification record.\"")
 
@@ -507,8 +508,8 @@ def main():
         "validate=True) against the standard RFC 4648 alphabet.",
     )
     add_bullet(doc, "Alphabet: standard RFC 4648 alphabet (A-Z, a-z, 0-9, + and /). The URL-safe variant (- and _) is NOT accepted.")
-    add_bullet(doc, "Padding: '=' padding to a four-character boundary is required.")
-    add_bullet(doc, "Line breaks: not permitted inside the string. MIME-style line-wrapped base64 (newline every 76 characters) will be rejected.")
+    add_bullet(doc, "Padding: the encoded string's length must be a multiple of 4. Standard encoders produce the right length by appending '=' padding when the input length is not a multiple of 3. Stripping that padding (as some JWT-style formats do) leaves a string whose length is not a multiple of 4; such input will be rejected. If the input length is already a multiple of 3, no padding is needed.")
+    add_bullet(doc, "Line breaks: not permitted inside the string. MIME-style line-wrapped base64 (newline every 76 characters, as produced by Python's base64.encodebytes or the base64 CLI without -w0) will be rejected.")
     add_bullet(doc, "Data-URL prefixes: NOT accepted. A value beginning with 'data:application/pdf;base64,' or similar will be rejected. Strip the prefix before sending.")
     add_bullet(doc, "Whitespace: any leading, trailing, or embedded whitespace causes rejection. Trim before encoding.")
     add_bullet(doc, "Size: the decoded payload must not exceed 10,485,760 bytes. The encoded string itself is roughly 1.33x the decoded size.")
@@ -538,30 +539,46 @@ def main():
         'with open(FILE_PATH, "rb") as f:\n'
         '    encoded = base64.b64encode(f.read()).decode("ascii")\n'
         '\n'
-        'response = requests.post(\n'
-        '    URL,\n'
-        '    headers={\n'
-        '        "Content-Type": "application/json",\n'
-        '        "Accept": "application/json, text/event-stream",\n'
-        '        "MCP-Protocol-Version": "2025-06-18",\n'
-        '        "Authorization": f"Bearer {API_KEY}",\n'
-        '    },\n'
-        '    json={\n'
-        '        "jsonrpc": "2.0",\n'
-        '        "id": 1,\n'
-        '        "method": "tools/call",\n'
-        '        "params": {\n'
-        '            "name": "summarize_document",\n'
-        '            "arguments": {\n'
-        '                "filename": os.path.basename(FILE_PATH),\n'
-        '                "content_base64": encoded,\n'
+        'try:\n'
+        '    response = requests.post(\n'
+        '        URL,\n'
+        '        headers={\n'
+        '            "Content-Type": "application/json",\n'
+        '            "Accept": "application/json, text/event-stream",\n'
+        '            "MCP-Protocol-Version": "2025-06-18",\n'
+        '            "Authorization": f"Bearer {API_KEY}",\n'
+        '        },\n'
+        '        json={\n'
+        '            "jsonrpc": "2.0",\n'
+        '            "id": 1,\n'
+        '            "method": "tools/call",\n'
+        '            "params": {\n'
+        '                "name": "summarize_document",\n'
+        '                "arguments": {\n'
+        '                    "filename": os.path.basename(FILE_PATH),\n'
+        '                    "content_base64": encoded,\n'
+        '                },\n'
         '            },\n'
         '        },\n'
-        '    },\n'
-        '    timeout=90,\n'
-        ')\n'
+        '        timeout=90,\n'
+        '    )\n'
+        'except requests.RequestException as e:\n'
+        '    # DNS/TCP/TLS failure, connection reset, read timeout, etc.\n'
+        '    # Execution and charging may be unknown; see "Retry and charging."\n'
+        '    print(f"Transport error: {e}", file=sys.stderr)\n'
+        '    sys.exit(3)\n'
         '\n'
-        'body = response.json()\n'
+        'try:\n'
+        '    body = response.json()\n'
+        'except ValueError:\n'
+        '    # A gateway (Cloudflare, Railway edge) can return HTML or plain text\n'
+        '    # on 5xx without ever reaching Synzo. Treat as transport-level.\n'
+        '    print(\n'
+        '        f"Non-JSON response (HTTP {response.status_code}): "\n'
+        '        f"{response.text[:200]!r}",\n'
+        '        file=sys.stderr,\n'
+        '    )\n'
+        '    sys.exit(3)\n'
         '\n'
         'if "error" in body:                                 # JSON-RPC envelope error\n'
         '    print(f"JSON-RPC error (HTTP {response.status_code}):", body["error"], file=sys.stderr)\n'
@@ -589,7 +606,8 @@ def main():
         doc,
         ["Failure", "Retry?", "Charging", "Notes"],
         [
-            ["HTTP 5xx or network error before response", "Yes, with backoff", "Not charged", "The request never reached a handler. Retry with exponential backoff."],
+            ["Connection failure before the request was transmitted (DNS, TCP, TLS)", "Yes, with backoff", "Not charged", "The handler never ran. Safe to retry with exponential backoff."],
+            ["Lost response after transmission (socket closed, read timeout) or HTTP 5xx from an intermediary gateway", "Yes, with backoff; see note", "May be charged", "Once the request has been transmitted, execution and charging state are unknown to the client. The handler may have run to completion; a gateway may have returned 5xx while the backend is still processing. A retry is a new request and may repeat processing and consume another unit. Confirm via the usage ledger when double-processing is unacceptable."],
             ["HTTP 429 (IP rate limit)", "Yes, after Retry-After", "Not charged", "Honor the Retry-After header."],
             ["JSON-RPC -32003 (organization rate limit, inside HTTP 200)", "Yes, after a short wait", "Not charged", "Shared across all users and tools in the organization. Back off and retry."],
             ["JSON-RPC -32005 (tool execution deadline, 60 seconds)", "Yes, but see note", "Refunded", "The deadline returns a response but does NOT forcibly terminate the worker thread. A retry can succeed even while the original worker is still running against the external provider; the retry is a fresh call and will consume a quota unit if it succeeds."],
@@ -601,31 +619,33 @@ def main():
     )
     add_para(
         doc,
-        "The server does not deduplicate requests by JSON-RPC id. A client that retries "
-        "a call after a deadline fire should treat two matching successful completions "
-        "as possible: either read the usage ledger to confirm, or structure the client "
-        "to be idempotent at the application layer (processing tools are naturally "
-        "idempotent in their outputs; only the metering double-count matters).",
+        "The server does not deduplicate requests by JSON-RPC id. Two consequences follow:",
     )
+    add_bullet(doc, "After a lost response or an HTTP 5xx from an intermediary, execution and charging may be unknown. A retry is a new request that may repeat processing and consume another unit; use bounded backoff and accept the possibility of a double call when repeat processing is acceptable, or read the usage ledger before retrying when it is not.")
+    add_bullet(doc, "Retries do not produce identical outputs. summarize_document, translate_document, and analyze_image are backed by Google Gemini and the model may return different wording on each call. redact_pii and detect_faces produce a new result_url and a new expires_at on each successful call. A client that depends on a specific output of an earlier call must cache that output; retrying will not reproduce it.")
 
     add_para(doc, "Negative verification", style="Heading 2")
     add_para(
         doc,
-        "The following checks were exercised against the direct-upload contract to "
-        "confirm that the behaviors the previous revision rejected are, in fact, "
-        "rejected. Local checks are automated regression tests in the repository; "
-        "production checks were run against https://www.synzo.ai/mcp on 2026-10-05.",
+        "Each row below lists one rejected behavior, the expected server response, "
+        "and the exact evidence it was tested against. Local evidence is an automated "
+        "regression test in the repository; production evidence is a direct observation "
+        "against https://www.synzo.ai/mcp. Rows that lack production evidence are not "
+        "implied to be rejected in production: they are rejected by the committed "
+        "handler code and verified locally against the test harness.",
     )
     add_matrix_table(
         doc,
-        ["Rejected behavior", "Expected server response", "Where verified"],
+        ["Rejected behavior", "Expected server response", "Evidence"],
         [
-            ["Legacy content_url argument supplied alone", "Tool error (isError: true) naming the field and pointing to content_base64", "Local: tests/test_mcp_server.py::test_summarize_document_rejects_content_url. Production: /mcp preflight on 2026-10-05 confirmed upload_file is absent from the catalog, which forecloses the paired client workflow."],
-            ["content_url and content_base64 supplied together", "Tool error (isError: true); the server does NOT silently fall back to either field", "Local: same test above. The handler check runs before any base64 decode."],
-            ["upload_file tool advertised in tools/list", "Not present in the catalog", "Local: tests/test_mcp_server.py::test_upload_file_tool_is_not_advertised. Production: 2026-10-05 /mcp preflight returned exactly ['analyze_image', 'detect_faces', 'redact_pii', 'summarize_document', 'translate_document']."],
-            ["Malformed base64 (invalid characters, missing padding, line breaks)", "Tool error (isError: true) with 'base64' in the message; quota refunded", "Local: tests/test_mcp_server.py::test_processing_tool_rejects_invalid_base64."],
+            ["content_url supplied alone (no content_base64)", "Tool error (isError: true) with 'content_url' in the message", "Local: tests/test_mcp_server.py::test_summarize_document_rejects_content_url_alone."],
+            ["content_url and content_base64 supplied together", "Tool error (isError: true) with 'content_url' in the message; the server does NOT fall back to the base64 field", "Local: tests/test_mcp_server.py::test_summarize_document_rejects_content_url. The content_url check runs before any base64 decode."],
+            ["upload_file tool present in tools/list", "Tool not advertised; a tools/call against upload_file returns -32601 (unknown tool)", "Local: tests/test_mcp_server.py::test_upload_file_tool_is_not_advertised. Production: 2026-10-05 /mcp preflight returned exactly ['analyze_image', 'detect_faces', 'redact_pii', 'summarize_document', 'translate_document']. Production evidence establishes catalog absence; it does not independently establish per-tool content_url rejection on the processing tools."],
+            ["Base64 with invalid characters (outside the standard RFC 4648 alphabet)", "Tool error (isError: true) with 'base64' in the message; quota refunded", "Local: tests/test_mcp_server.py::test_processing_tool_rejects_invalid_base64 (payload '!!!not base64!!!')."],
+            ["Base64 with MIME-style line breaks (newline every 76 characters)", "Tool error (isError: true) with 'base64' in the message; quota refunded", "Local: tests/test_mcp_server.py::test_processing_tool_rejects_base64_with_line_breaks."],
+            ["Base64 of length not a multiple of 4 (stripped padding)", "Tool error (isError: true) with 'base64' in the message; quota refunded", "Local: tests/test_mcp_server.py::test_processing_tool_rejects_base64_missing_padding."],
             ["Decoded payload > 10 MB", "Tool error (isError: true) with 'exceed' in the message; quota refunded", "Local: tests/test_mcp_server.py::test_tools_call_decoded_content_above_10mb_returns_isError."],
-            ["Missing content_base64 field", "Tool error (isError: true) naming the required field", "Local: tests/test_mcp_server.py::test_processing_tool_missing_content_base64_returns_isError."],
+            ["Missing content_base64 field (and no content_url either)", "Tool error (isError: true) with 'content_base64' in the message", "Local: tests/test_mcp_server.py::test_processing_tool_missing_content_base64_returns_isError."],
         ],
     )
 
@@ -842,6 +862,7 @@ def main():
             ["1.1", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Direct-upload revision in response to Harvey's security review. Removed the upload_file tool and the URL-input path on every processing tool; each of the five remaining tools now accepts the document or image bytes directly as content_base64. Updated Tool Catalog, every Reference entry, Operational Limits (removed URL fetch deadline and redirect cap, clarified the decoded-file scope), and Data Handling (processing-flow table, isolation statement, retention)."],
             ["1.2", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Added the Live verification record subsection in Appendix B. All five tools were exercised end-to-end against the production endpoint on 2026-10-05 using a temporary API key issued against the Harvey Connector Evaluation organization; the temporary key was revoked at the end of the run. Removed the matching Outstanding verification bullet now that the live record is in place."],
             ["1.3", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Review-feedback pass. Added a Client Operating Guidance section covering a runnable first-call Python example, explicit base64 encoding rules, a retry-and-charging matrix, and a negative-verification table citing the local tests and the 2026-10-05 production preflight. Added a table of contents and marked table header rows as repeating for multi-page tables. Reorganized the former 'Outstanding verification' section into integration checks still to perform, known product limitations, and provider/operational facts awaiting confirmation. Corrected cover provenance (separated implementation revision, document revision, and verification date; dropped a stale commit hash). Corrected summarize_document's filename result field to reflect Werkzeug secure_filename sanitization. Replaced the long shared error-handling paragraph with a status/body/code matrix and a one-sentence usage note. Removed per-tool repetitions of 'the server does not fetch from URLs' now that the shared bullets and the Tool Catalog intro cover it. Relabeled the redact_pii 'representative failure' as a processing limitation (the call succeeds)."],
+            ["1.4", "5 October 2026", "Paul O'Hagan, Red Maple Research", "Factual corrections in the Client Operating Guidance section. Rewrote the retry matrix to distinguish failures before transmission (safe to retry; not charged) from lost responses or intermediary 5xx after transmission (execution and charging may be unknown). Replaced the 'outputs are naturally idempotent' note: Gemini-backed tools may return different wording on each call, and redact_pii/detect_faces generate new result_urls and expiries on each successful call. Narrowed every row of the negative-verification table to what the cited test actually asserts and added three new regression tests (base64 with line breaks, base64 with length not a multiple of 4, content_url supplied alone) so the table is backed by the specific checks it describes. Added transport-error handling to the runnable example (requests.RequestException and non-JSON responses). Corrected the cover provenance to clarify that /mcp advertises the server version, not the deployed Git commit, and directed reviewers to the Railway deployment log via the contact email for a specific commit confirmation. Corrected the base64 padding bullet to describe the actual rule (encoded length must be a multiple of 4) rather than imply unconditional '=' padding."],
         ],
     )
 
